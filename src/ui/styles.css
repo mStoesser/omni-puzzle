@@ -184,7 +184,51 @@ button:disabled {
   gap: var(--space-2);
 }
 
-.type-list {
+h2 {
+  font-size: 1.125rem;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.card-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card-icon {
+  font-size: 1.5rem;
+}
+
+.card-title {
+  font-weight: 600;
+}
+
+.card-detail {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.board svg {
+  width: min(100%, 70dvh);
 }

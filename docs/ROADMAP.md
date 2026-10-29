@@ -28,11 +28,11 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 - [x] `i18n/de.ts` anlegen; alle UI-Texte von Anfang an darüber.
 
 ### M2 – Rush Hour (vertikaler Durchstich)
-- [ ] `logic.ts` mit Tests: Kollision, Ränder, Züge, `isSolved`, `validate` (überlappende Blöcke, fehlender Zielblock, falsche Ausgangsachse).
-- [ ] `solver.ts` mit Tests: Breitensuche, bekannte Beispielrätsel mit bekannter minimaler Zuganzahl, unlösbares Rätsel wird erkannt.
-- [ ] `render.ts`: SVG-Spielfeld, Ziehen per Pointer Events mit Einrasten, Ausgang markiert, Zielblock hervorgehoben.
-- [ ] 3–5 eingebaute Beispielrätsel.
-- [ ] Spielbar über `#/play/...`.
+- [x] `logic.ts` mit Tests: Kollision, Ränder, Züge, `isSolved`, `validate` (überlappende Blöcke, fehlender Zielblock, falsche Ausgangsachse).
+- [x] `solver.ts` mit Tests: Breitensuche, bekannte Beispielrätsel mit bekannter minimaler Zuganzahl, unlösbares Rätsel wird erkannt.
+- [x] `render.ts`: SVG-Spielfeld, Ziehen per Pointer Events mit Einrasten, Ausgang markiert, Zielblock hervorgehoben.
+- [x] 3–5 eingebaute Beispielrätsel.
+- [x] Spielbar über `#/play/...`.
 
 ### M3 – Editor-Grundlagen (am Beispiel Rush Hour)
 - [ ] Generischer Grid-Editor (`ui/components/grid-editor.ts`): Größe, Palette, Platzieren, Drehen, Radieren, Editor-Undo.

@@ -15,4 +15,9 @@ export const de = {
   solvedTextOther: "Du hast das Rätsel mit {moves} Zügen gelöst.",
   playAgain: "Nochmal spielen",
   close: "Schließen",
+  examples: "Beispielrätsel",
+  minMovesHint: "Mindestens {moves} Züge",
+
+  rushHourName: "Ausparken",
+  rushHourBoard: "Spielfeld: Blöcke entlang ihrer Richtung ziehen, bis der rote Block den Ausgang erreicht.",
 } as const;

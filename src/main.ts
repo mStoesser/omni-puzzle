@@ -1,11 +1,12 @@
 import { render } from "lit-html";
+import { loadDocument } from "./core/document.ts";
 import { createStore } from "./core/store.ts";
 import { parseRoute, startRouter } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
 import type { AnyPlaySession } from "./core/session.ts";
 import { t } from "./i18n/t.ts";
-import { registry } from "./puzzles/index.ts";
+import { examples, registry } from "./puzzles/index.ts";
 import { homeView } from "./ui/views/home.ts";
 import { messageView } from "./ui/views/message.ts";
 import { playView } from "./ui/views/play.ts";
@@ -21,9 +22,18 @@ if (!app) throw new Error("#app not found");
 
 const store = createStore<AppState>({ route: parseRoute(location.hash), play: null });
 
-// Puzzle sources follow later: built-in examples (M2), local library and share links (M4).
-function loadPlay(_route: Route): PlayViewModel | null {
-  return null;
+// Puzzle sources: built-in examples; local library and share links follow in M4.
+function loadPlay(route: Route): PlayViewModel | null {
+  if (route.name !== "play") return null;
+  const example = examples.find((e) => e.id === route.id);
+  if (!example) return null;
+  try {
+    const { type, doc } = loadDocument(example.doc, registry);
+    return { title: doc.meta.title, session: session.createSession(type, doc.data), showSolved: false };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
 }
 
 function updateSession(change: (s: AnyPlaySession) => AnyPlaySession) {
@@ -52,7 +62,7 @@ const playActions = {
 function view(state: AppState) {
   switch (state.route.name) {
     case "home":
-      return homeView(registry.all());
+      return homeView(registry.all(), examples);
     case "play":
     case "shared":
       return state.play ? playView(state.play, playActions) : messageView(t("puzzleNotFound"));

@@ -55,6 +55,10 @@ function solvedDialog(moves: number, actions: PlayViewActions) {
   `;
 }
 
+// lit-html calls refs before a new template is inserted into the document; showModal needs it connected.
 function showModal(element?: Element) {
-  if (element instanceof HTMLDialogElement && !element.open) element.showModal();
+  if (!(element instanceof HTMLDialogElement)) return;
+  queueMicrotask(() => {
+    if (element.isConnected && !element.open) element.showModal();
+  });
 }
