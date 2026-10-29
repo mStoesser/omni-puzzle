@@ -50,6 +50,8 @@ export type PuzzleType<D, S, M> = {
   /** Throws on invalid data. Data from links is untrusted. */
   validate(data: unknown): D;
   migrate?(data: unknown, fromVersion: number): unknown;
+  /** Localized, user-facing problems for live validation in the editor. Empty = playable. */
+  problems?(data: D): string[];
 
   initState(data: D): S;
   /** Returns null for an invalid move. Must not mutate `state`. */

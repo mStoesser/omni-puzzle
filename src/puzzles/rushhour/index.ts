@@ -1,5 +1,5 @@
-import { html } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
+import { problems, renderEditor } from "./editor.ts";
 import { applyMove, createDefault, initState, isSolved, validate } from "./logic.ts";
 import type { RushHourData, RushHourMove, RushHourState } from "./logic.ts";
 import { renderPlay } from "./render.ts";
@@ -12,10 +12,11 @@ export const rushHour: PuzzleType<RushHourData, RushHourState, RushHourMove> = {
   icon: "🚗",
   createDefault,
   validate,
+  problems,
   initState,
   applyMove,
   isSolved,
   solve,
   renderPlay,
-  renderEditor: () => html``, // M3
+  renderEditor,
 };

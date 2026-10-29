@@ -35,11 +35,11 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 - [x] Spielbar über `#/play/...`.
 
 ### M3 – Editor-Grundlagen (am Beispiel Rush Hour)
-- [ ] Generischer Grid-Editor (`ui/components/grid-editor.ts`): Größe, Palette, Platzieren, Drehen, Radieren, Editor-Undo.
-- [ ] Rush-Hour-Editor: Blöcke der Länge 2 und 3, horizontal und vertikal, Zielblock, Ausgang setzen.
-- [ ] Live-Validierung mit verständlichen Fehlermeldungen.
-- [ ] Button „Probespielen“; erfolgreiches Lösen setzt `meta.verified`.
-- [ ] Solver-Prüfung: Bei „unlösbar“ ist kein Teilen möglich; bei Erfolg wird `minMoves` angezeigt.
+- [x] Generischer Grid-Editor (`ui/components/grid-editor.ts`): Größe, Palette, Platzieren, Drehen, Radieren, Editor-Undo.
+- [x] Rush-Hour-Editor: Blöcke der Länge 2 und 3, horizontal und vertikal, Zielblock, Ausgang setzen.
+- [x] Live-Validierung mit verständlichen Fehlermeldungen.
+- [x] Button „Probespielen“; erfolgreiches Lösen setzt `meta.verified`.
+- [x] Solver-Prüfung: Bei „unlösbar“ ist kein Teilen möglich; bei Erfolg wird `minMoves` angezeigt.
 
 ### M4 – Speichern und Teilen
 - [ ] `core/storage.ts` (IndexedDB) mit Stores `puzzles` und `progress`.

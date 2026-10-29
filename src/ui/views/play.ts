@@ -8,6 +8,8 @@ export type PlayViewModel = {
   title: string;
   session: AnyPlaySession;
   showSolved: boolean;
+  /** "test" = test play from the editor; back leads to the editor instead of home. */
+  mode: "play" | "test";
 };
 
 export type PlayViewActions = {
@@ -16,6 +18,7 @@ export type PlayViewActions = {
   redo(): void;
   restart(): void;
   dismissSolved(): void;
+  backToEditor(): void;
 };
 
 export function playView(model: PlayViewModel, actions: PlayViewActions) {
@@ -23,7 +26,9 @@ export function playView(model: PlayViewModel, actions: PlayViewActions) {
   const moves = moveCount(session);
   return html`
     <header class="toolbar">
-      <a class="button secondary" href="#/" aria-label=${t("back")}>←</a>
+      ${model.mode === "test"
+        ? html`<button class="secondary" @click=${actions.backToEditor} aria-label=${t("backToEditor")}>←</button>`
+        : html`<a class="button secondary" href="#/" aria-label=${t("back")}>←</a>`}
       <h1 class="toolbar-title">${model.title}</h1>
     </header>
     <div class="board">
@@ -37,19 +42,22 @@ export function playView(model: PlayViewModel, actions: PlayViewActions) {
         ${t("restart")}
       </button>
     </footer>
-    ${model.showSolved ? solvedDialog(moves, actions) : nothing}
+    ${model.showSolved ? solvedDialog(moves, model.mode, actions) : nothing}
   `;
 }
 
-function solvedDialog(moves: number, actions: PlayViewActions) {
+function solvedDialog(moves: number, mode: PlayViewModel["mode"], actions: PlayViewActions) {
   return html`
     <dialog class="dialog" ${ref(showModal)} @close=${actions.dismissSolved}>
       <h2>${t("solvedTitle")}</h2>
       <p>${moves === 1 ? t("solvedTextOne") : t("solvedTextOther", { moves })}</p>
+      ${mode === "test" ? html`<p>${t("solvedVerified")}</p>` : nothing}
       <div class="dialog-actions">
         <button class="secondary" @click=${actions.dismissSolved}>${t("close")}</button>
         <button class="secondary" @click=${actions.restart}>${t("playAgain")}</button>
-        <a class="button" href="#/">${t("toHome")}</a>
+        ${mode === "test"
+          ? html`<button @click=${actions.backToEditor}>${t("backToEditor")}</button>`
+          : html`<a class="button" href="#/">${t("toHome")}</a>`}
       </div>
     </dialog>
   `;

@@ -1,12 +1,12 @@
 import { html, svg } from "lit-html";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
+import { CELL } from "../../ui/components/grid-editor.ts";
 import { blockOrigin, moveRange } from "./logic.ts";
 import type { RushHourData, RushHourMove, RushHourState } from "./logic.ts";
 
 type Ctx = PlayContext<RushHourData, RushHourState, RushHourMove>;
 
-const CELL = 100; // board units per cell
 const PAD = 24; // margin around the board for the exit marker
 const INSET = 6; // gap between blocks and cell borders
 
@@ -23,41 +23,65 @@ const STYLE = svg`<style>
   .rh-block.v { fill: var(--rh-block-alt); }
   .rh-block.target { fill: var(--rh-target); }
   .rh-block.dragging { cursor: grabbing; filter: brightness(1.1); }
+  .rh-block.static { cursor: inherit; }
+  .rh-block.problem { stroke: var(--danger, #c6362f); stroke-width: 8; stroke-dasharray: 16 10; }
 </style>`;
 
 export function renderPlay(ctx: Ctx) {
-  const { data, state } = ctx;
+  const { data } = ctx;
   const w = data.width * CELL;
   const h = data.height * CELL;
   return html`
     <svg
-      class="rh"
       viewBox="${-PAD} ${-PAD} ${w + 2 * PAD} ${h + 2 * PAD}"
       role="img"
       aria-label=${t("rushHourBoard")}
     >
-      ${STYLE}
-      <rect class="rh-board" x="0" y="0" width=${w} height=${h} rx="12"></rect>
-      ${gridLines(data)} ${exitMarker(data)}
-      ${data.blocks.map((block, i) => {
-        const origin = blockOrigin(data, state, i);
-        const cols = block.axis === "h" ? block.length : 1;
-        const rows = block.axis === "v" ? block.length : 1;
-        return svg`<rect
-          class="rh-block ${block.axis} ${block.target ? "target" : ""}"
-          x=${origin.x * CELL + INSET}
-          y=${origin.y * CELL + INSET}
-          width=${cols * CELL - 2 * INSET}
-          height=${rows * CELL - 2 * INSET}
-          rx="16"
-          @pointerdown=${(e: PointerEvent) => startDrag(e, ctx, i)}
-          @pointermove=${moveDrag}
-          @pointerup=${(e: PointerEvent) => endDrag(e, ctx)}
-          @pointercancel=${cancelDrag}
-        ></rect>`;
-      })}
+      ${boardLayers(data, ctx.state, { ctx })}
     </svg>
   `;
+}
+
+/**
+ * Board, exit and blocks in board units. With `ctx` blocks can be dragged;
+ * `problemBlocks` are highlighted (editor).
+ */
+export function boardLayers(
+  data: RushHourData,
+  state: RushHourState,
+  options: { ctx?: Ctx; problemBlocks?: ReadonlySet<number> },
+) {
+  const { ctx, problemBlocks } = options;
+  // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
+  return svg`<g class="rh">
+    ${STYLE}
+    <rect class="rh-board" x="0" y="0" width=${data.width * CELL} height=${data.height * CELL} rx="12"></rect>
+    ${gridLines(data)} ${exitMarker(data)}
+    ${data.blocks.map((block, i) => {
+      const origin = blockOrigin(data, state, i);
+      const cols = block.axis === "h" ? block.length : 1;
+      const rows = block.axis === "v" ? block.length : 1;
+      const classes = [
+        "rh-block",
+        block.axis,
+        block.target ? "target" : "",
+        ctx ? "" : "static",
+        problemBlocks?.has(i) ? "problem" : "",
+      ].join(" ");
+      return svg`<rect
+        class=${classes}
+        x=${origin.x * CELL + INSET}
+        y=${origin.y * CELL + INSET}
+        width=${cols * CELL - 2 * INSET}
+        height=${rows * CELL - 2 * INSET}
+        rx="16"
+        @pointerdown=${ctx ? (e: PointerEvent) => startDrag(e, ctx, i) : null}
+        @pointermove=${ctx ? moveDrag : null}
+        @pointerup=${ctx ? (e: PointerEvent) => endDrag(e, ctx) : null}
+        @pointercancel=${ctx ? cancelDrag : null}
+      ></rect>`;
+    })}
+  </g>`;
 }
 
 function gridLines(data: RushHourData) {

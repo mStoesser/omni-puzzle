@@ -67,6 +67,7 @@ src/
     store.ts              # Mini-Store
     router.ts             # Hash-Router
     session.ts            # Spiel-Session (rein): Historie, Undo/Redo, Neustart, Zugzähler, gelöst
+    editor-session.ts     # Editor-Session (rein): Titel, Undo/Redo, readiness (probespielen/teilen)
     document.ts           # Hülle prüfen, loadDocument: Hülle → Typ → migrate → validate
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
     storage.ts            # IndexedDB-Wrapper
@@ -79,7 +80,7 @@ src/
     styles.css
   puzzles/
     index.ts              # registriert alle Typen
-    rushhour/  { index.ts, logic.ts, solver.ts, render.ts, editor.ts, *.test.ts }
+    rushhour/  { index.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     laser/     { … }
     quiz/      { … }
 docs/
@@ -119,6 +120,7 @@ type PuzzleType<D, S, M> = {
   createDefault(): D;               // Startpunkt für den Editor
   validate(data: unknown): D;       // wirft bei ungültigen Daten (Links sind nicht vertrauenswürdig!)
   migrate?(data: unknown, fromVersion: number): unknown;
+  problems?(data: D): string[];     // lokalisierte Fehlermeldungen für die Live-Validierung im Editor
 
   // --- Spiellogik (rein, DOM-frei) ---
   initState(data: D): S;
@@ -157,6 +159,18 @@ Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
 - Richtungen als `"N" | "E" | "S" | "W"` mit `DELTA = { N: [0,-1], E: [1,0], S: [0,1], W: [-1,0] } as const` (y wächst nach unten).
 - Generischer **Grid-Editor**: Rastergröße einstellen, Werkzeug-Palette, Tippen platziert, erneutes Tippen dreht, Radierer-Werkzeug.
   Plugins liefern nur ihre Palette und eine Funktion `applyTool(data, tool, x, y) → D`.
+- Optional ein Randring aus Zellen um das Spielfeld (x/y = −1 bzw. Breite/Höhe), z. B. für Ausgänge.
+- Das gewählte Werkzeug steckt in nativen Radio-Buttons (kein App-Zustand nötig).
+- Antippen = `pointerdown` + `pointerup` auf derselben Zelle; kein `click`, weil Touch-Browser Klicks verzögern oder verschlucken.
+- `applyTool`/`resize` liegen rein und getestet in `edit.ts`; `editor.ts` enthält nur die Darstellung.
+
+### Editor-Ablauf
+
+- Jede Änderung landet in der Undo-Historie des Editors (Core). Kurz nach der letzten Änderung läuft der Solver
+  (Ergebnisse pro Datenobjekt zwischengespeichert, Undo ist also sofort geprüft).
+- „Probespielen“ geht nur ohne Probleme. Wer dabei löst, verifiziert genau diesen Datenstand;
+  jede weitere Änderung hebt das auf, Undo stellt es wieder her.
+- Teilen (M4) nur, wenn verifiziert und der Solver das Rätsel nicht als unlösbar erkannt hat (`readiness()`).
 
 ## Die MVP-Rätseltypen im Detail
 

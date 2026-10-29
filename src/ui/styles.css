@@ -232,3 +232,162 @@ h2 {
 .board svg {
   width: min(100%, 70dvh);
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Editor */
+.field {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+}
+
+input[type="text"] {
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+input[type="text"]:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.editor-toolbar button:last-child {
+  margin-left: auto;
+}
+
+.hint {
+  font-size: 0.875rem;
+}
+
+.grid-editor {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tool input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tool > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tool input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.tool input:focus-visible + span {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ge-board {
+  width: min(100%, 70dvh);
+  justify-self: center;
+}
+
+.ge-cell {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.ge-cell.ring {
+  stroke: var(--border);
+  stroke-width: 3;
+  stroke-dasharray: 10 8;
+}
+
+.size-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stepper output {
+  min-width: 2ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.editor-status {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.editor-status p {
+  margin: 0 0 var(--space-1);
+}
+
+.editor-status p:last-child {
+  margin-bottom: 0;
+}
+
+.problem-list {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.status-problem {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.status-ok {
+  color: var(--success);
+  font-weight: 600;
+}

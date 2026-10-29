@@ -1,0 +1,78 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  MAX_EDITOR_HISTORY,
+  canRedoEdit,
+  canUndoEdit,
+  createEditorSession,
+  currentData,
+  readiness,
+  redoEdit,
+  setTitle,
+  undoEdit,
+  updateData,
+} from "./editor-session.ts";
+import type { EditorCheck } from "./editor-session.ts";
+
+test("update, undo and redo", () => {
+  const a = { n: 1 };
+  const b = { n: 2 };
+  const c = { n: 3 };
+  let s = updateData(updateData(createEditorSession(a, "T"), b), c);
+  assert.equal(currentData(s), c);
+  s = undoEdit(s);
+  assert.equal(currentData(s), b);
+  assert.equal(canRedoEdit(s), true);
+  s = redoEdit(s);
+  assert.equal(currentData(s), c);
+  assert.equal(canRedoEdit(s), false);
+});
+
+test("updating with the same data is a no-op", () => {
+  const s = createEditorSession({ n: 1 }, "T");
+  assert.equal(updateData(s, currentData(s)), s);
+});
+
+test("a new edit after undo drops the redo branch", () => {
+  const s = updateData(undoEdit(updateData(createEditorSession(1, "T"), 2)), 3);
+  assert.deepEqual(s.history, [1, 3]);
+  assert.equal(canRedoEdit(s), false);
+});
+
+test("undo and redo at the ends are no-ops", () => {
+  const s = createEditorSession(1, "T");
+  assert.equal(canUndoEdit(s), false);
+  assert.equal(undoEdit(s), s);
+  assert.equal(redoEdit(s), s);
+});
+
+test("history is capped", () => {
+  let s = createEditorSession(0, "T");
+  for (let i = 1; i <= MAX_EDITOR_HISTORY + 10; i++) s = updateData(s, i);
+  assert.equal(s.history.length, MAX_EDITOR_HISTORY);
+  assert.equal(currentData(s), MAX_EDITOR_HISTORY + 10);
+});
+
+test("setTitle does not touch the history", () => {
+  const s = setTitle(updateData(createEditorSession(1, "A"), 2), "B");
+  assert.equal(s.title, "B");
+  assert.deepEqual(s.history, [1, 2]);
+});
+
+const ok: EditorCheck = { problems: [], hasSolver: true, solve: { status: "solved", moves: [] }, verified: true };
+
+test("readiness: a valid, verified, solvable puzzle can be tested and shared", () => {
+  assert.deepEqual(readiness(ok), { canTest: true, canShare: true });
+});
+
+test("readiness: problems block test play and sharing", () => {
+  assert.deepEqual(readiness({ ...ok, problems: ["x"] }), { canTest: false, canShare: false });
+});
+
+test("readiness: sharing needs verification and a non-negative solver result", () => {
+  assert.equal(readiness({ ...ok, verified: false }).canShare, false);
+  assert.equal(readiness({ ...ok, solve: { status: "unsolvable" } }).canShare, false);
+  assert.equal(readiness({ ...ok, solve: null }).canShare, false);
+  assert.equal(readiness({ ...ok, solve: { status: "aborted" } }).canShare, true);
+  assert.equal(readiness({ ...ok, hasSolver: false, solve: null }).canShare, true);
+});

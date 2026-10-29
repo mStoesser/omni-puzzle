@@ -27,6 +27,20 @@ export function homeView(types: readonly AnyPuzzleType[], examples: readonly Exa
               `,
             )}
           </ul>
+          <h2>${t("build")}</h2>
+          <ul class="card-list">
+            ${types.map(
+              (type) => html`
+                <li>
+                  <a class="card" href="#/new/${type.id}">
+                    <span class="card-icon" aria-hidden="true">${type.icon}</span>
+                    <span class="card-title">${t(type.name)}</span>
+                    <span class="card-detail" aria-hidden="true">＋</span>
+                  </a>
+                </li>
+              `,
+            )}
+          </ul>
         `}
   `;
 }
