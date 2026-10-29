@@ -10,12 +10,12 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 ## Phase 1: MVP (ohne Backend)
 
 ### M0 – Projekt-Setup
-- [ ] `package.json` von Hand anlegen: Dependencies `lit-html`; DevDependencies `vite`, `typescript`. Versionen exakt pinnen (aktuelle stabile Version, nicht jünger als 14 Tage).
-- [ ] Scripts: `dev`, `build`, `preview`, `typecheck`, `test` (siehe CLAUDE.md).
-- [ ] `tsconfig.json` laut ARCHITEKTUR.md.
-- [ ] `index.html`, `src/main.ts` mit einem „Hallo“-Template, `src/ui/styles.css` (CSS-Variablen, Hell- und Dunkelmodus, mobile Basis).
-- [ ] `.gitignore`, `README.md` (kurz, verweist auf docs/).
-- [ ] Prüfen: `node --test` führt eine Beispiel-`.test.ts` ohne Build aus.
+- [x] `package.json` von Hand anlegen: Dependencies `lit-html`; DevDependencies `vite`, `typescript`. Versionen exakt pinnen (aktuelle stabile Version, nicht jünger als 14 Tage).
+- [x] Scripts: `dev`, `build`, `preview`, `typecheck`, `test` (siehe CLAUDE.md).
+- [x] `tsconfig.json` laut ARCHITEKTUR.md.
+- [x] `index.html`, `src/main.ts` mit einem „Hallo“-Template, `src/ui/styles.css` (CSS-Variablen, Hell- und Dunkelmodus, mobile Basis).
+- [x] `.gitignore`, `README.md` (kurz, verweist auf docs/).
+- [x] Prüfen: `node --test` führt eine Beispiel-`.test.ts` ohne Build aus.
 
 ### M1 – Core
 - [ ] `core/types.ts`: `PuzzleDocument`, `PuzzleType`, `SolveResult`, Kontext-Typen.

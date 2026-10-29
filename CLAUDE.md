@@ -11,7 +11,7 @@ Ausführliche Dokumentation:
 ## Tech-Stack (bewusst minimal)
 
 - **Laufzeit-Abhängigkeit:** nur `lit-html` (Templates, auch SVG via `svg`-Tag).
-- **Dev-Abhängigkeiten:** nur `vite` und `typescript`.
+- **Dev-Abhängigkeiten:** nur `vite`, `typescript` und `@types/node` (Typen für `node:test` in den Tests).
 - **Tests:** eingebauter Node-Testrunner (`node --test`) mit nativem TypeScript-Type-Stripping (Node ≥ 22.18, besser 24 LTS). Kein Vitest/Jest.
 - **Alles andere nativ:** Hash-Router, Store, IndexedDB, `CompressionStream`, `crypto.subtle`, Pointer Events, Service Worker – selbst geschrieben, keine Bibliotheken.
 - Kein Backend in Phase 1. Hosting statisch (z. B. GitHub Pages).
