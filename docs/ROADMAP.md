@@ -18,14 +18,14 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 - [x] Prüfen: `node --test` führt eine Beispiel-`.test.ts` ohne Build aus.
 
 ### M1 – Core
-- [ ] `core/types.ts`: `PuzzleDocument`, `PuzzleType`, `SolveResult`, Kontext-Typen.
-- [ ] `core/grid.ts` mit Tests: Richtungen, Deltas, Rotation, In-Bounds-Prüfung.
-- [ ] `core/store.ts` mit Tests.
-- [ ] `core/router.ts`: Hash-Routen laut ARCHITEKTUR.md, unbekannte Route führt zum Start.
-- [ ] `core/registry.ts` und `puzzles/index.ts`.
-- [ ] `core/share.ts` mit Tests: Roundtrip encode/decode, kaputte und zu große Codes werden sauber abgelehnt.
-- [ ] Play-View-Gerüst im Core: Undo/Redo, Neustart, Zugzähler, „Gelöst!“-Dialog.
-- [ ] `i18n/de.ts` anlegen; alle UI-Texte von Anfang an darüber.
+- [x] `core/types.ts`: `PuzzleDocument`, `PuzzleType`, `SolveResult`, Kontext-Typen.
+- [x] `core/grid.ts` mit Tests: Richtungen, Deltas, Rotation, In-Bounds-Prüfung.
+- [x] `core/store.ts` mit Tests.
+- [x] `core/router.ts`: Hash-Routen laut ARCHITEKTUR.md, unbekannte Route führt zum Start.
+- [x] `core/registry.ts` und `puzzles/index.ts`.
+- [x] `core/share.ts` mit Tests: Roundtrip encode/decode, kaputte und zu große Codes werden sauber abgelehnt.
+- [x] Play-View-Gerüst im Core: Undo/Redo, Neustart, Zugzähler, „Gelöst!“-Dialog.
+- [x] `i18n/de.ts` anlegen; alle UI-Texte von Anfang an darüber.
 
 ### M2 – Rush Hour (vertikaler Durchstich)
 - [ ] `logic.ts` mit Tests: Kollision, Ränder, Züge, `isSolved`, `validate` (überlappende Blöcke, fehlender Zielblock, falsche Ausgangsachse).

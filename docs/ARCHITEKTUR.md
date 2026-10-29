@@ -60,15 +60,19 @@ public/
 src/
   main.ts                 # Bootstrapping, Router-Start, Render-Loop
   i18n/de.ts              # alle UI-Texte
+  i18n/t.ts               # t(key, params): Textabruf mit {platzhalter}
   core/
     types.ts              # PuzzleDocument, PuzzleType-Interface, Hilfstypen
     registry.ts           # Registrierung und Lookup der Rätseltypen
     store.ts              # Mini-Store
     router.ts             # Hash-Router
+    session.ts            # Spiel-Session (rein): Historie, Undo/Redo, Neustart, Zugzähler, gelöst
+    document.ts           # Hülle prüfen, loadDocument: Hülle → Typ → migrate → validate
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
     storage.ts            # IndexedDB-Wrapper
     grid.ts               # Richtungen, Koordinaten, Raster-Hilfen (rein)
     hash.ts               # SHA-256-Hilfen für Quiz-Antworten
+    test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts
     components/           # button, dialog, toolbar, grid-editor …
