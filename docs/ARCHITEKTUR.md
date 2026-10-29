@@ -70,13 +70,13 @@ src/
     editor-session.ts     # Editor-Session (rein): Titel, Undo/Redo, readiness (probespielen/teilen)
     document.ts           # Hülle prüfen, loadDocument: Hülle → Typ → migrate → validate
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
-    storage.ts            # IndexedDB-Wrapper
+    storage.ts            # IndexedDB-Wrapper (+ In-Memory-Variante für Tests/Fallback), Fortschritt
     grid.ts               # Richtungen, Koordinaten, Raster-Hilfen (rein)
-    hash.ts               # SHA-256-Hilfen für Quiz-Antworten
+    hash.ts               # SHA-256-Hilfen (Fortschritts-Schlüssel, später Quiz-Antworten)
     test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts
-    components/           # button, dialog, toolbar, grid-editor …
+    components/           # dialog, share-dialog, grid-editor …
     styles.css
   puzzles/
     index.ts              # registriert alle Typen
@@ -120,6 +120,7 @@ type PuzzleType<D, S, M> = {
   createDefault(): D;               // Startpunkt für den Editor
   validate(data: unknown): D;       // wirft bei ungültigen Daten (Links sind nicht vertrauenswürdig!)
   migrate?(data: unknown, fromVersion: number): unknown;
+  parseDraft?(data: unknown): D;    // nur Struktur prüfen: Editor-Entwürfe mit Problemen laden
   problems?(data: D): string[];     // lokalisierte Fehlermeldungen für die Live-Validierung im Editor
 
   // --- Spiellogik (rein, DOM-frei) ---
@@ -170,7 +171,14 @@ Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
   (Ergebnisse pro Datenobjekt zwischengespeichert, Undo ist also sofort geprüft).
 - „Probespielen“ geht nur ohne Probleme. Wer dabei löst, verifiziert genau diesen Datenstand;
   jede weitere Änderung hebt das auf, Undo stellt es wieder her.
-- Teilen (M4) nur, wenn verifiziert und der Solver das Rätsel nicht als unlösbar erkannt hat (`readiness()`).
+- Teilen nur, wenn verifiziert und der Solver das Rätsel nicht als unlösbar erkannt hat (`readiness()`).
+- **Automatisches Speichern:** Ein neues Rätsel (`#/new/<typ>`) bekommt sofort eine ID, wird aber erst bei der
+  ersten Änderung gespeichert; dann wird die Adresse per `replaceState` zu `#/edit/<id>`. Danach wird jede Änderung
+  kurz verzögert (400 ms) gespeichert, beim Verlassen der Route oder Verstecken der Seite sofort.
+  Gespeichert werden auch unfertige Entwürfe; geladen werden sie über `loadDocument(…, { draft: true })`,
+  das statt `validate` die rein strukturelle Prüfung `parseDraft` nutzt. `meta.verified` und `meta.minMoves`
+  werden beim Speichern aus dem aktuellen Stand abgeleitet.
+- „In meine Bibliothek kopieren“ (bei Beispielen und geteilten Rätseln) legt einen neuen, unverifizierten Entwurf an.
 
 ## Die MVP-Rätseltypen im Detail
 
@@ -242,7 +250,10 @@ URL: https://<host>/#/p/1.<code>      ("1." = Codec-Version)
   **Alles aus Links ist untrusted:** strikte Validierung, Größenlimits (z. B. max. 100×100 Raster, max. 200 Fragen),
   keine HTML-Interpretation von Texten (lit-html escapt standardmäßig, kein `unsafeHTML` verwenden).
 - Zielgröße: unter etwa 2 000 Zeichen URL, damit Messenger den Link nicht abschneiden. Der Editor zeigt die Linklänge an.
-- Teilen-Button nutzt `navigator.share()` und fällt auf `navigator.clipboard.writeText()` zurück.
+- Teilen-Dialog: Link als markierbares Feld, Linklänge (Warnung über 2 000 Zeichen), „Link kopieren“
+  (`navigator.clipboard.writeText()`, Fallback `execCommand("copy")` für unsichere Kontexte wie den Dev-Server im LAN)
+  und „Teilen“ per `navigator.share()`, wenn vorhanden (nur in sicheren Kontexten, also https).
+- Kaputte Links führen zu einer Fehlerseite mit verständlicher Meldung je Fehlerart (beschädigt, zu groß, neuere Version, unbekannter Typ).
 
 ## Routen
 
@@ -253,13 +264,18 @@ URL: https://<host>/#/p/1.<code>      ("1." = Codec-Version)
 | `#/p/<code>` | geteiltes Rätsel spielen |
 | `#/new/<type>` | neues Rätsel im Editor |
 | `#/edit/<localId>` | eigenes Rätsel bearbeiten |
-| `#/play/<localId>` | eigenes Rätsel spielen |
+| `#/play/<localId>` | eigenes Rätsel oder eingebautes Beispiel spielen |
 
 ## Lokale Speicherung (IndexedDB)
 
 Die Datenbank `raetsel` enthält diese Stores:
-- `puzzles` mit `{ id, doc: PuzzleDocument, updatedAt }` für eigene Rätsel.
-- `progress` mit `{ key: hash(code), solved, bestMoves, lastState }` für gespielte Rätsel.
+- `puzzles` mit `{ id, doc: PuzzleDocument, updatedAt }` für eigene Rätsel (`id` = `crypto.randomUUID()`).
+- `progress` mit `{ key, solved, bestMoves }` für gespielte Rätsel.
+  `key` = SHA-256 über `[type, typeVersion, data]`, also über den Inhalt statt über den Link-Code:
+  Dasselbe Rätsel als Beispiel, per Link oder als Bibliothekskopie teilt sich den Fortschritt; Titeländerungen
+  ändern ihn nicht, jede Änderung am Rätsel selbst schon. Einen Spielstand zum Fortsetzen (`lastState`) gibt es noch nicht.
+- Ist IndexedDB nicht verfügbar (manche privaten Modi), läuft die App mit einem In-Memory-Speicher weiter.
+- Auch Einträge aus IndexedDB gehen beim Öffnen durch `loadDocument` (Daten können aus älteren App-Versionen stammen).
 
 ## PWA
 

@@ -3,6 +3,8 @@ import { canRedoEdit, canUndoEdit, currentData, readiness } from "../../core/edi
 import type { EditorSession } from "../../core/editor-session.ts";
 import type { AnyPuzzleType, SolveResult } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
+import { shareDialog } from "../components/share-dialog.ts";
+import type { ShareDialogActions, ShareDialogModel } from "../components/share-dialog.ts";
 
 export type EditorViewModel = {
   type: AnyPuzzleType;
@@ -10,6 +12,7 @@ export type EditorViewModel = {
   problems: readonly string[];
   solve: SolveResult<unknown> | null; // null = not checked yet
   verified: boolean;
+  share: ShareDialogModel | null; // open share dialog
 };
 
 export type EditorViewActions = {
@@ -18,15 +21,17 @@ export type EditorViewActions = {
   redo(): void;
   setTitle(title: string): void;
   testPlay(): void;
+  openShare(): void;
+  share: ShareDialogActions;
 };
 
 export function editorView(model: EditorViewModel, actions: EditorViewActions) {
   const { type, session } = model;
   const hasSolver = type.solve !== undefined;
-  const { canTest } = readiness({ ...model, hasSolver });
+  const { canTest, canShare } = readiness({ ...model, hasSolver });
   return html`
     <header class="toolbar">
-      <a class="button secondary" href="#/" aria-label=${t("back")}>←</a>
+      <a class="button secondary" href="#/library" aria-label=${t("back")}>←</a>
       <h1 class="toolbar-title">${t(type.name)}</h1>
     </header>
     <label class="field">
@@ -41,7 +46,9 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
     <div class="editor-toolbar">
       <button class="secondary" @click=${actions.undo} ?disabled=${!canUndoEdit(session)}>${t("undo")}</button>
       <button class="secondary" @click=${actions.redo} ?disabled=${!canRedoEdit(session)}>${t("redo")}</button>
-      <button @click=${actions.testPlay} ?disabled=${!canTest}>${t("testPlay")}</button>
+      <span class="spacer"></span>
+      <button class="secondary" @click=${actions.testPlay} ?disabled=${!canTest}>${t("testPlay")}</button>
+      <button @click=${actions.openShare} ?disabled=${!canShare}>${t("share")}</button>
     </div>
     ${type.renderEditor({ data: currentData(session), update: actions.update })}
     <section class="editor-status" role="status">
@@ -59,6 +66,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
             </p>
           `}
     </section>
+    ${model.share ? shareDialog(model.share, actions.share) : nothing}
   `;
 }
 

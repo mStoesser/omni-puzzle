@@ -273,8 +273,8 @@ input[type="text"]:focus-visible {
   margin-bottom: var(--space-3);
 }
 
-.editor-toolbar button:last-child {
-  margin-left: auto;
+.editor-toolbar .spacer {
+  flex: 1;
 }
 
 .hint {
@@ -389,5 +389,61 @@ input[type="text"]:focus-visible {
 
 .status-ok {
   color: var(--success);
+  font-weight: 600;
+}
+
+.play-extras {
+  display: flex;
+  justify-content: center;
+}
+
+.share-link {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+}
+
+/* Library */
+.library-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.library-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.library-head .card-detail {
+  display: block;
+}
+
+.library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.library-actions .danger {
+  margin-left: auto;
+  color: var(--danger);
+}
+
+.badge-ok {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.notice {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
   font-weight: 600;
 }

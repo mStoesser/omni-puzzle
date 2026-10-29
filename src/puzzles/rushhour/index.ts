@@ -1,6 +1,6 @@
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
-import { applyMove, createDefault, initState, isSolved, validate } from "./logic.ts";
+import { applyMove, createDefault, initState, isSolved, parseDraft, validate } from "./logic.ts";
 import type { RushHourData, RushHourMove, RushHourState } from "./logic.ts";
 import { renderPlay } from "./render.ts";
 import { solve } from "./solver.ts";
@@ -12,6 +12,7 @@ export const rushHour: PuzzleType<RushHourData, RushHourState, RushHourMove> = {
   icon: "🚗",
   createDefault,
   validate,
+  parseDraft,
   problems,
   initState,
   applyMove,

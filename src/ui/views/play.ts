@@ -3,13 +3,18 @@ import { ref } from "lit-html/directives/ref.js";
 import { canRedo, canUndo, currentState, moveCount } from "../../core/session.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
 import { t } from "../../i18n/t.ts";
+import { showModal } from "../components/dialog.ts";
+
+/** Where the puzzle comes from: built-in example, share link, own library, or test play from the editor. */
+export type PlayOrigin = "example" | "shared" | "own" | "test";
 
 export type PlayViewModel = {
   title: string;
   session: AnyPlaySession;
   showSolved: boolean;
-  /** "test" = test play from the editor; back leads to the editor instead of home. */
-  mode: "play" | "test";
+  origin: PlayOrigin;
+  localId?: string; // library id for origin "own"
+  progressKey: string | null; // null = not computed yet, or test play (no progress)
 };
 
 export type PlayViewActions = {
@@ -19,17 +24,19 @@ export type PlayViewActions = {
   restart(): void;
   dismissSolved(): void;
   backToEditor(): void;
+  copyToLibrary(): void;
 };
 
-export function playView(model: PlayViewModel, actions: PlayViewActions) {
+/** `best` = best result so far for this puzzle, if solved before. */
+export function playView(model: PlayViewModel, best: number | null, actions: PlayViewActions) {
   const { session } = model;
   const moves = moveCount(session);
   return html`
     <header class="toolbar">
-      ${model.mode === "test"
+      ${model.origin === "test"
         ? html`<button class="secondary" @click=${actions.backToEditor} aria-label=${t("backToEditor")}>←</button>`
-        : html`<a class="button secondary" href="#/" aria-label=${t("back")}>←</a>`}
-      <h1 class="toolbar-title">${model.title}</h1>
+        : html`<a class="button secondary" href=${model.origin === "own" ? "#/library" : "#/"} aria-label=${t("back")}>←</a>`}
+      <h1 class="toolbar-title">${model.title || t("untitled")}</h1>
     </header>
     <div class="board">
       ${session.type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch })}
@@ -42,31 +49,44 @@ export function playView(model: PlayViewModel, actions: PlayViewActions) {
         ${t("restart")}
       </button>
     </footer>
-    ${model.showSolved ? solvedDialog(moves, model.mode, actions) : nothing}
+    ${extras(model, actions)}
+    ${model.showSolved ? solvedDialog(moves, model, best, actions) : nothing}
   `;
 }
 
-function solvedDialog(moves: number, mode: PlayViewModel["mode"], actions: PlayViewActions) {
+function extras(model: PlayViewModel, actions: PlayViewActions) {
+  switch (model.origin) {
+    case "example":
+    case "shared":
+      return html`<div class="play-extras">
+        <button class="secondary" @click=${actions.copyToLibrary}>${t("copyToLibrary")}</button>
+      </div>`;
+    case "own":
+      return html`<div class="play-extras">
+        <a class="button secondary" href="#/edit/${model.localId}">${t("edit")}</a>
+      </div>`;
+    case "test":
+      return nothing;
+  }
+}
+
+function solvedDialog(moves: number, model: PlayViewModel, best: number | null, actions: PlayViewActions) {
+  const test = model.origin === "test";
   return html`
     <dialog class="dialog" ${ref(showModal)} @close=${actions.dismissSolved}>
       <h2>${t("solvedTitle")}</h2>
       <p>${moves === 1 ? t("solvedTextOne") : t("solvedTextOther", { moves })}</p>
-      ${mode === "test" ? html`<p>${t("solvedVerified")}</p>` : nothing}
+      ${test ? html`<p>${t("solvedVerified")}</p>` : nothing}
+      ${!test && best !== null ? html`<p>${best === 1 ? t("bestMovesOne") : t("bestMoves", { moves: best })}</p>` : nothing}
       <div class="dialog-actions">
         <button class="secondary" @click=${actions.dismissSolved}>${t("close")}</button>
         <button class="secondary" @click=${actions.restart}>${t("playAgain")}</button>
-        ${mode === "test"
+        ${test
           ? html`<button @click=${actions.backToEditor}>${t("backToEditor")}</button>`
-          : html`<a class="button" href="#/">${t("toHome")}</a>`}
+          : model.origin === "own"
+            ? html`<a class="button" href="#/library">${t("library")}</a>`
+            : html`<a class="button" href="#/">${t("toHome")}</a>`}
       </div>
     </dialog>
   `;
-}
-
-// lit-html calls refs before a new template is inserted into the document; showModal needs it connected.
-function showModal(element?: Element) {
-  if (!(element instanceof HTMLDialogElement)) return;
-  queueMicrotask(() => {
-    if (element.isConnected && !element.open) element.showModal();
-  });
 }

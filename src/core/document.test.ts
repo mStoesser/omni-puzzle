@@ -58,3 +58,25 @@ test("loadDocument rejects unknown types and newer type versions", () => {
   assertCode(() => loadDocument({ ...counterDocument(1), type: "nope" }, registry), "unknown-type");
   assertCode(() => loadDocument({ ...counterDocument(1), typeVersion: 3 }, registry), "unsupported");
 });
+
+test("loadDocument in draft mode uses parseDraft and still rejects malformed data", () => {
+  // Drafts may have targets the type would reject for play (here: negative), but must be numbers.
+  const draftType = {
+    ...counterType,
+    id: "draft-counter",
+    parseDraft(data: unknown) {
+      const target = (data as { target?: unknown } | null)?.target;
+      if (!Number.isInteger(target)) throw new Error("bad target");
+      return { target: target as number };
+    },
+  };
+  const drafts = createRegistry([draftType]);
+  const doc = { ...counterDocument(0), type: "draft-counter", data: { target: -2 } };
+  assert.deepEqual(loadDocument(doc, drafts, { draft: true }).doc.data, { target: -2 });
+  assertCode(() => loadDocument(doc, drafts), "invalid");
+  assertCode(() => loadDocument({ ...doc, data: { target: "x" } }, drafts, { draft: true }), "invalid");
+});
+
+test("loadDocument in draft mode falls back to validate", () => {
+  assertCode(() => loadDocument({ ...counterDocument(0), data: { target: -1 } }, registry, { draft: true }), "invalid");
+});

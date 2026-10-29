@@ -9,6 +9,7 @@ import {
   isSolved,
   legalMoves,
   moveRange,
+  parseDraft,
   validate,
 } from "./logic.ts";
 import type { Block, RushHourData } from "./logic.ts";
@@ -76,6 +77,14 @@ test("validate rejects malformed data and strips unknown fields", () => {
   }
   const dirty = { ...createDefault(), evil: 1, blocks: [{ ...target, color: "red" }] };
   assert.deepEqual(validate(dirty), createDefault());
+});
+
+test("parseDraft accepts drafts with problems but rejects malformed data", () => {
+  const draft = { ...puzzle([target, { id: "a", x: 1, y: 2, length: 2, axis: "h" }]), extra: 1 };
+  assert.deepEqual(parseDraft(draft), puzzle(draft.blocks));
+  assert.throws(() => validate(draft), Error);
+  assert.throws(() => parseDraft({ ...createDefault(), width: 2 }), Error);
+  assert.throws(() => parseDraft({ ...createDefault(), blocks: [{ ...target, axis: "d" }] }), Error);
 });
 
 // --- moves ---

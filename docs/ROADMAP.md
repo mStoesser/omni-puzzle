@@ -42,11 +42,11 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 - [x] Solver-Prüfung: Bei „unlösbar“ ist kein Teilen möglich; bei Erfolg wird `minMoves` angezeigt.
 
 ### M4 – Speichern und Teilen
-- [ ] `core/storage.ts` (IndexedDB) mit Stores `puzzles` und `progress`.
-- [ ] Bibliothek-View: eigene Rätsel auflisten, öffnen, duplizieren, löschen.
-- [ ] Teilen-Dialog: Link erzeugen (nur wenn verifiziert), Linklänge anzeigen, `navigator.share` bzw. Zwischenablage.
-- [ ] `#/p/<code>` öffnen: decode → migrate → validate → spielen; Fehlerseite bei kaputtem Link.
-- [ ] „In meine Bibliothek kopieren“ für fremde Rätsel (zum Remixen).
+- [x] `core/storage.ts` (IndexedDB) mit Stores `puzzles` und `progress`.
+- [x] Bibliothek-View: eigene Rätsel auflisten, öffnen, duplizieren, löschen.
+- [x] Teilen-Dialog: Link erzeugen (nur wenn verifiziert), Linklänge anzeigen, `navigator.share` bzw. Zwischenablage.
+- [x] `#/p/<code>` öffnen: decode → migrate → validate → spielen; Fehlerseite bei kaputtem Link.
+- [x] „In meine Bibliothek kopieren“ für fremde Rätsel (zum Remixen).
 
 ### M5 – Laser & Spiegel
 - [ ] `logic.ts` mit Tests: Strahlverfolgung, Reflexionstabellen, Schleifenerkennung, mehrere Emitter, `isSolved`.

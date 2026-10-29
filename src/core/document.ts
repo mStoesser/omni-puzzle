@@ -75,8 +75,13 @@ export function validateEnvelope(raw: unknown): PuzzleDocument {
 /**
  * Turns an untrusted document into a playable one:
  * envelope check → type lookup → migrate (if older) → type validation.
+ * With `draft`, the data only needs a valid structure (parseDraft), for editor drafts.
  */
-export function loadDocument(raw: unknown, registry: Registry): { type: AnyPuzzleType; doc: PuzzleDocument } {
+export function loadDocument(
+  raw: unknown,
+  registry: Registry,
+  options: { draft?: boolean } = {},
+): { type: AnyPuzzleType; doc: PuzzleDocument } {
   const doc = validateEnvelope(raw);
   const type = registry.get(doc.type);
   if (!type) throw new DocumentError("unknown-type", doc.type);
@@ -93,7 +98,7 @@ export function loadDocument(raw: unknown, registry: Registry): { type: AnyPuzzl
   }
 
   try {
-    data = type.validate(data);
+    data = options.draft && type.parseDraft ? type.parseDraft(data) : type.validate(data);
   } catch (error) {
     throw new DocumentError("invalid", `validation failed: ${String(error)}`);
   }

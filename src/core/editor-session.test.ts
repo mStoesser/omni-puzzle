@@ -9,6 +9,7 @@ import {
   readiness,
   redoEdit,
   setTitle,
+  toDocument,
   undoEdit,
   updateData,
 } from "./editor-session.ts";
@@ -75,4 +76,19 @@ test("readiness: sharing needs verification and a non-negative solver result", (
   assert.equal(readiness({ ...ok, solve: null }).canShare, false);
   assert.equal(readiness({ ...ok, solve: { status: "aborted" } }).canShare, true);
   assert.equal(readiness({ ...ok, hasSolver: false, solve: null }).canShare, true);
+});
+
+test("toDocument builds the envelope from the current editor state", () => {
+  const session = updateData(createEditorSession({ n: 1 }, "Titel"), { n: 2 });
+  const info = { type: "x", typeVersion: 3, createdAt: "2026-10-29T10:00:00.000Z" };
+  assert.deepEqual(toDocument(session, { ...info, verified: false, solve: null }), {
+    format: 1,
+    type: "x",
+    typeVersion: 3,
+    meta: { title: "Titel", createdAt: info.createdAt },
+    data: { n: 2 },
+  });
+  const solved = toDocument(session, { ...info, verified: true, solve: { status: "solved", moves: [1, 2, 3] } });
+  assert.deepEqual(solved.meta, { title: "Titel", createdAt: info.createdAt, verified: true, minMoves: 3 });
+  assert.equal(toDocument(session, { ...info, verified: false, solve: { status: "aborted" } }).meta.minMoves, undefined);
 });

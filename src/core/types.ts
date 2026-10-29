@@ -50,6 +50,11 @@ export type PuzzleType<D, S, M> = {
   /** Throws on invalid data. Data from links is untrusted. */
   validate(data: unknown): D;
   migrate?(data: unknown, fromVersion: number): unknown;
+  /**
+   * Like validate, but only checks the structure, so unfinished editor drafts can be loaded.
+   * Throws on malformed data. Without it, drafts must pass validate.
+   */
+  parseDraft?(data: unknown): D;
   /** Localized, user-facing problems for live validation in the editor. Empty = playable. */
   problems?(data: D): string[];
 

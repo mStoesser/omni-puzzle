@@ -96,13 +96,14 @@ export function findProblems(data: RushHourData): Problem[] {
 
 /** Validates untrusted data and returns a clean copy. Throws on any problem. */
 export function validate(raw: unknown): RushHourData {
-  const data = parseShape(raw);
+  const data = parseDraft(raw);
   const problems = findProblems(data);
   if (problems.length > 0) throw new Error(`invalid puzzle: ${problems.map((p) => p.code).join(", ")}`);
   return data;
 }
 
-function parseShape(raw: unknown): RushHourData {
+/** Checks only the structure and returns a clean copy; editor drafts may still have problems. */
+export function parseDraft(raw: unknown): RushHourData {
   if (!isRecord(raw)) throw new Error("data is not an object");
   const width = intIn(raw.width, LIMITS.minSize, LIMITS.maxSize, "width");
   const height = intIn(raw.height, LIMITS.minSize, LIMITS.maxSize, "height");
