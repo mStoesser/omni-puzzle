@@ -1,6 +1,7 @@
 import { html, svg } from "lit-html";
 import type { TemplateResult } from "lit-html";
 import { t } from "../../i18n/t.ts";
+import { tapCancel, tapEnd, tapStart } from "./tap.ts";
 
 /** Board units per cell. Plugins draw their board content in this coordinate system. */
 export const CELL = 100;
@@ -41,9 +42,9 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
         width=${CELL - (inRing ? 16 : 0)}
         height=${CELL - (inRing ? 16 : 0)}
         rx=${inRing ? 12 : 0}
-        @pointerdown=${(e: PointerEvent) => press(e, x, y)}
-        @pointerup=${(e: PointerEvent) => release(e, options, x, y)}
-        @pointercancel=${() => (pressed = null)}
+        @pointerdown=${tapStart}
+        @pointerup=${(e: PointerEvent) => tapEnd(e) && tapped(e, options, x, y)}
+        @pointercancel=${tapCancel}
       ></rect>`);
     }
   }
@@ -104,21 +105,7 @@ function stepper(label: string, value: number, size: GridEditorOptions["size"], 
   `;
 }
 
-// A tap is pointerdown + pointerup on the same cell. Pointer events instead of click,
-// because touch browsers may delay or swallow clicks (double-tap detection).
-let pressed: { pointerId: number; x: number; y: number } | null = null;
-
-function press(e: PointerEvent, x: number, y: number) {
-  if (!e.isPrimary || e.button !== 0) return;
-  // Touch pointers are implicitly captured by the start cell; release so pointerup hits the cell under the finger.
-  (e.currentTarget as Element).releasePointerCapture(e.pointerId);
-  pressed = { pointerId: e.pointerId, x, y };
-}
-
-function release(e: PointerEvent, options: GridEditorOptions, x: number, y: number) {
-  const tapped = pressed?.pointerId === e.pointerId && pressed.x === x && pressed.y === y;
-  pressed = null;
-  if (!tapped) return;
+function tapped(e: PointerEvent, options: GridEditorOptions, x: number, y: number) {
   const form = (e.currentTarget as Element).closest("form");
   if (!form) return;
   const tool = new FormData(form).get("tool");

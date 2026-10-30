@@ -76,12 +76,12 @@ src/
     test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts
-    components/           # dialog, share-dialog, grid-editor …
+    components/           # dialog, share-dialog, grid-editor, tap …
     styles.css
   puzzles/
     index.ts              # registriert alle Typen
     rushhour/  { index.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
-    laser/     { … }
+    laser/     { index.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     quiz/      { … }
 docs/
 ```
@@ -162,7 +162,8 @@ Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
   Plugins liefern nur ihre Palette und eine Funktion `applyTool(data, tool, x, y) → D`.
 - Optional ein Randring aus Zellen um das Spielfeld (x/y = −1 bzw. Breite/Höhe), z. B. für Ausgänge.
 - Das gewählte Werkzeug steckt in nativen Radio-Buttons (kein App-Zustand nötig).
-- Antippen = `pointerdown` + `pointerup` auf derselben Zelle; kein `click`, weil Touch-Browser Klicks verzögern oder verschlucken.
+- Antippen = `pointerdown` + `pointerup` auf demselben Element (`ui/components/tap.ts`, auch beim Spielen genutzt);
+  kein `click`, weil Touch-Browser Klicks verzögern oder verschlucken.
 - `applyTool`/`resize` liegen rein und getestet in `edit.ts`; `editor.ts` enthält nur die Darstellung.
 
 ### Editor-Ablauf
@@ -215,9 +216,18 @@ type LaserMove = { x: number; y: number };                       // Spiegel umdr
 ```
 
 - Reflexion: `/` = `{ N→E, E→N, S→W, W→S }`, `\` = `{ N→W, W→N, S→E, E→S }`.
-- Strahlverfolgung ab jedem Emitter, bis Wand, Rand oder Schleife erreicht ist. Schleifen werden über ein Set besuchter `(x, y, dir)` erkannt.
-- Gelöst, wenn alle Ziele getroffen sind. Der Strahlverlauf wird live als SVG-Polylinie gezeichnet.
-- Solver: alle Kombinationen drehbarer Spiegel durchprobieren (2ⁿ, mit Limit), später mit Pruning.
+- Strahlverfolgung ab jedem Emitter, bis Wand, Emitter, Rand oder Schleife erreicht ist. Schleifen werden über ein Set besuchter `(x, y, dir)` erkannt.
+  Mit reinen Spiegeln kann es keine Schleife geben (die Bewegung ist umkehrbar, und der Strahl kommt nie in seinen Emitter zurück);
+  die Erkennung ist ein Sicherheitsnetz für spätere Erweiterungen wie Strahlteiler.
+- **Ziele lassen den Strahl durch** (wie ein Sensor), damit ein Strahl mehrere Ziele nacheinander treffen kann.
+- Gelöst, wenn alle Ziele getroffen sind. Der Strahlverlauf wird live als animierte SVG-Polylinie gezeichnet
+  (ohne Animation bei `prefers-reduced-motion`). Spiegel werden als „/“ gezeichnet und für „\“ um 90° gedreht, so animiert das Umklappen.
+- Ein Zug klappt einen drehbaren Spiegel um; zweimal umklappen hebt sich auf. Eine Lösung ist also eine Menge umzuklappender Spiegel.
+- Solver: Mengen drehbarer Spiegel nach steigender Größe durchprobieren (höchstens 2ⁿ, mit Limit); der erste Treffer
+  braucht die wenigsten Züge. Später mit Pruning (nur Spiegel, die der Strahl erreicht).
+- Editor: Laser, Ziel, Spiegel drehbar/fest, Wand, Radierer. Erneutes Tippen dreht Laser (im Uhrzeigersinn) und Spiegel;
+  ein neuer Laser zeigt in die Richtung mit dem meisten Platz. Der Editor zeigt den Strahl der Startstellung.
+- Beispielrätsel sind per Skript erzeugt: genau ein Strahlweg löst sie, die Startstellung ist um `minMoves` Spiegel verdreht.
 - Erweiterungen (später): Spiegel aus einem Inventar platzieren, Strahlteiler, Farben, „Bomben“-Felder, die nicht getroffen werden dürfen.
 
 ### Quiz (`quiz`)

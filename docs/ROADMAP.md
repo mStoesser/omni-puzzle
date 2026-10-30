@@ -49,11 +49,11 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 - [x] „In meine Bibliothek kopieren“ für fremde Rätsel (zum Remixen).
 
 ### M5 – Laser & Spiegel
-- [ ] `logic.ts` mit Tests: Strahlverfolgung, Reflexionstabellen, Schleifenerkennung, mehrere Emitter, `isSolved`.
-- [ ] `solver.ts` mit Tests: Brute Force über drehbare Spiegel mit Limit.
-- [ ] `render.ts`: Strahl als animierte Polylinie, getroffene Ziele leuchten, Tippen dreht Spiegel.
-- [ ] Editor-Palette: Wand, Emitter (Richtung), Ziel, Spiegel fest/drehbar.
-- [ ] Beispielrätsel.
+- [x] `logic.ts` mit Tests: Strahlverfolgung, Reflexionstabellen, Schleifenerkennung, mehrere Emitter, `isSolved`.
+- [x] `solver.ts` mit Tests: Brute Force über drehbare Spiegel mit Limit.
+- [x] `render.ts`: Strahl als animierte Polylinie, getroffene Ziele leuchten, Tippen dreht Spiegel.
+- [x] Editor-Palette: Wand, Emitter (Richtung), Ziel, Spiegel fest/drehbar.
+- [x] Beispielrätsel.
 
 ### M6 – Quiz
 - [ ] `core/hash.ts` und Normalisierung von Freitext mit Tests (Umlaute, Groß-/Kleinschreibung, Leerzeichen).
