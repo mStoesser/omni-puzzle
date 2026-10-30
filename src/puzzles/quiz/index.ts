@@ -8,6 +8,7 @@ export const quiz: PuzzleType<QuizData, QuizState, QuizMove> = {
   id: "quiz",
   version: 1,
   name: "quizName",
+  description: "quizDescription",
   icon: "❓",
   // Taking back an answer after seeing the feedback would make the quiz pointless.
   controls: { undo: false, moves: false },

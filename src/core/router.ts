@@ -1,6 +1,7 @@
 export type Route =
   | { name: "home" }
   | { name: "library" }
+  | { name: "imprint" }
   | { name: "shared"; code: string }
   | { name: "new"; type: string }
   | { name: "edit"; id: string }
@@ -19,7 +20,11 @@ export function parseRoute(hash: string): Route {
   const [head, arg, ...rest] = path.split("/");
   if (rest.length > 0) return HOME;
 
-  if (arg === undefined) return head === "library" ? { name: "library" } : HOME;
+  if (arg === undefined) {
+    if (head === "library") return { name: "library" };
+    if (head === "impressum") return { name: "imprint" };
+    return HOME;
+  }
   switch (head) {
     case "p":
       return SHARE_CODE.test(arg) ? { name: "shared", code: arg } : HOME;
@@ -40,6 +45,8 @@ export function formatRoute(route: Route): string {
       return "#/";
     case "library":
       return "#/library";
+    case "imprint":
+      return "#/impressum";
     case "shared":
       return `#/p/${route.code}`;
     case "new":

@@ -19,6 +19,8 @@ export type GridEditorOptions = {
   board: unknown;
   label: string;
   onTap(tool: string, x: number, y: number): void;
+  /** Content of a cell for screen readers, e.g. "Spiegel, drehbar". Empty = nothing there. */
+  describe?(x: number, y: number): string;
 };
 
 /**
@@ -35,8 +37,16 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
       const inRing = x < 0 || y < 0 || x >= w || y >= h;
       const corner = (x < 0 || x >= w) && (y < 0 || y >= h);
       if (corner) continue;
+      const content = options.describe?.(x, y) ?? "";
+      const position = t(inRing ? "geRingCell" : "geCell", { column: x + 1, row: y + 1 });
       cells.push(svg`<rect
         class="ge-cell ${inRing ? "ring" : ""}"
+        data-x=${x}
+        data-y=${y}
+        role="button"
+        tabindex=${x === 0 && y === 0 ? 0 : -1}
+        aria-label=${content ? `${position}: ${content}` : position}
+        @keydown=${(e: KeyboardEvent) => keydown(e, options, x, y)}
         x=${x * CELL + (inRing ? 8 : 0)}
         y=${y * CELL + (inRing ? 8 : 0)}
         width=${CELL - (inRing ? 16 : 0)}
@@ -65,8 +75,8 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
       <svg
         class="ge-board"
         viewBox="${-margin} ${-margin} ${w * CELL + 2 * margin} ${h * CELL + 2 * margin}"
-        role="img"
-        aria-label=${options.label}
+        role="group"
+        aria-label="${options.label}. ${t("geKeyboardHint")}"
       >
         ${options.board} ${cells}
       </svg>
@@ -105,9 +115,35 @@ function stepper(label: string, value: number, size: GridEditorOptions["size"], 
   `;
 }
 
-function tapped(e: PointerEvent, options: GridEditorOptions, x: number, y: number) {
+function tapped(e: Event, options: GridEditorOptions, x: number, y: number) {
   const form = (e.currentTarget as Element).closest("form");
   if (!form) return;
   const tool = new FormData(form).get("tool");
   if (typeof tool === "string") options.onTap(tool, x, y);
+}
+
+// Keyboard: one cell is in the tab order ("roving tabindex"); arrow keys move the focus,
+// Enter or Space applies the selected tool.
+const ARROWS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+
+function keydown(e: KeyboardEvent, options: GridEditorOptions, x: number, y: number) {
+  const cell = e.currentTarget as SVGElement;
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    tapped(e, options, x, y);
+    return;
+  }
+  const arrow = ARROWS[e.key];
+  if (!arrow) return;
+  e.preventDefault();
+  const next = cell.ownerSVGElement?.querySelector<SVGElement>(`[data-x="${x + arrow[0]}"][data-y="${y + arrow[1]}"]`);
+  if (!next) return; // edge or ring corner
+  cell.setAttribute("tabindex", "-1");
+  next.setAttribute("tabindex", "0");
+  next.focus();
 }

@@ -8,6 +8,7 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute("#"), { name: "home" });
   assert.deepEqual(parseRoute("#/"), { name: "home" });
   assert.deepEqual(parseRoute("#/library"), { name: "library" });
+  assert.deepEqual(parseRoute("#/impressum"), { name: "imprint" });
   assert.deepEqual(parseRoute("#/p/1.abc_-XYZ"), { name: "shared", code: "1.abc_-XYZ" });
   assert.deepEqual(parseRoute("#/new/rushhour"), { name: "new", type: "rushhour" });
   assert.deepEqual(parseRoute("#/edit/a1-b2"), { name: "edit", id: "a1-b2" });
@@ -18,6 +19,7 @@ test("unknown or malformed routes lead to home", () => {
   for (const hash of [
     "#/nope",
     "#/library/x",
+    "#/impressum/x",
     "#/play",
     "#/play/",
     "#/play/a/b",
@@ -33,6 +35,7 @@ test("formatRoute and parseRoute round-trip", () => {
   const routes: Route[] = [
     { name: "home" },
     { name: "library" },
+    { name: "imprint" },
     { name: "shared", code: "1.abc" },
     { name: "new", type: "laser" },
     { name: "edit", id: "x1" },

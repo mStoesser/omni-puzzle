@@ -9,6 +9,7 @@ export const rushHour: PuzzleType<RushHourData, RushHourState, RushHourMove> = {
   id: "rushhour",
   version: 1,
   name: "rushHourName",
+  description: "rushHourDescription",
   icon: "🚗",
   createDefault,
   validate,

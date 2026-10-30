@@ -44,6 +44,7 @@ export type PuzzleType<D, S, M> = {
   id: string;
   version: number; // current typeVersion
   name: MessageKey;
+  description: MessageKey; // one sentence for the home page
   icon: string;
   /** Which core play controls make sense for this type (default: all). E.g. a quiz has no undo and no move count. */
   controls?: { undo?: boolean; moves?: boolean };

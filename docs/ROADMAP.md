@@ -64,10 +64,12 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 
 ### M7 – PWA und Veröffentlichung
 - [ ] `manifest.webmanifest`, Icons, `sw.js`; Installierbarkeit auf Android und iOS testen.
-- [ ] Startseite polieren: Typ-Kacheln, Beispielrätsel, „Selbst bauen“-Einstieg.
-- [ ] Barrierefreiheit: Tastaturbedienung für alle Typen, Fokus-Stile, ARIA-Labels, ausreichende Kontraste.
+  (Umgesetzt; Chrome meldet keine Installierbarkeitsfehler, offline getestet. Test auf echten Geräten geht erst mit https, also nach dem Deployment.)
+- [x] Startseite polieren: Typ-Kacheln, Beispielrätsel, „Selbst bauen“-Einstieg.
+- [x] Barrierefreiheit: Tastaturbedienung für alle Typen, Fokus-Stile, ARIA-Labels, ausreichende Kontraste.
 - [ ] Deployment auf statisches Hosting (z. B. GitHub Pages per GitHub Action).
-- [ ] Impressum-Seite (in Deutschland auch für öffentlich erreichbare Hobbyseiten zu prüfen).
+  (Workflow und Repository stehen; offen: Pages-Quelle „GitHub Actions“ aktivieren und ersten Lauf prüfen.)
+- [x] Impressum-Seite (in Deutschland auch für öffentlich erreichbare Hobbyseiten zu prüfen).
 
 ---
 

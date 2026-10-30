@@ -4,7 +4,7 @@ import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { gridEditor } from "../../ui/components/grid-editor.ts";
 import type { PaletteItem } from "../../ui/components/grid-editor.ts";
-import { applyTool, isTool, resize } from "./edit.ts";
+import { applyTool, blockAt, isTool, resize } from "./edit.ts";
 import { LIMITS, findProblems, initState, isSolved } from "./logic.ts";
 import type { ProblemCode, RushHourData } from "./logic.ts";
 import { boardLayers } from "./render.ts";
@@ -56,6 +56,24 @@ export function renderEditor(ctx: EditorContext<RushHourData>) {
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));
       },
+      describe: (x, y) => describeCell(data, x, y),
     })}
   `;
+}
+
+function describeCell(data: RushHourData, x: number, y: number): string {
+  if (x < 0 || y < 0 || x >= data.width || y >= data.height) return isExit(data, x, y) ? t("rhToolExit") : "";
+  const hit = blockAt(data, x, y);
+  if (hit < 0) return "";
+  const block = data.blocks[hit]!;
+  const axis = t(block.axis === "h" ? "rhHorizontal" : "rhVertical");
+  return `${block.target ? t("rhToolTarget") : t(block.length === 3 ? "rhToolBlock3" : "rhToolBlock2")}, ${axis}`;
+}
+
+function isExit(data: RushHourData, x: number, y: number): boolean {
+  const { side, index } = data.exit;
+  if (side === "E") return x === data.width && y === index;
+  if (side === "W") return x === -1 && y === index;
+  if (side === "N") return y === -1 && x === index;
+  return y === data.height && x === index;
 }

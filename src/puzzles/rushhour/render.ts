@@ -1,9 +1,9 @@
-import { html, svg } from "lit-html";
+import { html, nothing, svg } from "lit-html";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { blockOrigin, moveRange } from "./logic.ts";
-import type { RushHourData, RushHourMove, RushHourState } from "./logic.ts";
+import type { Block, RushHourData, RushHourMove, RushHourState } from "./logic.ts";
 
 type Ctx = PlayContext<RushHourData, RushHourState, RushHourMove>;
 
@@ -12,7 +12,7 @@ const INSET = 6; // gap between blocks and cell borders
 
 // Scoped to the SVG via class names; light and dark variants.
 const STYLE = svg`<style>
-  .rh { --rh-board: #e4e1d8; --rh-line: #cfcbc0; --rh-block: #7b8fa6; --rh-block-alt: #a1876a; --rh-target: #d6453d; }
+  .rh { --rh-board: #e4e1d8; --rh-line: #cfcbc0; --rh-block: #62758c; --rh-block-alt: #866a4c; --rh-target: #d6453d; }
   @media (prefers-color-scheme: dark) {
     .rh { --rh-board: #2a2c31; --rh-line: #3a3d44; --rh-block: #6a7d93; --rh-block-alt: #8f7659; --rh-target: #ef5b52; }
   }
@@ -34,7 +34,7 @@ export function renderPlay(ctx: Ctx) {
   return html`
     <svg
       viewBox="${-PAD} ${-PAD} ${w + 2 * PAD} ${h + 2 * PAD}"
-      role="img"
+      role="group"
       aria-label=${t("rushHourBoard")}
     >
       ${boardLayers(data, ctx.state, { ctx })}
@@ -70,6 +70,11 @@ export function boardLayers(
       ].join(" ");
       return svg`<rect
         class=${classes}
+        tabindex=${ctx ? 0 : nothing}
+        role=${ctx ? "button" : nothing}
+        aria-label=${ctx ? blockLabel(block, origin) : nothing}
+        @keydown=${ctx ? (e: KeyboardEvent) => keyMove(e, ctx, i) : null}
+        @blur=${ctx ? (e: FocusEvent) => keySlide?.block === i && putDown(e.currentTarget as SVGGraphicsElement, ctx) : null}
         x=${origin.x * CELL + INSET}
         y=${origin.y * CELL + INSET}
         width=${cols * CELL - 2 * INSET}
@@ -82,6 +87,60 @@ export function boardLayers(
       ></rect>`;
     })}
   </g>`;
+}
+
+function blockLabel(block: Block, origin: { x: number; y: number }) {
+  return t(block.target ? "rhTargetLabel" : "rhBlockLabel", {
+    axis: t(block.axis === "h" ? "rhHorizontal" : "rhVertical"),
+    column: origin.x + 1,
+    row: origin.y + 1,
+  });
+}
+
+// Keyboard works like dragging: arrow keys slide the block (preview), Enter, Space or leaving
+// the block puts it down as one move, Escape cancels. So keyboard players get the same move count.
+const KEY_DELTA: Record<string, { axis: "h" | "v"; delta: number }> = {
+  ArrowLeft: { axis: "h", delta: -1 },
+  ArrowRight: { axis: "h", delta: 1 },
+  ArrowUp: { axis: "v", delta: -1 },
+  ArrowDown: { axis: "v", delta: 1 },
+};
+
+let keySlide: { block: number; offset: number } | null = null;
+
+function keyMove(e: KeyboardEvent, ctx: Ctx, block: number) {
+  const element = e.currentTarget as SVGGraphicsElement;
+  const sliding = keySlide?.block === block ? keySlide : null;
+  if (e.key === "Escape" && sliding) {
+    keySlide = null;
+    resetDrag(element);
+    return;
+  }
+  if ((e.key === "Enter" || e.key === " ") && sliding) {
+    e.preventDefault();
+    putDown(element, ctx);
+    return;
+  }
+  const key = KEY_DELTA[e.key];
+  if (!key) return;
+  e.preventDefault();
+  if (ctx.data.blocks[block]!.axis !== key.axis || drag) return;
+  const range = moveRange(ctx.data, ctx.state, block);
+  const offset = (sliding?.offset ?? 0) + key.delta;
+  if (offset < range.min || offset > range.max) return;
+  keySlide = { block, offset };
+  const [dx, dy] = key.axis === "h" ? [offset * CELL, 0] : [0, offset * CELL];
+  element.setAttribute("transform", `translate(${dx} ${dy})`);
+  element.classList.add("dragging");
+}
+
+function putDown(element: SVGGraphicsElement, ctx: Ctx) {
+  if (!keySlide) return;
+  const { block, offset } = keySlide;
+  keySlide = null;
+  element.removeAttribute("transform");
+  element.classList.remove("dragging");
+  if (offset !== 0) ctx.dispatch({ block, delta: offset });
 }
 
 function gridLines(data: RushHourData) {

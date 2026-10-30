@@ -10,7 +10,8 @@
   --accent: #2f6fdb;
   --accent-contrast: #ffffff;
   --danger: #c6362f;
-  --success: #2a8a4a;
+  --success: #23773f;
+  --control-border: #8b8880; /* 3:1 against surface and background (WCAG 1.4.11) */
 
   --radius: 12px;
   --space-1: 4px;
@@ -33,6 +34,7 @@
     --accent-contrast: #0e1420;
     --danger: #ff6b62;
     --success: #5cc97f;
+    --control-border: #6e727b;
   }
 }
 
@@ -222,6 +224,8 @@ h2 {
 
 .card-title {
   font-weight: 600;
+  hyphens: auto; /* long German compounds like "Feierabendverkehr" */
+  overflow-wrap: anywhere;
 }
 
 .card-detail {
@@ -253,7 +257,7 @@ h2 {
 input[type="text"] {
   min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
@@ -491,7 +495,7 @@ input[type="text"]:focus-visible {
   gap: var(--space-3);
   min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
   background: var(--surface);
   cursor: pointer;
@@ -524,7 +528,7 @@ input[type="text"]:focus-visible {
 .field input[type="number"] {
   min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
@@ -665,4 +669,79 @@ input[type="text"]:focus-visible {
 .quiz-edit-head select {
   flex: 1 1 6rem;
   min-width: 0;
+}
+
+/* Home */
+.type-tile {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.type-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.type-head h2 {
+  margin: 0;
+}
+
+.type-head p {
+  margin: 0;
+}
+
+.type-icon {
+  font-size: 2.25rem;
+  line-height: 1;
+}
+
+.type-tile .card {
+  background: var(--bg);
+}
+
+/* Title above the detail: long German titles get the full width. */
+.card.compact {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.type-build {
+  justify-self: start;
+}
+
+.site-footer {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.site-footer a,
+.imprint-link {
+  color: var(--text-muted);
+}
+
+.imprint {
+  margin-bottom: var(--space-3);
+  font-style: normal;
+}
+
+/* Accessibility: one visible focus style for everything focusable, including SVG game pieces. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:where(svg [tabindex]):focus-visible {
+  outline: none;
+  stroke: var(--accent);
+  stroke-width: 8;
 }

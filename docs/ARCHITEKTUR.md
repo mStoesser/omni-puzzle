@@ -115,6 +115,7 @@ type PuzzleType<D, S, M> = {
   id: string;                       // "laser"
   version: number;                  // aktuelle typeVersion
   name: string;                     // i18n-Key
+  description: string;              // i18n-Key, ein Satz für die Startseite
   icon: string;                     // Emoji oder SVG
   controls?: { undo?: boolean; moves?: boolean };  // Core-Bedienelemente abschalten (Quiz: kein Undo, kein Zugzähler)
 
@@ -167,6 +168,8 @@ Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
 - Antippen = `pointerdown` + `pointerup` auf demselben Element (`ui/components/tap.ts`, auch beim Spielen genutzt);
   kein `click`, weil Touch-Browser Klicks verzögern oder verschlucken.
 - `applyTool`/`resize` liegen rein und getestet in `edit.ts`; `editor.ts` enthält nur die Darstellung.
+- Tastatur: Nur ein Feld ist in der Tab-Reihenfolge („roving tabindex“), Pfeiltasten bewegen den Fokus, Enter/Leertaste
+  wendet das Werkzeug an. Über `describe(x, y)` sagt das Plugin Screenreadern, was auf einem Feld liegt.
 
 ### Editor-Ablauf
 
@@ -293,6 +296,7 @@ URL: https://<host>/#/p/1.<code>      ("1." = Codec-Version)
 | `#/new/<type>` | neues Rätsel im Editor |
 | `#/edit/<localId>` | eigenes Rätsel bearbeiten |
 | `#/play/<localId>` | eigenes Rätsel oder eingebautes Beispiel spielen |
+| `#/impressum` | Impressum (Angaben in `src/imprint.ts`) |
 
 ## Lokale Speicherung (IndexedDB)
 
@@ -307,9 +311,31 @@ Die Datenbank `raetsel` enthält diese Stores:
 
 ## PWA
 
-- `manifest.webmanifest` mit Name, Icons und `display: standalone`.
-- `sw.js`: Netzwerk zuerst, Cache als Fallback für App-Dateien. Geteilte Rätsel funktionieren offline,
-  weil sie komplett im Link stecken.
+- `public/manifest.webmanifest` mit Name, Icons (192, 512, maskable 512, SVG) und `display: standalone`;
+  `apple-touch-icon` und Meta-Tags für iOS in `index.html`. Alle Pfade relativ (`vite build --base=./`),
+  damit die App auch in einem Unterordner läuft (GitHub Pages: `https://<user>.github.io/<repo>/`).
+- `public/sw.js`: Netzwerk zuerst, Cache als Fallback. Beim Installieren werden App-Shell und die gebauten
+  Bundles (aus `index.html` gelesen) gecacht, also funktioniert die App schon nach dem ersten Besuch offline.
+  Offline-Navigation (auch geteilte Links) bekommt die App-Shell. Geteilte Rätsel funktionieren offline,
+  weil sie komplett im Link stecken. Registriert wird der Service Worker nur im Produktions-Build.
+
+## Barrierefreiheit
+
+- Alles ist per Tastatur bedienbar, mit einem einheitlichen Fokusrahmen (`:focus-visible`, in SVG als Kontur).
+- Ausparken: Tab wählt einen Block, Pfeiltasten schieben ihn (Vorschau wie beim Ziehen), Enter/Leertaste oder
+  Verlassen des Blocks setzt ihn ab, Esc bricht ab. Ein Absetzen ist ein Zug, so zählt die Tastatur wie das Ziehen.
+- Laser: Tab wählt einen drehbaren Spiegel, Enter/Leertaste klappt ihn um; eine Live-Region sagt an, wie viele Ziele getroffen sind.
+- Spielfelder sind `role="group"` mit Bedienhinweis im Label; Spielsteine haben `role="button"` und beschreibende Labels.
+- Jede Seite setzt `document.title`.
+- Kontraste nach WCAG geprüft: Text mindestens 4,5:1, Bedienelemente und Spielsteine mindestens 3:1
+  (eigenes Token `--control-border` für Eingabefelder).
+- Animationen respektieren `prefers-reduced-motion`.
+
+## Deployment
+
+- `.github/workflows/deploy.yml`: bei jedem Push auf `main` testen, bauen und auf GitHub Pages veröffentlichen.
+  Einmalig in GitHub einstellen: Settings → Pages → Source „GitHub Actions“.
+- Der Workflow bricht ab, solange `src/imprint.ts` nicht ausgefüllt ist.
 
 ## Phase 2: Backend (Entscheidung offen)
 

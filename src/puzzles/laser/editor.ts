@@ -1,11 +1,12 @@
 import { html } from "lit-html";
+import type { Dir } from "../../core/grid.ts";
 import type { EditorContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { gridEditor } from "../../ui/components/grid-editor.ts";
 import type { PaletteItem } from "../../ui/components/grid-editor.ts";
 import { applyTool, isTool, resize } from "./edit.ts";
-import { LIMITS, findProblems, initState, isSolved } from "./logic.ts";
+import { LIMITS, cellAt, findProblems, initState, isSolved } from "./logic.ts";
 import type { LaserData, ProblemCode } from "./logic.ts";
 import { boardLayers } from "./render.ts";
 
@@ -53,6 +54,25 @@ export function renderEditor(ctx: EditorContext<LaserData>) {
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));
       },
+      describe: (x, y) => describeCell(data, x, y),
     })}
   `;
+}
+
+const DIR_NAME: Record<Dir, MessageKey> = { N: "dirN", E: "dirE", S: "dirS", W: "dirW" };
+
+function describeCell(data: LaserData, x: number, y: number): string {
+  const index = cellAt(data, x, y);
+  if (index < 0) return "";
+  const { cell } = data.cells[index]!;
+  switch (cell.kind) {
+    case "wall":
+      return t("lsToolWall");
+    case "target":
+      return t("lsToolTarget");
+    case "emitter":
+      return `${t("lsToolEmitter")}, ${t(DIR_NAME[cell.dir])}`;
+    case "mirror":
+      return `${t(cell.rotatable ? "lsToolRotatable" : "lsToolMirror")}, ${t(cell.orientation === "/" ? "lsSlash" : "lsBackslash")}`;
+  }
 }

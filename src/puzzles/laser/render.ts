@@ -5,7 +5,7 @@ import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
-import { traceBeams } from "./logic.ts";
+import { targetCount, traceBeams } from "./logic.ts";
 import type { LaserData, LaserMove, LaserState, Orientation, PlacedCell } from "./logic.ts";
 
 type Ctx = PlayContext<LaserData, LaserState, LaserMove>;
@@ -14,8 +14,8 @@ const PAD = 12;
 
 // Scoped to the SVG via class names; light and dark variants.
 const STYLE = svg`<style>
-  .ls { --ls-board: #e4e1d8; --ls-line: #cfcbc0; --ls-wall: #6b6a66; --ls-beam: #e3342f; --ls-target: #8a8780;
-        --ls-lit: #f2b705; --ls-mirror: #3c6e9e; --ls-fixed: #4b4a47; --ls-base: #c9d6e4; --ls-emitter: #2b2a28; }
+  .ls { --ls-board: #e4e1d8; --ls-line: #cfcbc0; --ls-wall: #6b6a66; --ls-beam: #e3342f; --ls-target: #6e6b65;
+        --ls-lit: #a66f00; --ls-mirror: #3c6e9e; --ls-fixed: #4b4a47; --ls-base: #c9d6e4; --ls-emitter: #2b2a28; }
   @media (prefers-color-scheme: dark) {
     .ls { --ls-board: #2a2c31; --ls-line: #3a3d44; --ls-wall: #8a8d94; --ls-beam: #ff5a50; --ls-target: #8f939b;
           --ls-lit: #ffd23f; --ls-mirror: #8fbaf0; --ls-fixed: #c7c9ce; --ls-base: #34465c; --ls-emitter: #e7e7ea; }
@@ -29,7 +29,10 @@ const STYLE = svg`<style>
   .ls-beam-flow { fill: none; stroke: var(--ls-beam); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round;
                   stroke-dasharray: 28 16; animation: ls-flow 0.8s linear infinite; }
   @keyframes ls-flow { to { stroke-dashoffset: -44; } }
-  @media (prefers-reduced-motion: reduce) { .ls-beam-flow { animation: none; stroke-dasharray: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .ls-beam-flow { animation: none; stroke-dasharray: none; }
+    .ls-mirror { transition: none; }
+  }
   .ls-base { fill: var(--ls-base); }
   .ls-mirror { stroke: var(--ls-mirror); stroke-width: 12; stroke-linecap: round;
                transform-box: fill-box; transform-origin: center; transition: transform 0.15s ease-out; }
@@ -42,14 +45,16 @@ const STYLE = svg`<style>
 
 export function renderPlay(ctx: Ctx) {
   const { data } = ctx;
+  const hit = traceBeams(data, ctx.state).hit.size;
   return html`
     <svg
       viewBox="${-PAD} ${-PAD} ${data.width * CELL + 2 * PAD} ${data.height * CELL + 2 * PAD}"
-      role="img"
+      role="group"
       aria-label=${t("laserBoard")}
     >
       ${boardLayers(data, ctx.state, { ctx })}
     </svg>
+    <p class="visually-hidden" aria-live="polite">${t("lsTargetsHit", { hit, total: targetCount(data) })}</p>
   `;
 }
 
@@ -91,7 +96,7 @@ export function boardLayers(
             : null,
         )
       : null}
-    ${ctx ? of("mirror").filter((c) => c.cell.kind === "mirror" && c.cell.rotatable).map((c) => hitArea(c, ctx)) : null}
+    ${ctx ? of("mirror").filter((c) => c.cell.kind === "mirror" && c.cell.rotatable).map((c) => hitArea(c, orientationOf(c), ctx)) : null}
   </g>`;
 }
 
@@ -133,12 +138,21 @@ function emitter(x: number, y: number, dir: Dir) {
   </g>`;
 }
 
-function hitArea(c: PlacedCell, ctx: Ctx) {
+function hitArea(c: PlacedCell, orientation: Orientation, ctx: Ctx) {
+  const flip = () => ctx.dispatch({ x: c.x, y: c.y });
   return svg`<rect
     class="ls-hit"
     x=${c.x * CELL} y=${c.y * CELL} width=${CELL} height=${CELL}
+    tabindex="0"
+    role="button"
+    aria-label=${t("lsMirrorLabel", { column: c.x + 1, row: c.y + 1, orientation: t(orientation === "/" ? "lsSlash" : "lsBackslash") })}
+    @keydown=${(e: KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      flip();
+    }}
     @pointerdown=${tapStart}
-    @pointerup=${(e: PointerEvent) => tapEnd(e) && ctx.dispatch({ x: c.x, y: c.y })}
+    @pointerup=${(e: PointerEvent) => tapEnd(e) && flip()}
     @pointercancel=${tapCancel}
   ></rect>`;
 }

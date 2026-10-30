@@ -9,6 +9,7 @@ export const counterType: PuzzleType<CounterData, number, 1 | -1> = {
   id: "counter",
   version: 2,
   name: "appTitle",
+  description: "appTitle",
   icon: "#",
   createDefault: () => ({ target: 3 }),
   validate(data) {

@@ -9,6 +9,7 @@ export const laser: PuzzleType<LaserData, LaserState, LaserMove> = {
   id: "laser",
   version: 1,
   name: "laserName",
+  description: "laserDescription",
   icon: "🔦",
   createDefault,
   validate,

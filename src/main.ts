@@ -16,7 +16,8 @@ import type { MessageKey } from "./i18n/t.ts";
 import { examples, registry } from "./puzzles/index.ts";
 import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
 import { editorView } from "./ui/views/editor.ts";
-import { homeView } from "./ui/views/home.ts";
+import { homeView, siteFooter } from "./ui/views/home.ts";
+import { imprintView } from "./ui/views/imprint.ts";
 import { libraryView } from "./ui/views/library.ts";
 import type { LibraryItem } from "./ui/views/library.ts";
 import { messageView } from "./ui/views/message.ts";
@@ -474,7 +475,9 @@ function view(state: AppState) {
       return homeView(registry.all(), examples, new Set(solved.map((e) => e.id)));
     }
     case "library":
-      return libraryView(state.library, registry.all(), libraryActions);
+      return html`${libraryView(state.library, registry.all(), libraryActions)} ${siteFooter()}`;
+    case "imprint":
+      return imprintView();
     case "play":
     case "shared": {
       if (!state.play) return messageView(t("puzzleNotFound"));
@@ -498,6 +501,17 @@ function page(state: AppState) {
   `;
 }
 
+function pageTitle(state: AppState): string {
+  const { route } = state;
+  const part =
+    state.play?.title ||
+    (route.name === "library" ? t("library")
+    : route.name === "imprint" ? t("imprint")
+    : (route.name === "new" || route.name === "edit") && state.editor ? t(state.editor.type.name)
+    : "");
+  return part ? `${part} – ${t("appTitle")}` : t("appTitle");
+}
+
 // Render loop: batch all store updates of one task into a single render.
 let renderQueued = false;
 function scheduleRender() {
@@ -505,7 +519,9 @@ function scheduleRender() {
   renderQueued = true;
   queueMicrotask(() => {
     renderQueued = false;
-    render(page(store.get()), app!);
+    const state = store.get();
+    render(page(state), app!);
+    document.title = pageTitle(state);
   });
 }
 
@@ -515,5 +531,9 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") flushSave();
 });
 startRouter(enterRoute);
+// Offline support only in production builds; in development it would serve stale files.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch((error: unknown) => console.warn("service worker", error));
+}
 void loadProgress();
 scheduleRender();
