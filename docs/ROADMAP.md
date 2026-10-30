@@ -72,15 +72,96 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 ---
 
 ## Phase 2: Community (Backend)
-- [ ] Backend wählen (Supabase oder PocketBase, siehe ARCHITEKTUR.md).
-- [ ] Optionale Accounts; anonymes Spielen bleibt möglich.
-- [ ] Veröffentlichen (nur verifizierte Rätsel), Galerie mit Filtern und Sortierung.
-- [ ] Likes, Schwierigkeitsbewertung durch Spieler, Spielzähler.
-- [ ] Melden-Funktion und einfache Moderationsansicht.
-- [ ] Bilder für Quizfragen (Upload, Größenlimit).
-- [ ] Datenschutzerklärung.
+
+Entschieden (Details in ARCHITEKTUR.md, Abschnitt „Phase 2: Backend“):
+- **Supabase** in der EU-Region (Frankfurt), angesprochen per `fetch` ohne SDK.
+- **Accounts** mit E-Mail und Passwort, optional. Spielen, Bauen und Teilen per Link bleiben ohne Account möglich.
+- **Moderation:** Rätsel sind sofort sichtbar. Ab mehreren Meldungen werden sie automatisch ausgeblendet, bis ein Moderator sie prüft.
+- **Likes und Schwierigkeitsbewertung** nur für angemeldete Nutzer. Den Spielzähler erhöhen auch anonyme Spieler.
+- **Veröffentlichte Rätsel sind unveränderlich**; nur Titel und Beschreibung lassen sich ändern, und man kann sie zurückziehen.
+  Eine Änderung am Inhalt bedeutet: neues Rätsel veröffentlichen.
+- **Keine Synchronisierung** von Bibliothek und Fortschritt; das kommt erst in Phase 3.
+- Die App bleibt eine statische Seite auf GitHub Pages. Ohne Backend-Konfiguration läuft sie wie in Phase 1,
+  die Community-Funktionen sind dann ausgeblendet.
+
+Strategie wie in Phase 1: erst ein dünner Durchstich (veröffentlichen und per Link öffnen), dann in die Breite.
+
+### M8 – Backend-Grundlage
+- [ ] Vorab prüfen: aktuelle Free-Tier-Grenzen von Supabase (Pausieren nach Inaktivität, Speicher, Edge-Function-Laufzeit).
+- [ ] Zwei Supabase-Projekte in Frankfurt anlegen: `dev` und `prod`. Der Free-Tier erlaubt zwei aktive Projekte.
+- [ ] Datenbankschema als SQL-Migrationen im Repo (`supabase/migrations/*.sql`), von Hand auf beide Projekte angewendet:
+  `profiles`, `puzzles`, `likes`, `ratings`, `reports`. Zähler werden per Trigger gepflegt.
+- [ ] Row Level Security für jede Tabelle. Clients lesen nur sichtbare Rätsel und schreiben nur eigene Likes, Bewertungen und Meldungen.
+  Rätsel selbst legt nur die Edge Function an (M10).
+- [ ] Konfiguration in `src/backend.ts` (Projekt-URL und öffentlicher Anon-Key, im Build per `import.meta.env`).
+  Fehlt sie, sind alle Community-Funktionen ausgeblendet.
+- [ ] `core/api.ts`: kleiner `fetch`-Wrapper für PostgREST, Auth und Functions mit Timeout, einheitlichen Fehlertypen und
+  deutschen Fehlermeldungen. Er ist mit gefälschtem `fetch` per `node --test` getestet.
+- [ ] Gegen das Pausieren: GitHub-Action-Cron, die das `prod`-Projekt alle paar Tage mit einer leichten Abfrage weckt.
+- [ ] Service Worker: Anfragen an das Backend nie cachen. Offline zeigen Community-Seiten einen verständlichen Hinweis.
+- [ ] **Datenschutzerklärung** (`#/datenschutz`, Link im Footer neben dem Impressum): GitHub Pages, Supabase (AV-Vertrag, Region),
+  Mailanbieter, Login-Token im `localStorage`, welche Daten gespeichert werden, Löschung und Betroffenenrechte.
+  Wie beim Impressum bricht das Deployment ab, solange sie unvollständig ist. Rechtlich solltest du den Text selbst prüfen
+  (z. B. mit einem Generator); ich kann nur einen Entwurf liefern.
+
+### M9 – Accounts
+- [ ] **Entscheidung:** SMTP-Anbieter für Bestätigungs- und Reset-Mails (siehe „Offene Entscheidungen“) und in Supabase einrichten.
+- [ ] Registrieren (Anzeigename, E-Mail, Passwort), E-Mail bestätigen, anmelden, abmelden, Passwort vergessen.
+- [ ] Sitzung: Tokens im `localStorage`, automatisches Erneuern des Access-Tokens; abgelaufene Sitzungen führen sauber zur Anmeldung.
+- [ ] Anzeigename: eindeutig, 3–20 Zeichen, kein HTML. Er wird bei Rätseln als Autor angezeigt.
+- [ ] Kontoseite (`#/account`): Anzeigename ändern, Passwort ändern, **Konto löschen** (DSGVO).
+  Das Löschen läuft über eine Edge Function und entfernt Profil, Likes, Bewertungen und eigene Rätsel.
+- [ ] Anmeldestatus in der Kopfzeile; die Anmelde-Dialoge sind per Tastatur bedienbar und haben Labels.
+- [ ] Auf dem Handy testen: Ein Bestätigungslink aus der Mail öffnet die Seite, auch wenn die PWA installiert ist.
+
+### M10 – Veröffentlichen (Durchstich)
+- [ ] Edge Function `publish`: Sie nutzt denselben TypeScript-Code wie die App (`loadDocument`, `validate`, Solver)
+  und prüft damit Format, Größenlimits und, wo ein Solver existiert, Lösbarkeit und `minMoves` selbst.
+  Ein Quiz kann nicht serverseitig geprüft werden (die Lösungen sind gehasht); dort zählt „vom Ersteller gelöst“.
+- [ ] Doppelte Rätsel verhindern: eindeutiger Inhaltsschlüssel (der gleiche Hash wie `progressKey`).
+- [ ] Limit: höchstens N Veröffentlichungen pro Nutzer und Tag.
+- [ ] Im Editor: „Veröffentlichen“ neben „Teilen“. Der Knopf ist nur aktiv, wenn man angemeldet und das Rätsel verifiziert ist.
+  Vorher kommt ein Bestätigungsdialog („Veröffentlicht = unveränderlich“).
+- [ ] Neue Route `#/g/<id>`: ein veröffentlichtes Rätsel spielen. Das gibt auch einen kurzen Teilen-Link.
+  Fortschritt und Bestwert funktionieren automatisch über `progressKey`. „In Bibliothek kopieren“ geht wie bei geteilten Links.
+- [ ] „Meine Veröffentlichungen“ auf der Kontoseite: Titel und Beschreibung ändern, zurückziehen (löschen).
+- [ ] Spielzähler: eine Datenbankfunktion zählt einen Aufruf pro Gerät und Rätsel (im Browser gemerkt). Bewusst einfach und nicht fälschungssicher.
+
+### M11 – Galerie
+- [ ] Route `#/gallery`, verlinkt von der Startseite und von jeder Typ-Kachel.
+- [ ] Filter: Typ, Schwierigkeit (bei Typen mit Solver Stufen aus `minMoves`, sonst aus Spielerbewertungen).
+- [ ] Sortierung: neu, beliebt (Likes), meistgespielt, schwierigste.
+- [ ] Seitenweises Nachladen (Keyset-Pagination, „Mehr laden“-Knopf statt Endlos-Scrollen).
+- [ ] Karten zeigen Titel, Autor, Typ, Schwierigkeit, Likes, und ob man das Rätsel schon gelöst hat (lokaler Fortschritt).
+- [ ] Startseite: Bereich „Neu in der Galerie“ mit den neuesten Rätseln.
+- [ ] Ladezustände, Fehler und Offline-Hinweis; Barrierefreiheit wie in M7 (Fokus, Labels, Live-Region beim Nachladen).
+
+### M12 – Likes und Bewertungen
+- [ ] Like-Knopf (Herz) auf `#/g/<id>` und auf dem Gelöst-Bildschirm; ohne Anmeldung kommt ein Hinweis mit Anmelde-Link.
+- [ ] Schwierigkeitsbewertung (1–5) erst nach dem Lösen; man kann sie ändern.
+- [ ] Durchschnitt und Anzahl der Bewertungen auf Karte und Spielseite, erst ab einer Mindestzahl an Stimmen.
+- [ ] Eigene Rätsel kann man nicht liken oder bewerten (über RLS geprüft).
+
+### M13 – Melden und Moderation
+- [ ] Melden-Knopf mit Grund (unangemessen, Spam, nicht lösbar, Sonstiges) und optionalem Kommentar; eine Meldung pro Nutzer und Rätsel.
+- [ ] Ab der Schwelle (z. B. 3 Meldungen verschiedener Nutzer) wird ein Rätsel automatisch ausgeblendet (per Trigger).
+- [ ] Moderatoren-Rolle (`profiles.is_moderator`, nur direkt in der Datenbank setzbar).
+- [ ] Moderationsansicht `#/moderation`: gemeldete und ausgeblendete Rätsel, Rätsel wieder freigeben, löschen, Meldungen schließen,
+  Nutzer sperren und anstößige Anzeigenamen zurücksetzen.
+- [ ] Gesperrte Nutzer können nichts mehr veröffentlichen, liken oder melden.
+
+### M14 – Bilder für Quizfragen
+- [ ] **Entscheidung im Meilenstein:** wie Quizze mit Bildern per Link geteilt werden.
+  Bilder gibt es nur bei veröffentlichten Quizzen; ein Teilen-Link zeigt sie entweder nicht oder verweist auf die veröffentlichte Fassung.
+- [ ] Quiz-Datenformat um optionales Bild pro Frage erweitern: `typeVersion` 2 mit `migrate` (CLAUDE.md, Regel 7).
+- [ ] Bild im Editor wählen; im Browser auf max. 1024 px verkleinern und als WebP kodieren, Limit z. B. 200 KB.
+  Bis zum Veröffentlichen liegt das Bild lokal in IndexedDB.
+- [ ] Upload nach Supabase Storage beim Veröffentlichen. Die Edge Function prüft Dateityp und Größe.
+- [ ] Alternativtext pro Bild ist Pflicht (Barrierefreiheit).
+- [ ] Moderation: Bilder erscheinen in der Moderationsansicht; beim Löschen eines Rätsels werden seine Bilder mitgelöscht.
 
 ## Phase 3: Ausbau
+- [ ] Geräteübergreifende Synchronisierung von Bibliothek und Fortschritt mit dem Account.
 - [ ] Weitere Typen: Sokoban, Rohre, Lights Out, Nonogramm, Klotski (als Rush-Hour-Variante), Eis-Rutschen …
 - [ ] Laser-Erweiterungen (Inventar, Strahlteiler, Farben).
 - [ ] Rätsel-Ketten bzw. Escape-Modus.
@@ -92,5 +173,7 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 ## Offene Entscheidungen
 - [ ] Name des Spiels.
 - [ ] Visueller Stil (Farbpalette, flach oder verspielt).
-- [ ] Backend für Phase 2.
+- [x] Backend für Phase 2: Supabase (EU-Region).
+- [ ] SMTP-Anbieter für Account-Mails (z. B. Brevo oder ein eigener Mail-Provider), spätestens zu Beginn von M9.
+- [ ] Name des Spiels sollte vor dem Start der öffentlichen Galerie (M11) feststehen.
 - [ ] Wird Englisch als zweite Sprache schon in Phase 1 benötigt?

@@ -337,12 +337,61 @@ Die Datenbank `raetsel` enthält diese Stores:
   Einmalig in GitHub einstellen: Settings → Pages → Source „GitHub Actions“.
 - Der Workflow bricht ab, solange `src/imprint.ts` nicht ausgefüllt ist.
 
-## Phase 2: Backend (Entscheidung offen)
+## Phase 2: Backend (Supabase)
 
-Kandidaten, jeweils **ohne SDK**, direkt per `fetch`:
-- **Supabase:** gehostetes Postgres mit REST-API (PostgREST), Auth und Storage. Großzügiger Free-Tier.
-- **PocketBase:** einzelne Binärdatei zum Selbsthosten, SQLite, Auth und REST eingebaut. Ideal für ein Hobbyprojekt mit eigenem kleinen Server.
+**Entscheidung:** Supabase in der EU-Region (Frankfurt), angesprochen **ohne SDK** direkt per `fetch`
+(PostgREST unter `/rest/v1`, Auth unter `/auth/v1`, Storage unter `/storage/v1`, Edge Functions unter `/functions/v1`).
+Verworfen wurden PocketBase (eigener Server mit Betriebsaufwand), Cloudflare Workers + D1 (Auth und API selbst schreiben)
+und Firebase (Zähler nur mit kostenpflichtigen Functions, umständlich ohne SDK, proprietär).
 
-Benötigte Funktionen: Rätsel veröffentlichen (nur verifizierte), Galerie mit Filtern (Typ, Schwierigkeit, neu, beliebt),
-Likes und Bewertungen, Spielzähler, Melden-Funktion, Accounts optional (anonym spielen soll möglich bleiben).
-Rechtliches für die EU beachten: Impressum, Datenschutzerklärung, DSGVO-konforme Auswahl des Anbieters bzw. Serverstandorts.
+```
+GitHub Pages (statische App) ──fetch──▶ Supabase (Frankfurt)
+                                          ├─ Auth: E-Mail + Passwort
+                                          ├─ Postgres + Row Level Security: profiles, puzzles, likes, ratings, reports
+                                          ├─ Edge Functions (Deno): publish, delete-account
+                                          └─ Storage: Quizbilder (M14)
+```
+
+### Grundsätze
+- **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
+  brauchen nie einen Account und nie das Backend.
+- **Der öffentliche Anon-Key steckt im Client**, das ist bei Supabase so vorgesehen. Sicherheit kommt ausschließlich aus
+  Row Level Security und den Edge Functions. Der Service-Role-Key liegt nur in den Edge Functions.
+- **Der Server vertraut dem Client nicht:** Veröffentlicht wird nur über die Edge Function `publish`. Sie führt denselben
+  TypeScript-Code wie die App aus (Deno kann `.ts`-Importe und erasable Syntax direkt), also `loadDocument`, `validate`
+  und den Solver. Deshalb müssen `logic.ts` und `solver.ts` DOM-frei bleiben. Rechenzeit-Limit beachten: Bei zu großen
+  Suchräumen lehnt die Funktion ab, statt abzubrechen.
+- **Veröffentlichte Rätsel sind unveränderlich** (nur Titel und Beschreibung lassen sich ändern). Likes, Bewertungen und Bestwerte
+  beziehen sich damit immer auf genau diesen Inhalt. Der Inhaltsschlüssel (`progressKey`) ist eindeutig, sodass dasselbe
+  Rätsel nicht doppelt veröffentlicht werden kann und lokaler Fortschritt automatisch passt.
+- **Alles aus dem Backend ist untrusted** wie Links: Dokumente gehen durch `loadDocument`, Texte werden nie als HTML gerendert.
+- **Kein Caching im Service Worker** für Backend-Anfragen; offline zeigen Community-Seiten einen Hinweis.
+
+### Datenmodell (Entwurf)
+
+| Tabelle | Inhalt | Schreiben durch |
+|---|---|---|
+| `profiles` | `id` (= Auth-User), `username` (eindeutig), `is_moderator`, `banned`, `created_at` | Nutzer (nur `username`) |
+| `puzzles` | `id`, `author_id`, `type`, `type_version`, `doc` (jsonb), `content_key` (eindeutig), `title`, `description`, `min_moves`, `hidden`, `like_count`, `play_count`, `rating_sum`, `rating_count`, `report_count`, `published_at` | Edge Function `publish`; Autor nur Titel/Beschreibung/Löschen |
+| `likes` | `user_id`, `puzzle_id` (Primärschlüssel aus beiden) | angemeldete Nutzer, nicht für eigene Rätsel |
+| `ratings` | `user_id`, `puzzle_id`, `value` 1–5 | angemeldete Nutzer, nicht für eigene Rätsel |
+| `reports` | `id`, `puzzle_id`, `reporter_id`, `reason`, `comment`, `resolved`, `created_at` | angemeldete Nutzer, eine Meldung pro Rätsel |
+
+Zähler (`like_count`, `rating_*`, `report_count`) pflegen Trigger, sodass die Galerie ohne Aggregation sortieren kann.
+Der Spielzähler wird über eine Datenbankfunktion (`register_play`) erhöht, die auch anonym aufrufbar ist.
+Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
+
+### Neue Routen
+
+| Hash | View |
+|---|---|
+| `#/gallery` | Galerie mit Filtern und Sortierung |
+| `#/g/<id>` | veröffentlichtes Rätsel spielen (kurzer Teilen-Link) |
+| `#/account` | Anmelden/Registrieren bzw. Kontoseite mit „Meine Veröffentlichungen“ |
+| `#/moderation` | Moderationsansicht (nur Moderatoren) |
+| `#/datenschutz` | Datenschutzerklärung |
+
+### Rechtliches
+Vor dem Livegang mit Backend: Datenschutzerklärung (Hosting, Supabase mit AV-Vertrag, Mailanbieter, gespeicherte Daten,
+Löschung), Kontolöschung in der App und ein vollständiges Impressum. Den Text der Datenschutzerklärung muss der Betreiber
+selbst verantworten.
