@@ -13,7 +13,8 @@ Ausführliche Dokumentation:
 - **Laufzeit-Abhängigkeit:** nur `lit-html` (Templates, auch SVG via `svg`-Tag).
 - **Dev-Abhängigkeiten:** nur `vite`, `typescript` und `@types/node` (Typen für `node:test` in den Tests).
 - **Tests:** eingebauter Node-Testrunner (`node --test`) mit nativem TypeScript-Type-Stripping (Node ≥ 22.18, besser 24 LTS). Kein Vitest/Jest.
-- **Alles andere nativ:** Hash-Router, Store, IndexedDB, `CompressionStream`, `crypto.subtle`, Pointer Events, Service Worker – selbst geschrieben, keine Bibliotheken.
+- **Alles andere nativ:** Hash-Router, Store, IndexedDB, `CompressionStream`, Pointer Events, Service Worker – selbst geschrieben, keine Bibliotheken.
+  SHA-256 ist bewusst selbst implementiert (synchron, `core/hash.ts`), weil `crypto.subtle` nur asynchron ist.
 - Kein Backend in Phase 1. Hosting statisch (z. B. GitHub Pages).
 
 ## Befehle

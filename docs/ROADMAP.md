@@ -56,11 +56,11 @@ Strategie: Zuerst **einen** Typ (Rush Hour) als vollständigen Durchstich (Spiel
 - [x] Beispielrätsel.
 
 ### M6 – Quiz
-- [ ] `core/hash.ts` und Normalisierung von Freitext mit Tests (Umlaute, Groß-/Kleinschreibung, Leerzeichen).
-- [ ] `logic.ts` mit Tests: Auswertung aller vier Fragearten, Bestehensgrenze.
-- [ ] Spiel-View: eine Frage pro Bildschirm, Fortschrittsanzeige, Ergebnis am Ende.
-- [ ] Editor: Formular-basiert (kein Raster), Fragen hinzufügen, sortieren, löschen; Fragetyp wählen.
-- [ ] Beispiel-Quiz.
+- [x] `core/hash.ts` und Normalisierung von Freitext mit Tests (Umlaute, Groß-/Kleinschreibung, Leerzeichen).
+- [x] `logic.ts` mit Tests: Auswertung aller vier Fragearten, Bestehensgrenze.
+- [x] Spiel-View: eine Frage pro Bildschirm, Fortschrittsanzeige, Ergebnis am Ende.
+- [x] Editor: Formular-basiert (kein Raster), Fragen hinzufügen, sortieren, löschen; Fragetyp wählen.
+- [x] Beispiel-Quiz.
 
 ### M7 – PWA und Veröffentlichung
 - [ ] `manifest.webmanifest`, Icons, `sw.js`; Installierbarkeit auf Android und iOS testen.

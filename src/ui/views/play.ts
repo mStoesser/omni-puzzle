@@ -14,7 +14,7 @@ export type PlayViewModel = {
   showSolved: boolean;
   origin: PlayOrigin;
   localId?: string; // library id for origin "own"
-  progressKey: string | null; // null = not computed yet, or test play (no progress)
+  progressKey: string | null; // null = test play (no progress)
 };
 
 export type PlayViewActions = {
@@ -31,6 +31,8 @@ export type PlayViewActions = {
 export function playView(model: PlayViewModel, best: number | null, actions: PlayViewActions) {
   const { session } = model;
   const moves = moveCount(session);
+  const showUndo = session.type.controls?.undo !== false;
+  const showMoves = session.type.controls?.moves !== false;
   return html`
     <header class="toolbar">
       ${model.origin === "test"
@@ -42,15 +44,19 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
       ${session.type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch })}
     </div>
     <footer class="toolbar">
-      <button class="secondary" @click=${actions.undo} ?disabled=${!canUndo(session)}>${t("undo")}</button>
-      <button class="secondary" @click=${actions.redo} ?disabled=${!canRedo(session)}>${t("redo")}</button>
-      <span class="move-counter" aria-live="polite">${t("moves")}: ${moves}</span>
+      ${showUndo
+        ? html`
+            <button class="secondary" @click=${actions.undo} ?disabled=${!canUndo(session)}>${t("undo")}</button>
+            <button class="secondary" @click=${actions.redo} ?disabled=${!canRedo(session)}>${t("redo")}</button>
+          `
+        : nothing}
+      <span class="move-counter" aria-live="polite">${showMoves ? `${t("moves")}: ${moves}` : ""}</span>
       <button class="secondary" @click=${actions.restart} ?disabled=${session.history.length === 1}>
         ${t("restart")}
       </button>
     </footer>
     ${extras(model, actions)}
-    ${model.showSolved ? solvedDialog(moves, model, best, actions) : nothing}
+    ${model.showSolved ? solvedDialog(showMoves ? moves : null, model, best, actions) : nothing}
   `;
 }
 
@@ -70,14 +76,15 @@ function extras(model: PlayViewModel, actions: PlayViewActions) {
   }
 }
 
-function solvedDialog(moves: number, model: PlayViewModel, best: number | null, actions: PlayViewActions) {
+/** `moves` null = the type does not count moves. */
+function solvedDialog(moves: number | null, model: PlayViewModel, best: number | null, actions: PlayViewActions) {
   const test = model.origin === "test";
   return html`
     <dialog class="dialog" ${ref(showModal)} @close=${actions.dismissSolved}>
       <h2>${t("solvedTitle")}</h2>
-      <p>${moves === 1 ? t("solvedTextOne") : t("solvedTextOther", { moves })}</p>
+      <p>${moves === null ? t("solvedText") : moves === 1 ? t("solvedTextOne") : t("solvedTextOther", { moves })}</p>
       ${test ? html`<p>${t("solvedVerified")}</p>` : nothing}
-      ${!test && best !== null ? html`<p>${best === 1 ? t("bestMovesOne") : t("bestMoves", { moves: best })}</p>` : nothing}
+      ${!test && moves !== null && best !== null ? html`<p>${best === 1 ? t("bestMovesOne") : t("bestMoves", { moves: best })}</p>` : nothing}
       <div class="dialog-actions">
         <button class="secondary" @click=${actions.dismissSolved}>${t("close")}</button>
         <button class="secondary" @click=${actions.restart}>${t("playAgain")}</button>

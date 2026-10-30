@@ -45,6 +45,8 @@ export type PuzzleType<D, S, M> = {
   version: number; // current typeVersion
   name: MessageKey;
   icon: string;
+  /** Which core play controls make sense for this type (default: all). E.g. a quiz has no undo and no move count. */
+  controls?: { undo?: boolean; moves?: boolean };
 
   createDefault(): D;
   /** Throws on invalid data. Data from links is untrusted. */

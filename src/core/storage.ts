@@ -101,7 +101,7 @@ export function copyRecord(record: PuzzleRecord, id: string, title: string, now:
  * Identifies a puzzle by its content, so progress is shared between an example,
  * a share link and a library copy of the same puzzle. Edits lead to a new key.
  */
-export function progressKey(doc: PuzzleDocument): Promise<string> {
+export function progressKey(doc: PuzzleDocument): string {
   return sha256Hex(JSON.stringify([doc.type, doc.typeVersion, doc.data]));
 }
 

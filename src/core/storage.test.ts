@@ -65,12 +65,12 @@ test("copyRecord changes id, title and dates but keeps the puzzle", () => {
   assert.equal(source.doc.meta.title, "Zähler");
 });
 
-test("progressKey depends on type and data only", async () => {
+test("progressKey depends on type and data only", () => {
   const doc = counterDocument(3);
   const renamed = { ...doc, meta: { ...doc.meta, title: "Anders" } };
-  assert.equal(await progressKey(doc), await progressKey(renamed));
-  assert.notEqual(await progressKey(doc), await progressKey(counterDocument(4)));
-  assert.notEqual(await progressKey(doc), await progressKey({ ...doc, type: "other" }));
+  assert.equal(progressKey(doc), progressKey(renamed));
+  assert.notEqual(progressKey(doc), progressKey(counterDocument(4)));
+  assert.notEqual(progressKey(doc), progressKey({ ...doc, type: "other" }));
 });
 
 test("recordSolve keeps the best result", () => {

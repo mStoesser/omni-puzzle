@@ -168,16 +168,10 @@ function startPlay(route: Route, raw: unknown, origin: PlayOrigin, localId?: str
     session: session.createSession(type, doc.data),
     showSolved: false,
     origin,
-    progressKey: null,
+    progressKey: progressKey(doc),
   };
   if (localId !== undefined) play.localId = localId;
   patch({ pending: false, play });
-
-  void progressKey(doc).then((key) => {
-    if (isCurrent(route) && store.get().play?.session.data === doc.data) {
-      store.set((state) => ({ ...state, play: { ...state.play!, progressKey: key } }));
-    }
-  });
 }
 
 function updateSession(change: (s: AnyPlaySession) => AnyPlaySession) {
@@ -459,10 +453,8 @@ const libraryActions = {
 // --- Progress ---
 
 async function loadProgress() {
-  const [records, keys] = await Promise.all([
-    storage.then((s) => s.listProgress()),
-    Promise.all(examples.map(async (e) => [e.id, await progressKey(loadDocument(e.doc, registry).doc)] as const)),
-  ]);
+  const records = await (await storage).listProgress();
+  const keys = examples.map((e) => [e.id, progressKey(loadDocument(e.doc, registry).doc)] as const);
   store.set((state) => ({
     ...state,
     // Keep results recorded while loading.

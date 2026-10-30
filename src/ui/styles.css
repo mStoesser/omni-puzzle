@@ -447,3 +447,222 @@ input[type="text"]:focus-visible {
   color: var(--danger);
   font-weight: 600;
 }
+
+/* Quiz */
+.quiz {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.quiz-progress {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiz progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--accent);
+}
+
+.quiz-question {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.quiz-text {
+  margin: 0;
+  font-size: 1.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.quiz-inputs {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.quiz-option input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+
+.quiz-option:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.quiz-option.correct {
+  border-color: var(--success);
+  box-shadow: inset 0 0 0 1px var(--success);
+}
+
+.quiz-inputs:disabled .quiz-option {
+  cursor: default;
+}
+
+.quiz-input,
+.quiz-edit-question textarea,
+.quiz-edit-question input[type="text"],
+.quiz-add select,
+.quiz-edit-head select,
+.field input[type="number"] {
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.quiz-feedback {
+  margin: 0;
+  font-weight: 600;
+}
+
+.quiz-feedback.correct,
+.quiz-summary .correct {
+  color: var(--success);
+}
+
+.quiz-feedback.wrong,
+.quiz-summary .wrong {
+  color: var(--danger);
+}
+
+.quiz-summary {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+/* Quiz editor */
+.quiz-edit-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.quiz-edit-question {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.quiz-edit-question.problem {
+  border-color: var(--danger);
+  border-style: dashed;
+}
+
+.quiz-edit-question textarea {
+  resize: vertical;
+}
+
+.quiz-edit-question .hint {
+  margin: 0;
+}
+
+.quiz-edit-head,
+.quiz-add,
+.quiz-edit-add-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quiz-edit-head .danger {
+  color: var(--danger);
+}
+
+.quiz-edit-options,
+.quiz-edit-answers {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quiz-edit-options li,
+.quiz-edit-answers li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quiz-edit-options input[type="text"],
+.quiz-edit-add-answer input {
+  flex: 1;
+  min-width: 0;
+}
+
+.quiz-edit-options input[type="radio"],
+.quiz-edit-options input[type="checkbox"] {
+  width: var(--tap-min);
+  height: 1.5rem;
+  margin: 0;
+  accent-color: var(--success);
+}
+
+.quiz-edit-answers span {
+  flex: 1;
+}
+
+.hidden-answer {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.quiz-edit-number {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.quiz-edit-number .field {
+  margin: 0;
+}
+
+/* Grid tracks would otherwise grow to the inputs' intrinsic width and overflow on phones. */
+.quiz-edit-list,
+.quiz-edit-question,
+.quiz-edit-options,
+.quiz-edit-answers {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.quiz-edit-number {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quiz-edit-number input,
+.quiz-edit-question textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.quiz-edit-head select {
+  flex: 1 1 6rem;
+  min-width: 0;
+}

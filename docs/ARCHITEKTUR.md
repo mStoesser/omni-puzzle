@@ -29,6 +29,7 @@ Phase 2: + Backend (Galerie, Accounts, Bewertungen)
 | State | eigener Mini-Store (Zustand, `subscribe`, `set`) und ein Render-Loop | ca. 30 Zeilen |
 | Lokale Speicherung | IndexedDB mit kleinem eigenen Wrapper | eigene Rätsel, Fortschritt |
 | Kompression | `CompressionStream('deflate-raw')` | nativ, kein lz-string |
+| Hashing | eigenes synchrones SHA-256 (`core/hash.ts`) | `crypto.subtle` ist nur asynchron; Plugins und Editoren hashen so ohne Async-Umwege. Im Test gegen `crypto.subtle` geprüft |
 | Offline | `manifest.webmanifest` und handgeschriebener Service Worker | PWA ohne Workbox |
 
 ### tsconfig (wichtige Optionen)
@@ -72,7 +73,7 @@ src/
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
     storage.ts            # IndexedDB-Wrapper (+ In-Memory-Variante für Tests/Fallback), Fortschritt
     grid.ts               # Richtungen, Koordinaten, Raster-Hilfen (rein)
-    hash.ts               # SHA-256-Hilfen (Fortschritts-Schlüssel, später Quiz-Antworten)
+    hash.ts               # synchrones SHA-256, Normalisierung von Freitext-Antworten
     test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts
@@ -82,7 +83,7 @@ src/
     index.ts              # registriert alle Typen
     rushhour/  { index.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     laser/     { index.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
-    quiz/      { … }
+    quiz/      { index.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 docs/
 ```
 
@@ -115,6 +116,7 @@ type PuzzleType<D, S, M> = {
   version: number;                  // aktuelle typeVersion
   name: string;                     // i18n-Key
   icon: string;                     // Emoji oder SVG
+  controls?: { undo?: boolean; moves?: boolean };  // Core-Bedienelemente abschalten (Quiz: kein Undo, kein Zugzähler)
 
   // --- Daten ---
   createDefault(): D;               // Startpunkt für den Editor
@@ -234,19 +236,35 @@ type LaserMove = { x: number; y: number };                       // Spiegel umdr
 
 ```ts
 type QuizQuestion =
-  | { kind: "single"; text: string; options: string[]; answer: string }      // answer = Hash
-  | { kind: "multi";  text: string; options: string[]; answer: string }
-  | { kind: "text";   text: string; answers: string[] }                     // Hashes normalisierter Antworten
-  | { kind: "number"; text: string; value: number; tolerance: number };
+  | { kind: "single"; id: string; text: string; options: string[]; answer: string }  // answer = Hash, "" = nicht gesetzt
+  | { kind: "multi";  id: string; text: string; options: string[]; answer: string }
+  | { kind: "text";   id: string; text: string; answers: string[] }                  // Hashes normalisierter Antworten
+  | { kind: "number"; id: string; text: string; value: number; tolerance: number };
 type QuizData = { questions: QuizQuestion[]; passPercent: number };
+type QuizState = { index: number; answers: (QuizAnswer | null)[]; finished: boolean };
+type QuizMove = { type: "answer"; answer: QuizAnswer } | { type: "next" };
 ```
 
-- **Antworten nicht im Klartext speichern:** Da das Rätsel im Link steckt, werden Lösungen als SHA-256 gespeichert
-  (`crypto.subtle`), mit einem Salt aus Titel und Fragenindex. Freitext wird vorher normalisiert
-  (trimmen, Kleinschreibung, Umlaute vereinheitlichen, Mehrfach-Leerzeichen entfernen).
+- **Antworten nicht im Klartext speichern:** Da das Rätsel im Link steckt, werden Lösungen gehasht
+  (SHA-256, davon 128 Bit = 32 Hex-Zeichen, das hält Links kurz). Salt ist eine zufällige **Fragen-ID**
+  (statt Titel und Fragenindex), damit Umbenennen und Umsortieren die Hashes nicht ungültig machen.
+  Fragen-IDs dürfen deshalb nichts über die Antwort verraten.
+  - Auswahlfragen: Hash über die Menge der richtigen **Options-Indizes** (`choiceHash`). Textänderungen an Optionen
+    lassen die Markierung gültig; beim Löschen einer Option wird neu kodiert. Der Editor (und das Feedback nach dem Antworten)
+    findet die richtigen Optionen durch Ausprobieren (höchstens 2⁸ Mengen, zwischengespeichert).
+  - Freitext: Hash über die normalisierte Antwort (`normalizeAnswer`: trimmen, Kleinschreibung, ä→ae, ö→oe, ü→ue, ß→ss,
+    andere Akzente entfernen, Mehrfach-Leerzeichen zusammenfassen). Nach dem Neuladen zeigt der Editor diese Antworten
+    nur noch als „verdeckt“ (nur im laufenden Editor-Durchgang sind sie im Speicher lesbar).
+  - Zahlenfragen bleiben im Klartext (Toleranzprüfung).
   Das ist kein echter Schutz, aber es verhindert das Spicken mit einem Blick in den Link.
-  Zahlenfragen bleiben im Klartext (Toleranzprüfung).
-- Kein Solver nötig; „verifiziert“ bedeutet, dass der Ersteller alle Fragen einmal beantwortet hat.
+- Ablauf: eine Frage pro Bildschirm mit Fortschrittsanzeige; „Antworten“ zeigt sofort richtig/falsch (bei Auswahl- und
+  Zahlenfragen mit Lösung), „Weiter“ geht zur nächsten Frage, am Ende eine Auswertung. **Kein Undo** (sonst könnte man nach
+  dem Feedback umentscheiden) und kein Zugzähler (`controls`).
+- Gelöst = alle Fragen beantwortet und Bestehensgrenze erreicht. „Verifiziert“ heißt also: Der Ersteller hat sein Quiz bestanden.
+- Kein Solver nötig.
+- Editor formularbasiert (kein Raster): Fragen hinzufügen, verschieben, löschen, Fragetyp wechseln (zwischen Einfach- und
+  Mehrfachauswahl bleiben Optionen erhalten). Textfelder übernehmen Änderungen bei `change` (nicht bei jedem Tastendruck),
+  damit die Undo-Historie nicht pro Zeichen wächst.
 - Bilder erst ab Phase 2.
 
 ## Teilen per Link (`core/share.ts`)
