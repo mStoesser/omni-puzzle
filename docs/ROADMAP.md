@@ -87,22 +87,29 @@ Entschieden (Details in ARCHITEKTUR.md, Abschnitt „Phase 2: Backend“):
 Strategie wie in Phase 1: erst ein dünner Durchstich (veröffentlichen und per Link öffnen), dann in die Breite.
 
 ### M8 – Backend-Grundlage
-- [ ] Vorab prüfen: aktuelle Free-Tier-Grenzen von Supabase (Pausieren nach Inaktivität, Speicher, Edge-Function-Laufzeit).
-- [ ] Zwei Supabase-Projekte in Frankfurt anlegen: `dev` und `prod`. Der Free-Tier erlaubt zwei aktive Projekte.
-- [ ] Datenbankschema als SQL-Migrationen im Repo (`supabase/migrations/*.sql`), von Hand auf beide Projekte angewendet:
+- [x] Vorab prüfen: aktuelle Free-Tier-Grenzen von Supabase (Pausieren nach Inaktivität, Speicher, Edge-Function-Laufzeit).
+  (Stand 11/2026: Pausieren nach 7 Tagen ohne Aktivität, 500 MB Datenbank, 1 GB Storage, 500 000 Function-Aufrufe im Monat,
+  2 s CPU-Zeit pro Function-Aufruf. Die alten `anon`-Keys schafft Supabase Ende 2026 ab; wir nutzen die neuen `sb_publishable_…`-Keys.)
+- [x] Zwei Supabase-Projekte in Frankfurt anlegen: `dev` und `prod`. Der Free-Tier erlaubt zwei aktive Projekte.
+- [x] Datenbankschema als SQL-Migrationen im Repo (`supabase/migrations/*.sql`), von Hand auf beide Projekte angewendet:
   `profiles`, `puzzles`, `likes`, `ratings`, `reports`. Zähler werden per Trigger gepflegt.
-- [ ] Row Level Security für jede Tabelle. Clients lesen nur sichtbare Rätsel und schreiben nur eigene Likes, Bewertungen und Meldungen.
+- [x] Row Level Security für jede Tabelle. Clients lesen nur sichtbare Rätsel und schreiben nur eigene Likes, Bewertungen und Meldungen.
   Rätsel selbst legt nur die Edge Function an (M10).
-- [ ] Konfiguration in `src/backend.ts` (Projekt-URL und öffentlicher Anon-Key, im Build per `import.meta.env`).
+  (Anonymer Zugriff auf `dev` und `prod` geprüft: Lesen von Rätseln und Profilen erlaubt, alle Schreibzugriffe und interne
+  Funktionen gesperrt. Die Regeln für angemeldete Nutzer und die Zähler-Trigger werden in M9/M10 geprüft, sobald es Accounts gibt.)
+- [x] Konfiguration in `src/backend.ts` (Projekt-URL und Publishable Key aus `.env.development` bzw. `.env.production`).
   Fehlt sie, sind alle Community-Funktionen ausgeblendet.
-- [ ] `core/api.ts`: kleiner `fetch`-Wrapper für PostgREST, Auth und Functions mit Timeout, einheitlichen Fehlertypen und
+  (`.env.production` kommt erst mit M9, damit die Live-Seite das Backend erst nutzt, wenn die Accounts fertig sind.)
+- [x] `core/api.ts`: kleiner `fetch`-Wrapper für PostgREST, Auth und Functions mit Timeout, einheitlichen Fehlertypen und
   deutschen Fehlermeldungen. Er ist mit gefälschtem `fetch` per `node --test` getestet.
-- [ ] Gegen das Pausieren: GitHub-Action-Cron, die das `prod`-Projekt alle paar Tage mit einer leichten Abfrage weckt.
-- [ ] Service Worker: Anfragen an das Backend nie cachen. Offline zeigen Community-Seiten einen verständlichen Hinweis.
-- [ ] **Datenschutzerklärung** (`#/datenschutz`, Link im Footer neben dem Impressum): GitHub Pages, Supabase (AV-Vertrag, Region),
+- [x] Gegen das Pausieren: GitHub-Action-Cron (`keep-alive.yml`), die alle konfigurierten Projekte alle drei Tage mit einer leichten Abfrage weckt.
+- [x] Service Worker: Anfragen an das Backend nie cachen. Offline zeigen Community-Seiten einen verständlichen Hinweis
+  (Fehlertext `apiOffline`; die Seiten selbst kommen ab M9).
+- [x] **Datenschutzerklärung** (`#/datenschutz`, Link im Footer neben dem Impressum): GitHub Pages, Supabase (AV-Vertrag, Region),
   Mailanbieter, Login-Token im `localStorage`, welche Daten gespeichert werden, Löschung und Betroffenenrechte.
   Wie beim Impressum bricht das Deployment ab, solange sie unvollständig ist. Rechtlich solltest du den Text selbst prüfen
   (z. B. mit einem Generator); ich kann nur einen Entwurf liefern.
+  (Texte in `src/i18n/de.ts` unter `privacy…`, geprüft. Der Mailanbieter wird in M9 ergänzt.)
 
 ### M9 – Accounts
 - [ ] **Entscheidung:** SMTP-Anbieter für Bestätigungs- und Reset-Mails (siehe „Offene Entscheidungen“) und in Supabase einrichten.

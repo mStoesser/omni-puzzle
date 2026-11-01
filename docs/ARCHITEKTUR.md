@@ -297,6 +297,7 @@ URL: https://<host>/#/p/1.<code>      ("1." = Codec-Version)
 | `#/edit/<localId>` | eigenes Rätsel bearbeiten |
 | `#/play/<localId>` | eigenes Rätsel oder eingebautes Beispiel spielen |
 | `#/impressum` | Impressum (Angaben in `src/imprint.ts`) |
+| `#/datenschutz` | Datenschutzerklärung (Einstellungen in `src/privacy.ts`, Texte in `src/i18n/de.ts`) |
 
 ## Lokale Speicherung (IndexedDB)
 
@@ -335,7 +336,10 @@ Die Datenbank `raetsel` enthält diese Stores:
 
 - `.github/workflows/deploy.yml`: bei jedem Push auf `main` testen, bauen und auf GitHub Pages veröffentlichen.
   Einmalig in GitHub einstellen: Settings → Pages → Source „GitHub Actions“.
-- Der Workflow bricht ab, solange `src/imprint.ts` nicht ausgefüllt ist.
+- Der Workflow bricht ab, solange `src/imprint.ts` nicht ausgefüllt oder die Datenschutzerklärung nicht freigegeben ist
+  (`scripts/check-legal.ts`; mit Backend in `.env.production` muss zusätzlich der Mailanbieter eingetragen sein).
+- `.github/workflows/keep-alive.yml` fragt alle drei Tage jedes konfigurierte Supabase-Projekt ab, damit es nicht pausiert.
+  GitHub deaktiviert geplante Workflows nach 60 Tagen ohne Aktivität im Repository; dann muss man sie neu aktivieren.
 
 ## Phase 2: Backend (Supabase)
 
@@ -351,6 +355,17 @@ GitHub Pages (statische App) ──fetch──▶ Supabase (Frankfurt)
                                           ├─ Edge Functions (Deno): publish, delete-account
                                           └─ Storage: Quizbilder (M14)
 ```
+
+### Konfiguration und API-Zugriff
+- `src/backend.ts` liest `VITE_SUPABASE_URL` und `VITE_SUPABASE_KEY` aus `.env.development` (Dev-Server, Projekt `dev`)
+  bzw. `.env.production` (Build, Projekt `prod`). Beide Dateien sind eingecheckt, denn URL und Publishable Key sind öffentlich.
+  Lokale Abweichungen gehören in `.env.*.local` (ignoriert).
+- `core/api.ts` (`createApi`) kapselt `fetch`: Der Key steht nur im Header `apikey`; `Authorization: Bearer` trägt nur das
+  Token eines angemeldeten Nutzers. Fehler werden zu `ApiError` mit einer Art (`offline`, `timeout`, `unauthorized`, `forbidden`,
+  `not-found`, `conflict`, `rate-limited`, `invalid`, `server`), `apiErrorText` liefert den deutschen Text dazu.
+- Migrationen liegen in `supabase/migrations/` und werden von Hand im SQL-Editor angewendet, erst auf `dev`, dann auf `prod`.
+  Supabase gibt neuen Tabellen standardmäßig alle Rechte für `anon` und `authenticated`; jede Migration entzieht sie und
+  vergibt nur die nötigen Rechte (bis auf Spaltenebene, z. B. darf ein Autor nur Titel und Beschreibung ändern).
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
@@ -389,7 +404,6 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/g/<id>` | veröffentlichtes Rätsel spielen (kurzer Teilen-Link) |
 | `#/account` | Anmelden/Registrieren bzw. Kontoseite mit „Meine Veröffentlichungen“ |
 | `#/moderation` | Moderationsansicht (nur Moderatoren) |
-| `#/datenschutz` | Datenschutzerklärung |
 
 ### Rechtliches
 Vor dem Livegang mit Backend: Datenschutzerklärung (Hosting, Supabase mit AV-Vertrag, Mailanbieter, gespeicherte Daten,

@@ -27,8 +27,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Check imprint
-        run: node -e 'import("./src/imprint.ts").then(({ imprintComplete }) => { if (!imprintComplete()) { console.error("src/imprint.ts is incomplete"); process.exit(1); } })'
+      - name: Check imprint and privacy policy
+        run: node scripts/check-legal.ts
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

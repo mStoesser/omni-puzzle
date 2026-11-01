@@ -1,4 +1,5 @@
 import { html, nothing, render } from "lit-html";
+import { backend } from "./backend.ts";
 import { DocumentError, loadDocument } from "./core/document.ts";
 import * as editing from "./core/editor-session.ts";
 import type { EditorSession } from "./core/editor-session.ts";
@@ -23,6 +24,7 @@ import type { LibraryItem } from "./ui/views/library.ts";
 import { messageView } from "./ui/views/message.ts";
 import { playView } from "./ui/views/play.ts";
 import type { PlayOrigin, PlayViewModel } from "./ui/views/play.ts";
+import { privacyView } from "./ui/views/privacy.ts";
 
 type EditorState = {
   id: string; // library id; a new puzzle is saved under it on its first change
@@ -478,6 +480,8 @@ function view(state: AppState) {
       return html`${libraryView(state.library, registry.all(), libraryActions)} ${siteFooter()}`;
     case "imprint":
       return imprintView();
+    case "privacy":
+      return privacyView(backend !== null);
     case "play":
     case "shared": {
       if (!state.play) return messageView(t("puzzleNotFound"));
@@ -507,6 +511,7 @@ function pageTitle(state: AppState): string {
     state.play?.title ||
     (route.name === "library" ? t("library")
     : route.name === "imprint" ? t("imprint")
+    : route.name === "privacy" ? t("privacy")
     : (route.name === "new" || route.name === "edit") && state.editor ? t(state.editor.type.name)
     : "");
   return part ? `${part} – ${t("appTitle")}` : t("appTitle");

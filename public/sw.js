@@ -31,6 +31,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
+  // Only same-origin GETs: backend requests (Supabase) are never cached, community data must be fresh.
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(
     (async () => {

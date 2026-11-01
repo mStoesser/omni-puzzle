@@ -20,7 +20,6 @@ export function imprintView() {
           <p><a href="mailto:${imprint.email}">${imprint.email}</a></p>
         `
       : html`<p>${t("imprintMissing")}</p>`}
-    <h2>${t("imprintDataHeading")}</h2>
-    <p>${t("imprintData")}</p>
+    <p><a href="#/datenschutz">${t("imprintPrivacyLink")}</a></p>
   `;
 }

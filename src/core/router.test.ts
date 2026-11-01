@@ -9,6 +9,7 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute("#/"), { name: "home" });
   assert.deepEqual(parseRoute("#/library"), { name: "library" });
   assert.deepEqual(parseRoute("#/impressum"), { name: "imprint" });
+  assert.deepEqual(parseRoute("#/datenschutz"), { name: "privacy" });
   assert.deepEqual(parseRoute("#/p/1.abc_-XYZ"), { name: "shared", code: "1.abc_-XYZ" });
   assert.deepEqual(parseRoute("#/new/rushhour"), { name: "new", type: "rushhour" });
   assert.deepEqual(parseRoute("#/edit/a1-b2"), { name: "edit", id: "a1-b2" });
@@ -36,6 +37,7 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "home" },
     { name: "library" },
     { name: "imprint" },
+    { name: "privacy" },
     { name: "shared", code: "1.abc" },
     { name: "new", type: "laser" },
     { name: "edit", id: "x1" },

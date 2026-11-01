@@ -63,5 +63,8 @@ function typeTile(type: AnyPuzzleType, examples: readonly Example[], solved: Rea
 }
 
 export function siteFooter() {
-  return html`<footer class="site-footer"><a href="#/impressum">${t("imprint")}</a></footer>`;
+  return html`<footer class="site-footer">
+    <a href="#/impressum">${t("imprint")}</a>
+    <a href="#/datenschutz">${t("privacy")}</a>
+  </footer>`;
 }
