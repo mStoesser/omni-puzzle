@@ -3,14 +3,25 @@ import type { AnyPuzzleType } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import type { Example } from "../../puzzles/index.ts";
 
-/** `solvedExamples` = ids of examples the player has solved. */
+/** Account link on the home page; `username` null = signed out. */
+export type AccountBadge = { username: string | null };
+
+/** `solvedExamples` = ids of examples the player has solved; `account` null = no backend. */
 export function homeView(
   types: readonly AnyPuzzleType[],
   examples: readonly Example[],
   solvedExamples: ReadonlySet<string>,
+  account: AccountBadge | null,
 ) {
   return html`
-    <h1>${t("appTitle")}</h1>
+    <header class="home-head">
+      <h1>${t("appTitle")}</h1>
+      ${account
+        ? html`<a class="button secondary account-badge" href="#/account">
+            ${account.username === null ? t("accountLink") : html`<span aria-hidden="true">👤</span><span class="visually-hidden">${t("account")}:</span> ${account.username}`}
+          </a>`
+        : null}
+    </header>
     <p>${t("homeIntro")}</p>
     ${types.length === 0 ? html`<p>${t("homeNoTypes")}</p>` : types.map((type) => typeTile(type, examples, solvedExamples))}
     <h2>${t("library")}</h2>

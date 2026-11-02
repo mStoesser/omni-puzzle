@@ -254,7 +254,9 @@ h2 {
   font-weight: 600;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="email"],
+input[type="password"] {
   min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--control-border);
@@ -265,7 +267,9 @@ input[type="text"] {
   font-weight: 400;
 }
 
-input[type="text"]:focus-visible {
+input[type="text"]:focus-visible,
+input[type="email"]:focus-visible,
+input[type="password"]:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 1px;
 }
@@ -747,4 +751,88 @@ input[type="text"]:focus-visible {
   outline: none;
   stroke: var(--accent);
   stroke-width: 8;
+}
+
+/* Account */
+.home-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.home-head h1 {
+  margin: 0;
+}
+
+.account-badge {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.account-form {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 28rem;
+  margin-bottom: var(--space-3);
+}
+
+.account-form button[type="submit"] {
+  justify-self: start;
+}
+
+.account-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.link-button {
+  min-width: 0;
+  padding-inline: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 400;
+  text-decoration: underline;
+}
+
+.account-ok {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--success);
+  border-radius: var(--radius);
+  color: var(--success);
+  font-weight: 600;
+}
+
+.account-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.account-facts dt {
+  color: var(--text-muted);
+}
+
+.account-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+button.secondary.danger {
+  color: var(--danger);
+}
+
+button.danger-button {
+  background: var(--danger);
+  color: var(--accent-contrast);
 }

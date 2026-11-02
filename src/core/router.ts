@@ -3,6 +3,7 @@ export type Route =
   | { name: "library" }
   | { name: "imprint" }
   | { name: "privacy" }
+  | { name: "account" }
   | { name: "shared"; code: string }
   | { name: "new"; type: string }
   | { name: "edit"; id: string }
@@ -25,6 +26,7 @@ export function parseRoute(hash: string): Route {
     if (head === "library") return { name: "library" };
     if (head === "impressum") return { name: "imprint" };
     if (head === "datenschutz") return { name: "privacy" };
+    if (head === "account") return { name: "account" };
     return HOME;
   }
   switch (head) {
@@ -51,6 +53,8 @@ export function formatRoute(route: Route): string {
       return "#/impressum";
     case "privacy":
       return "#/datenschutz";
+    case "account":
+      return "#/account";
     case "shared":
       return `#/p/${route.code}`;
     case "new":

@@ -39,7 +39,7 @@ export class ApiError extends Error {
 }
 
 export type ApiRequest = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   query?: Readonly<Record<string, string>>;
   body?: unknown; // sent as JSON
   headers?: Readonly<Record<string, string>>; // e.g. PostgREST "Prefer"
@@ -57,8 +57,8 @@ export type Api = {
 export type ApiOptions = {
   fetch?: typeof fetch;
   timeoutMs?: number;
-  /** The signed-in user's access token, if any (M9). Without it requests run as the anonymous role. */
-  accessToken?: () => string | null;
+  /** The signed-in user's access token, if any; may refresh it first. Without it requests run as the anonymous role. */
+  accessToken?: () => string | null | Promise<string | null>;
 };
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -73,7 +73,7 @@ export function createApi(config: BackendConfig, options: ApiOptions = {}): Api 
 
     // The publishable key goes into `apikey` only; `Authorization` carries a user JWT or nothing.
     const headers: Record<string, string> = { apikey: config.key, ...request.headers };
-    const token = options.accessToken?.();
+    const token = await options.accessToken?.();
     if (token) headers.Authorization = `Bearer ${token}`;
     if (request.body !== undefined) headers["Content-Type"] = "application/json";
 

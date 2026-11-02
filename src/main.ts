@@ -1,5 +1,10 @@
 import { html, nothing, render } from "lit-html";
 import { backend } from "./backend.ts";
+import { PASSWORD_MIN, accountErrorText, deleteAccount, fetchProfile, renameUser, usernameAvailable, usernameProblem } from "./core/account.ts";
+import type { UsernameProblem } from "./core/account.ts";
+import { ApiError, createApi } from "./core/api.ts";
+import { SESSION_KEY, createAuth } from "./core/auth.ts";
+import type { KeyValueStore, Session } from "./core/auth.ts";
 import { DocumentError, loadDocument } from "./core/document.ts";
 import * as editing from "./core/editor-session.ts";
 import type { EditorSession } from "./core/editor-session.ts";
@@ -16,6 +21,8 @@ import { t } from "./i18n/t.ts";
 import type { MessageKey } from "./i18n/t.ts";
 import { examples, registry } from "./puzzles/index.ts";
 import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
+import { accountView } from "./ui/views/account.ts";
+import type { AccountMessage, AccountViewModel } from "./ui/views/account.ts";
 import { editorView } from "./ui/views/editor.ts";
 import { homeView, siteFooter } from "./ui/views/home.ts";
 import { imprintView } from "./ui/views/imprint.ts";
@@ -48,6 +55,7 @@ type AppState = {
   library: LibraryItem[] | null; // null = not loaded yet
   progress: ReadonlyMap<string, ProgressRecord>;
   exampleKeys: ReadonlyMap<string, string>; // example id → progress key
+  account: AccountViewModel;
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -56,6 +64,33 @@ const SAVE_DELAY_MS = 400;
 
 const app = document.getElementById("app");
 if (!app) throw new Error("#app not found");
+
+// Accounts only exist with a configured backend (src/backend.ts).
+const browserStore: KeyValueStore = {
+  get: (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  set: (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.warn("localStorage unavailable", error);
+    }
+  },
+  remove: (key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // nothing stored
+    }
+  },
+};
+const auth = backend ? createAuth(backend, { store: browserStore }) : null;
+const api = backend && auth ? createApi(backend, { accessToken: auth.accessToken }) : null;
 
 const store = createStore<AppState>({
   route: parseRoute(location.hash),
@@ -68,6 +103,14 @@ const store = createStore<AppState>({
   library: null,
   progress: new Map(),
   exampleKeys: new Map(),
+  account: {
+    user: auth?.session()?.user ?? null,
+    profile: null,
+    mode: "signIn",
+    busy: false,
+    message: null,
+    confirmDelete: false,
+  },
 });
 
 const storage: Promise<Storage> = openStorage().catch((error: unknown) => {
@@ -93,6 +136,7 @@ function now() {
 function enterRoute(route: Route) {
   flushSave();
   patch({ route, pending: false, error: null, notice: null, play: null, share: null });
+  if (route.name !== "account") resetAccountForm();
   switch (route.name) {
     case "library":
       void loadLibrary();
@@ -466,6 +510,151 @@ async function loadProgress() {
   }));
 }
 
+// --- Account ---
+
+function setAccount(change: Partial<AccountViewModel>) {
+  store.set((state) => ({ ...state, account: { ...state.account, ...change } }));
+}
+
+function resetAccountForm() {
+  const { account } = store.get();
+  if (account.message || account.confirmDelete || account.mode !== "signIn") {
+    setAccount({ message: null, confirmDelete: false, mode: "signIn" });
+  }
+}
+
+/** Rejected input, reported like a server error. */
+class InputProblem extends Error {
+  readonly text: MessageKey;
+
+  constructor(text: MessageKey) {
+    super(text);
+    this.text = text;
+  }
+}
+
+const USERNAME_TEXT: Record<UsernameProblem, MessageKey> = {
+  "too-short": "usernameTooShort",
+  "too-long": "usernameTooLong",
+  "invalid-chars": "usernameInvalidChars",
+};
+
+function checkUsername(name: string) {
+  const problem = usernameProblem(name);
+  if (problem) throw new InputProblem(USERNAME_TEXT[problem]);
+}
+
+function checkPassword(password: string) {
+  if (password.length < PASSWORD_MIN) throw new InputProblem("authWeakPassword");
+}
+
+/** Runs one account action at a time; its result or error becomes the message. */
+async function accountTask(task: () => Promise<AccountMessage | null>): Promise<boolean> {
+  if (store.get().account.busy) return false;
+  setAccount({ busy: true, message: null });
+  try {
+    setAccount({ busy: false, message: await task() });
+    return true;
+  } catch (error) {
+    if (!(error instanceof InputProblem)) console.warn(error);
+    const text = error instanceof InputProblem ? error.text : accountErrorText(error);
+    setAccount({ busy: false, message: { tone: "error", text } });
+    return false;
+  }
+}
+
+// Mail links come back to the app itself; the URL fragment then carries the tokens instead of a route.
+function authRedirect() {
+  return `${location.origin}${location.pathname}`;
+}
+
+function onSession(session: Session | null) {
+  const { account } = store.get();
+  const user = session?.user ?? null;
+  if (user?.id === account.user?.id) return;
+  setAccount({ user, profile: null, confirmDelete: false });
+  if (user) void loadProfile(user.id);
+}
+
+async function loadProfile(userId: string) {
+  if (!api) return;
+  try {
+    const profile = await fetchProfile(api, userId);
+    if (store.get().account.user?.id === userId) setAccount({ profile });
+  } catch (error) {
+    console.warn("profile", error);
+  }
+}
+
+const accountActions = {
+  setMode: (mode: AccountViewModel["mode"]) => setAccount({ mode, message: null }),
+  signIn: (email: string, password: string) =>
+    accountTask(async () => {
+      await auth!.signIn(email.trim(), password);
+      return null;
+    }),
+  signUp: (username: string, email: string, password: string) =>
+    accountTask(async () => {
+      const name = username.trim();
+      checkUsername(name);
+      checkPassword(password);
+      if (!(await usernameAvailable(api!, name))) throw new InputProblem("usernameTaken");
+      if (await auth!.signUp(email.trim(), password, name, authRedirect())) return { tone: "ok", text: "accountSignedIn" };
+      setAccount({ mode: "signIn" });
+      return { tone: "ok", text: "accountCheckMail" };
+    }),
+  requestReset: (email: string) =>
+    accountTask(async () => {
+      await auth!.requestPasswordReset(email.trim(), authRedirect());
+      setAccount({ mode: "signIn" });
+      return { tone: "ok", text: "accountResetSent" };
+    }),
+  setNewPassword: (password: string) =>
+    accountTask(async () => {
+      checkPassword(password);
+      await auth!.updatePassword(password);
+      setAccount({ mode: "signIn" });
+      return { tone: "ok", text: "accountPasswordChanged" };
+    }),
+  rename: (username: string) =>
+    accountTask(async () => {
+      const { user, profile } = store.get().account;
+      const name = username.trim();
+      if (!user || !profile || name === profile.username) return null;
+      checkUsername(name);
+      await renameUser(api!, user.id, name);
+      await loadProfile(user.id);
+      return { tone: "ok", text: "accountRenamed" };
+    }),
+  signOut: () =>
+    void accountTask(async () => {
+      await auth!.signOut();
+      return { tone: "ok", text: "accountSignedOut" };
+    }),
+  askDelete: (confirm: boolean) => setAccount({ confirmDelete: confirm, message: null }),
+  deleteAccount: () =>
+    void accountTask(async () => {
+      await deleteAccount(api!);
+      auth!.forget();
+      return { tone: "ok", text: "accountDeleted" };
+    }),
+};
+
+/** Handles the return from a confirmation or password-reset mail; true if the URL was such a link. */
+function handleAuthCallback(): boolean {
+  const result = auth?.handleCallback(location.hash);
+  if (!result) return false;
+  history.replaceState(null, "", formatRoute({ name: "account" }));
+  if (result.kind === "error") {
+    setAccount({ message: { tone: "error", text: accountErrorText(new ApiError("invalid", 0, "", result.code)) } });
+  } else if (result.type === "recovery") {
+    setAccount({ mode: "newPassword", message: { tone: "ok", text: "accountChooseNewPassword" } });
+  } else {
+    setAccount({ message: { tone: "ok", text: result.type === "signup" ? "accountConfirmed" : "accountSignedIn" } });
+  }
+  return true;
+}
+
 // --- Views ---
 
 function view(state: AppState) {
@@ -474,7 +663,9 @@ function view(state: AppState) {
   switch (state.route.name) {
     case "home": {
       const solved = examples.filter((e) => state.progress.get(state.exampleKeys.get(e.id) ?? "")?.solved);
-      return homeView(registry.all(), examples, new Set(solved.map((e) => e.id)));
+      const { user, profile } = state.account;
+      const badge = auth ? { username: user ? (profile?.username ?? "…") : null } : null;
+      return homeView(registry.all(), examples, new Set(solved.map((e) => e.id)), badge);
     }
     case "library":
       return html`${libraryView(state.library, registry.all(), libraryActions)} ${siteFooter()}`;
@@ -482,6 +673,8 @@ function view(state: AppState) {
       return imprintView();
     case "privacy":
       return privacyView(backend !== null);
+    case "account":
+      return auth ? accountView(state.account, accountActions) : messageView(t("accountUnavailable"));
     case "play":
     case "shared": {
       if (!state.play) return messageView(t("puzzleNotFound"));
@@ -512,6 +705,7 @@ function pageTitle(state: AppState): string {
     (route.name === "library" ? t("library")
     : route.name === "imprint" ? t("imprint")
     : route.name === "privacy" ? t("privacy")
+    : route.name === "account" ? t("account")
     : (route.name === "new" || route.name === "edit") && state.editor ? t(state.editor.type.name)
     : "");
   return part ? `${part} – ${t("appTitle")}` : t("appTitle");
@@ -535,6 +729,16 @@ store.subscribe(scheduleRender);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") flushSave();
 });
+if (auth) {
+  auth.subscribe(onSession);
+  const user = store.get().account.user;
+  if (user) void loadProfile(user.id);
+  handleAuthCallback();
+  // Another tab signed in or out.
+  window.addEventListener("storage", (e) => {
+    if (e.key === SESSION_KEY || e.key === null) auth.reload();
+  });
+}
 startRouter(enterRoute);
 // Offline support only in production builds; in development it would serve stale files.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

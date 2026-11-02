@@ -352,7 +352,7 @@ und Firebase (Zähler nur mit kostenpflichtigen Functions, umständlich ohne SDK
 GitHub Pages (statische App) ──fetch──▶ Supabase (Frankfurt)
                                           ├─ Auth: E-Mail + Passwort
                                           ├─ Postgres + Row Level Security: profiles, puzzles, likes, ratings, reports
-                                          ├─ Edge Functions (Deno): publish, delete-account
+                                          ├─ Edge Functions (Deno): publish
                                           └─ Storage: Quizbilder (M14)
 ```
 
@@ -367,11 +367,30 @@ GitHub Pages (statische App) ──fetch──▶ Supabase (Frankfurt)
   Supabase gibt neuen Tabellen standardmäßig alle Rechte für `anon` und `authenticated`; jede Migration entzieht sie und
   vergibt nur die nötigen Rechte (bis auf Spaltenebene, z. B. darf ein Autor nur Titel und Beschreibung ändern).
 
+### Accounts (M9)
+- `core/auth.ts` (`createAuth`) spricht GoTrue unter `/auth/v1` an: Registrieren (Anzeigename als `data.username`, daraus legt
+  der Trigger `handle_new_user` das Profil an; ohne Namen, z. B. bei einer Einladung aus dem Dashboard, heißt es
+  `spieler_<12 Zeichen der ID>`, siehe `0003_default_username.sql`), Anmelden per Passwort, Abmelden, Passwort vergessen/ändern.
+- Die Sitzung (Access- und Refresh-Token, Ablaufzeit, Nutzer) liegt im `localStorage` unter `raetsel-session`.
+  `accessToken()` erneuert das Token 60 s vor Ablauf; parallele Anfragen teilen sich eine Erneuerung. Lehnt der Server den
+  Refresh-Token ab, ist man abgemeldet; bei Netzfehlern bleibt die Sitzung erhalten. Andere Tabs übernehmen Änderungen über
+  das `storage`-Event.
+- **Mail-Links:** Bestätigungs- und Reset-Mails führen per `redirect_to` zurück auf die App-Adresse, die Tokens stehen im
+  Fragment (`#access_token=…&type=signup|recovery` bzw. `#error=…&error_code=otp_expired`). `main.ts` wertet das Fragment
+  **vor** dem Start des Hash-Routers aus und ersetzt es durch `#/account` (bei `recovery` mit dem Formular „Neues Passwort“).
+- `core/account.ts`: Profil laden, Anzeigename prüfen (`username_available`, gleiche Regel wie der Check-Constraint) und ändern,
+  Konto löschen, deutsche Fehlertexte für Auth-Fehlercodes.
+- **Konto löschen** läuft über die Datenbankfunktion `delete_account()` (security definer, Migration `0002_accounts.sql`),
+  nicht über eine Edge Function: Sie löscht `auth.users` für `auth.uid()`, Profil, Rätsel, Likes, Bewertungen und Meldungen
+  folgen per `on delete cascade`. So braucht es keinen Service-Role-Key.
+- Mails verschickt in `prod` Brevo per SMTP (`smtp-relay.brevo.com:587`, Absender-Domain `stits.dev`); in `dev` ist die
+  Bestätigung aus. Microsoft 365 wurde verworfen: Die SMTP-Anmeldung per Passwort ist dort meist gesperrt und wird abgeschafft.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
 - **Der öffentliche Anon-Key steckt im Client**, das ist bei Supabase so vorgesehen. Sicherheit kommt ausschließlich aus
-  Row Level Security und den Edge Functions. Der Service-Role-Key liegt nur in den Edge Functions.
+  Row Level Security, Datenbankfunktionen und den Edge Functions. Der Service-Role-Key liegt nur in den Edge Functions.
 - **Der Server vertraut dem Client nicht:** Veröffentlicht wird nur über die Edge Function `publish`. Sie führt denselben
   TypeScript-Code wie die App aus (Deno kann `.ts`-Importe und erasable Syntax direkt), also `loadDocument`, `validate`
   und den Solver. Deshalb müssen `logic.ts` und `solver.ts` DOM-frei bleiben. Rechenzeit-Limit beachten: Bei zu großen

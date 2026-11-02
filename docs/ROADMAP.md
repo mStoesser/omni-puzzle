@@ -99,7 +99,7 @@ Strategie wie in Phase 1: erst ein dünner Durchstich (veröffentlichen und per 
   Funktionen gesperrt. Die Regeln für angemeldete Nutzer und die Zähler-Trigger werden in M9/M10 geprüft, sobald es Accounts gibt.)
 - [x] Konfiguration in `src/backend.ts` (Projekt-URL und Publishable Key aus `.env.development` bzw. `.env.production`).
   Fehlt sie, sind alle Community-Funktionen ausgeblendet.
-  (`.env.production` kommt erst mit M9, damit die Live-Seite das Backend erst nutzt, wenn die Accounts fertig sind.)
+  (`.env.production` kam mit M9, damit die Live-Seite das Backend erst nutzt, wenn die Accounts fertig sind.)
 - [x] `core/api.ts`: kleiner `fetch`-Wrapper für PostgREST, Auth und Functions mit Timeout, einheitlichen Fehlertypen und
   deutschen Fehlermeldungen. Er ist mit gefälschtem `fetch` per `node --test` getestet.
 - [x] Gegen das Pausieren: GitHub-Action-Cron (`keep-alive.yml`), die alle konfigurierten Projekte alle drei Tage mit einer leichten Abfrage weckt.
@@ -109,17 +109,26 @@ Strategie wie in Phase 1: erst ein dünner Durchstich (veröffentlichen und per 
   Mailanbieter, Login-Token im `localStorage`, welche Daten gespeichert werden, Löschung und Betroffenenrechte.
   Wie beim Impressum bricht das Deployment ab, solange sie unvollständig ist. Rechtlich solltest du den Text selbst prüfen
   (z. B. mit einem Generator); ich kann nur einen Entwurf liefern.
-  (Texte in `src/i18n/de.ts` unter `privacy…`, geprüft. Der Mailanbieter wird in M9 ergänzt.)
+  (Texte in `src/i18n/de.ts` unter `privacy…`, geprüft. Mailanbieter seit M9 in `src/privacy.ts`.)
 
 ### M9 – Accounts
-- [ ] **Entscheidung:** SMTP-Anbieter für Bestätigungs- und Reset-Mails (siehe „Offene Entscheidungen“) und in Supabase einrichten.
-- [ ] Registrieren (Anzeigename, E-Mail, Passwort), E-Mail bestätigen, anmelden, abmelden, Passwort vergessen.
-- [ ] Sitzung: Tokens im `localStorage`, automatisches Erneuern des Access-Tokens; abgelaufene Sitzungen führen sauber zur Anmeldung.
-- [ ] Anzeigename: eindeutig, 3–20 Zeichen, kein HTML. Er wird bei Rätseln als Autor angezeigt.
-- [ ] Kontoseite (`#/account`): Anzeigename ändern, Passwort ändern, **Konto löschen** (DSGVO).
-  Das Löschen läuft über eine Edge Function und entfernt Profil, Likes, Bewertungen und eigene Rätsel.
-- [ ] Anmeldestatus in der Kopfzeile; die Anmelde-Dialoge sind per Tastatur bedienbar und haben Labels.
+- [x] **Entscheidung:** SMTP-Anbieter für Bestätigungs- und Reset-Mails (siehe „Offene Entscheidungen“) und in Supabase einrichten.
+  (Brevo über `smtp-relay.brevo.com`, nur in `prod`; Microsoft 365 verworfen, siehe ARCHITEKTUR. Deutsche Vorlagen in `supabase/templates/`.)
+- [x] Registrieren (Anzeigename, E-Mail, Passwort), E-Mail bestätigen, anmelden, abmelden, Passwort vergessen.
+  (Bestätigung in `prod` Pflicht, in `dev` aus. Mail-Links werden vor dem Router ausgewertet, siehe ARCHITEKTUR.)
+- [x] Sitzung: Tokens im `localStorage`, automatisches Erneuern des Access-Tokens; abgelaufene Sitzungen führen sauber zur Anmeldung.
+- [x] Anzeigename: eindeutig, 3–20 Zeichen, kein HTML. Er wird bei Rätseln als Autor angezeigt.
+  (Konten ohne Namen, z. B. per Einladung aus dem Dashboard, heißen erst `spieler_…`; Migration `0003_default_username.sql`.)
+- [x] Kontoseite (`#/account`): Anzeigename ändern, Passwort ändern, **Konto löschen** (DSGVO).
+  Das Löschen entfernt Profil, Likes, Bewertungen und eigene Rätsel.
+  (Statt einer Edge Function eine Datenbankfunktion `delete_account()` mit `on delete cascade`, Migration `0002_accounts.sql`;
+  so braucht es keinen Service-Role-Key.)
+- [x] Anmeldestatus in der Kopfzeile; die Anmelde-Dialoge sind per Tastatur bedienbar und haben Labels.
 - [ ] Auf dem Handy testen: Ein Bestätigungslink aus der Mail öffnet die Seite, auch wenn die PWA installiert ist.
+
+(Live gegen `dev` geprüft: Registrieren, Anmelden, Erneuern, Umbenennen inkl. vergebener Namen, fremde Profile und
+Moderator-Flag nicht änderbar, Passwort ändern, Abmelden, Konto löschen. Die Regeln für Likes, Bewertungen und Meldungen
+folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
 
 ### M10 – Veröffentlichen (Durchstich)
 - [ ] Edge Function `publish`: Sie nutzt denselben TypeScript-Code wie die App (`loadDocument`, `validate`, Solver)
@@ -181,6 +190,6 @@ Strategie wie in Phase 1: erst ein dünner Durchstich (veröffentlichen und per 
 - [ ] Name des Spiels.
 - [ ] Visueller Stil (Farbpalette, flach oder verspielt).
 - [x] Backend für Phase 2: Supabase (EU-Region).
-- [ ] SMTP-Anbieter für Account-Mails (z. B. Brevo oder ein eigener Mail-Provider), spätestens zu Beginn von M9.
+- [x] SMTP-Anbieter für Account-Mails: Brevo (Absender-Domain `stits.dev`).
 - [ ] Name des Spiels sollte vor dem Start der öffentlichen Galerie (M11) feststehen.
 - [ ] Wird Englisch als zweite Sprache schon in Phase 1 benötigt?
