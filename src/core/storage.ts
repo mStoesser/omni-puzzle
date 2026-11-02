@@ -1,4 +1,6 @@
 import { sha256Hex } from "./hash.ts";
+import { sniffImageType } from "./images.ts";
+import type { ImageType } from "./images.ts";
 import type { PuzzleDocument } from "./types.ts";
 
 /** An own puzzle in the library. `doc` may be a draft that is not playable yet. */
@@ -7,6 +9,9 @@ export type PuzzleRecord = { id: string; doc: PuzzleDocument; updatedAt: string 
 /** Progress of a played puzzle, keyed by its content (see progressKey). */
 export type ProgressRecord = { key: string; solved: boolean; bestMoves: number };
 
+/** A picture of an own puzzle (M14), keyed by the SHA-256 of its bytes. */
+export type ImageRecord = { key: string; type: ImageType; bytes: Uint8Array };
+
 export type Storage = {
   listPuzzles(): Promise<PuzzleRecord[]>; // newest first
   getPuzzle(id: string): Promise<PuzzleRecord | null>;
@@ -14,10 +19,14 @@ export type Storage = {
   deletePuzzle(id: string): Promise<void>;
   listProgress(): Promise<ProgressRecord[]>;
   putProgress(record: ProgressRecord): Promise<void>;
+  getImage(key: string): Promise<ImageRecord | null>;
+  putImage(record: ImageRecord): Promise<void>;
+  listImageKeys(): Promise<string[]>;
+  deleteImage(key: string): Promise<void>;
 };
 
 const DB_NAME = "raetsel";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // 2: images
 
 /** Opens the IndexedDB database. Rejects where IndexedDB is unavailable (e.g. some private modes). */
 export function openStorage(): Promise<Storage> {
@@ -27,6 +36,7 @@ export function openStorage(): Promise<Storage> {
       const db = request.result;
       if (!db.objectStoreNames.contains("puzzles")) db.createObjectStore("puzzles", { keyPath: "id" });
       if (!db.objectStoreNames.contains("progress")) db.createObjectStore("progress", { keyPath: "key" });
+      if (!db.objectStoreNames.contains("images")) db.createObjectStore("images", { keyPath: "key" });
     };
     request.onsuccess = () => resolve(idbStorage(request.result));
     request.onerror = () => reject(request.error);
@@ -52,6 +62,13 @@ function idbStorage(db: IDBDatabase): Storage {
     deletePuzzle: async (id) => void (await run("puzzles", "readwrite", (s) => s.delete(id))),
     listProgress: async () => (await run("progress", "readonly", (s) => s.getAll())).filter(isProgressRecord),
     putProgress: async (record) => void (await run("progress", "readwrite", (s) => s.put(record))),
+    getImage: async (key) => {
+      const record: unknown = await run("images", "readonly", (s) => s.get(key));
+      return isImageRecord(record) ? record : null;
+    },
+    putImage: async (record) => void (await run("images", "readwrite", (s) => s.put(record))),
+    listImageKeys: async () => (await run("images", "readonly", (s) => s.getAllKeys())).filter((k) => typeof k === "string"),
+    deleteImage: async (key) => void (await run("images", "readwrite", (s) => s.delete(key))),
   };
 }
 
@@ -59,6 +76,7 @@ function idbStorage(db: IDBDatabase): Storage {
 export function memoryStorage(): Storage {
   const puzzles = new Map<string, PuzzleRecord>();
   const progress = new Map<string, ProgressRecord>();
+  const images = new Map<string, ImageRecord>();
   // Structured clones, like IndexedDB: callers never share objects with the storage.
   return {
     listPuzzles: async () => sortNewestFirst([...puzzles.values()].map((r) => structuredClone(r))),
@@ -67,6 +85,10 @@ export function memoryStorage(): Storage {
     deletePuzzle: async (id) => void puzzles.delete(id),
     listProgress: async () => [...progress.values()].map((r) => structuredClone(r)),
     putProgress: async (record) => void progress.set(record.key, structuredClone(record)),
+    getImage: async (key) => structuredClone(images.get(key) ?? null),
+    putImage: async (record) => void images.set(record.key, structuredClone(record)),
+    listImageKeys: async () => [...images.keys()],
+    deleteImage: async (key) => void images.delete(key),
   };
 }
 
@@ -79,6 +101,12 @@ function isPuzzleRecord(value: unknown): value is PuzzleRecord {
   if (typeof value !== "object" || value === null) return false;
   const r = value as Record<string, unknown>;
   return typeof r.id === "string" && typeof r.updatedAt === "string" && typeof r.doc === "object" && r.doc !== null;
+}
+
+function isImageRecord(value: unknown): value is ImageRecord {
+  if (typeof value !== "object" || value === null) return false;
+  const r = value as Record<string, unknown>;
+  return typeof r.key === "string" && r.bytes instanceof Uint8Array && sniffImageType(r.bytes) === r.type;
 }
 
 function isProgressRecord(value: unknown): value is ProgressRecord {

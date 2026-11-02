@@ -31,6 +31,7 @@ test("fetchModerationQueue asks for hidden or reported puzzles with open reports
     title: "T",
     hidden: true,
     published_at: "2026-11-03T10:00:00+00:00",
+    doc: {},
     author: { id: "a", username: "autor", banned: false, is_moderator: false },
     reports: [{ reason: "spam", comment: "", created_at: "2026-11-03T11:00:00+00:00", reporter: null }],
   };

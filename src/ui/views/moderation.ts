@@ -1,6 +1,7 @@
 import { html, nothing } from "lit-html";
 import { MODERATION_LIMIT } from "../../core/moderation.ts";
 import type { ModerationItem } from "../../core/moderation.ts";
+import { loadDocument } from "../../core/document.ts";
 import type { Registry } from "../../core/registry.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
@@ -14,6 +15,7 @@ export type ModerationViewModel = {
   confirmDelete: string | null; // puzzle id waiting for confirmation
 };
 
+/** `imageUrl` builds the public URL of a published picture. */
 export type ModerationViewActions = {
   release(puzzleId: string): void;
   hide(puzzleId: string): void;
@@ -21,6 +23,7 @@ export type ModerationViewActions = {
   remove(puzzleId: string): void;
   setBanned(userId: string, ban: boolean): void;
   resetName(userId: string): void;
+  imageUrl(puzzleId: string, key: string): string | null;
 };
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("de-DE");
@@ -63,6 +66,7 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
       ${t("moderationAuthor", { author: author?.username ?? t("galleryByUnknown") })}
       ${author?.banned ? html` · <strong>${t("moderationAuthorBanned")}</strong>` : nothing}
     </p>
+    ${images(item, registry, actions)}
     ${item.reports.length === 0
       ? nothing
       : html`<ul class="moderation-reports">
@@ -101,4 +105,23 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
             : nothing}
         </div>`}
   </li>`;
+}
+
+/** Thumbnails of the puzzle's pictures, so moderators see them without playing. */
+function images(item: ModerationItem, registry: Registry, actions: ModerationViewActions) {
+  let keys: string[] = [];
+  try {
+    const { type, doc } = loadDocument(item.doc, registry);
+    keys = type.imageKeys?.(doc.data) ?? [];
+  } catch {
+    return nothing; // broken documents are shown without images
+  }
+  const urls = keys.flatMap((key) => {
+    const url = actions.imageUrl(item.id, key);
+    return url ? [url] : [];
+  });
+  if (urls.length === 0) return nothing;
+  return html`<div class="moderation-images">
+    ${urls.map((url, i) => html`<a href=${url} target="_blank" rel="noopener"><img src=${url} alt=${t("moderationImage", { number: i + 1 })} loading="lazy" /></a>`)}
+  </div>`;
 }

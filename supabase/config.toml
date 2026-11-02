@@ -5,3 +5,7 @@ project_id = "omni-puzzle"
 [functions.publish]
 # The function checks the user's token itself (src/server/publish-handler.ts).
 verify_jwt = false
+
+[functions.cleanup-images]
+# Protected by the shared secret CLEANUP_SECRET instead of a user token.
+verify_jwt = false

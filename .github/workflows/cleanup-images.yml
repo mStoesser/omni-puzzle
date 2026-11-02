@@ -1,0 +1,34 @@
+# Deletes the pictures of puzzles that no longer exist (withdrawn, deleted by moderators, deleted accounts).
+# Storage files cannot be deleted per SQL, so the Edge Function "cleanup-images" does it once a day.
+# One-time setup: the same random value as GitHub secret CLEANUP_SECRET and as Edge Function secret
+# CLEANUP_SECRET in every Supabase project (Dashboard → Edge Functions → Secrets).
+name: Clean up images
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Call cleanup-images in each configured project
+        env:
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_SECRET }}
+        run: |
+          if [ -z "$CLEANUP_SECRET" ]; then echo "::error::Secret CLEANUP_SECRET is missing"; exit 1; fi
+          for file in .env.development .env.production; do
+            [ -f "$file" ] || continue
+            url=$(sed -n 's/^VITE_SUPABASE_URL=//p' "$file")
+            key=$(sed -n 's/^VITE_SUPABASE_KEY=//p' "$file")
+            [ -n "$url" ] && [ -n "$key" ] || continue
+            echo "Cleaning up $url"
+            curl --fail-with-body --silent --show-error --max-time 120 -X POST \
+              -H "apikey: $key" -H "x-cleanup-secret: $CLEANUP_SECRET" "$url/functions/v1/cleanup-images"
+            echo
+          done

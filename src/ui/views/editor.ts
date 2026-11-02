@@ -1,7 +1,7 @@
 import { html, nothing } from "lit-html";
 import { canRedoEdit, canUndoEdit, currentData, readiness } from "../../core/editor-session.ts";
 import type { EditorSession } from "../../core/editor-session.ts";
-import type { AnyPuzzleType, SolveResult } from "../../core/types.ts";
+import type { AnyPuzzleType, EditorContext, SolveResult } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { publishDialog } from "../components/publish-dialog.ts";
 import type { PublishDialogActions, PublishDialogModel } from "../components/publish-dialog.ts";
@@ -18,6 +18,7 @@ export type EditorViewModel = {
   /** null = no backend; otherwise whether the user can publish now. */
   publishing: "signed-in" | "signed-out" | null;
   publish: PublishDialogModel | null; // open publish dialog
+  images: EditorContext<unknown>["images"];
 };
 
 export type EditorViewActions = {
@@ -65,7 +66,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
     ${canShare && model.publishing === "signed-out"
       ? html`<p class="hint">${t("publishSignInHint")} <a href="#/account">${t("accountLink")}</a></p>`
       : nothing}
-    ${type.renderEditor({ data: currentData(session), update: actions.update })}
+    ${type.renderEditor({ data: currentData(session), update: actions.update, images: model.images })}
     <section class="editor-status" role="status">
       ${model.problems.length > 0
         ? html`

@@ -1,6 +1,7 @@
 import { html, nothing } from "lit-html";
 import { keyed } from "lit-html/directives/keyed.js";
-import type { PlayContext } from "../../core/types.ts";
+import type { ImageRef } from "../../core/images.ts";
+import type { ImageSource, PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { correctChoices, isCorrect, passed, score } from "./logic.ts";
 import type { QuizAnswer, QuizData, QuizMove, QuizQuestion, QuizState } from "./logic.ts";
@@ -28,6 +29,7 @@ function questionForm(question: QuizQuestion, given: QuizAnswer | null, ctx: Ctx
   const last = ctx.state.index === ctx.data.questions.length - 1;
   return html`
     <form class="quiz-question" @submit=${(e: SubmitEvent) => submit(e, question, ctx)}>
+      ${question.image ? questionImage(question.image, ctx.images) : nothing}
       <h2 class="quiz-text">${question.text}</h2>
       <fieldset class="quiz-inputs" ?disabled=${given !== null}>
         <legend class="visually-hidden">${t("quizYourAnswer")}</legend>
@@ -43,6 +45,18 @@ function questionForm(question: QuizQuestion, given: QuizAnswer | null, ctx: Ctx
         : html`<button type="submit">${t("quizSubmit")}</button>`}
     </form>
   `;
+}
+
+/** The picture, or its alt text where the picture is not available (e.g. in a share link). */
+export function questionImage(image: ImageRef, images: ImageSource) {
+  const url = images.url(image.key);
+  if (url === "loading") return html`<div class="quiz-image quiz-image-placeholder" role="status">${t("quizImageLoading")}</div>`;
+  if (url === null) {
+    return html`<div class="quiz-image quiz-image-placeholder" role="img" aria-label=${image.alt}>
+      <span aria-hidden="true">🖼️ ${t("quizImageMissing", { alt: image.alt })}</span>
+    </div>`;
+  }
+  return html`<img class="quiz-image" src=${url} alt=${image.alt} loading="lazy" />`;
 }
 
 function inputs(question: QuizQuestion, given: QuizAnswer | null) {

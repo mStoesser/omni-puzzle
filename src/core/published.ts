@@ -148,6 +148,10 @@ export function publishErrorText(error: unknown): MessageKey {
         return "publishBanned";
       case "duplicate":
         return "publishDuplicate";
+      case "invalid-image":
+        return "publishImageInvalid";
+      case "upload":
+        return "publishUploadFailed";
     }
   }
   return apiErrorText(error);

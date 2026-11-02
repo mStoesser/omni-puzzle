@@ -37,6 +37,9 @@ Ohne Backend-Konfiguration läuft die App ohne Community-Funktionen.
 
 4. Edge Functions: Unter GitHub → Settings → Secrets and variables → Actions das Secret `SUPABASE_ACCESS_TOKEN` anlegen
    (Token von supabase.com/dashboard/account/tokens). Der Workflow `deploy-functions.yml` deployt dann bei jedem Push
-   die Function `publish` in beide Projekte; von Hand über Actions → „Deploy functions“ → „Run workflow“.
+   die Functions `publish` und `cleanup-images` in beide Projekte; von Hand über Actions → „Deploy functions“ → „Run workflow“.
+5. Bilder aufräumen: einen zufälligen Wert (z. B. `openssl rand -hex 32`) als GitHub-Secret `CLEANUP_SECRET` und in jedem
+   Supabase-Projekt unter Edge Functions → Secrets als `CLEANUP_SECRET` anlegen. Der Workflow `cleanup-images.yml` löscht
+   dann täglich die Bilder gelöschter Rätsel.
 
 Dokumentation in [`docs/`](docs/): [Konzept](docs/KONZEPT.md) · [Architektur](docs/ARCHITEKTUR.md) · [Roadmap](docs/ROADMAP.md)

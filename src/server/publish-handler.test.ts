@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { examples } from "../puzzles/index.ts";
+import { imageKey, toBase64 } from "../core/images.ts";
+import { fakeWebp } from "../core/test-fixtures.ts";
 import { handlePublish } from "./publish-handler.ts";
 
 const URL_ = "https://abc.supabase.co";
@@ -103,4 +105,45 @@ test("answers CORS preflight and refuses other methods", async () => {
   assert.equal(preflight.status, 204);
   assert.match(preflight.headers.get("Access-Control-Allow-Headers")!, /authorization/);
   assert.equal((await handlePublish(new Request(`${URL_}/functions/v1/publish`), env)).status, 405);
+});
+
+test("uploads the images of a quiz after inserting it; a failed upload takes the puzzle back", async () => {
+  const bytes = fakeWebp(7);
+  const quiz = structuredClone(examples.find((e) => e.doc.type === "quiz")!.doc) as any;
+  quiz.data.questions[0].image = { key: imageKey(bytes), alt: "Bild" };
+  const body = { doc: quiz, title: "Quiz", images: { [imageKey(bytes)]: toBase64(bytes) } };
+
+  for (const uploadStatus of [200, 500]) {
+    const calls: Call[] = [];
+    const fetch = (async (url: string | URL, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith("/auth/v1/user")) return Response.json({ id: "u1" });
+      if (String(url).includes("/storage/")) return new Response("{}", { status: uploadStatus });
+      return Response.json(String(url).includes("/rpc/") ? "p-9" : null);
+    }) as typeof globalThis.fetch;
+    const error = console.error;
+    console.error = () => {};
+    const response = await handlePublish(post(body), { url: URL_, serviceKey: "sb_secret_x", fetch });
+    console.error = error;
+
+    const upload = calls.find((c) => c.url.includes("/storage/"))!;
+    assert.equal(upload.url, `${URL_}/storage/v1/object/quiz-images/p-9/${imageKey(bytes)}`);
+    assert.equal((upload.init.headers as Record<string, string>)["Content-Type"], "image/webp");
+    if (uploadStatus === 200) {
+      assert.equal(response.status, 201);
+    } else {
+      assert.equal(response.status, 502);
+      assert.equal(await errorOf(response), "upload");
+      assert.equal(calls.at(-1)!.init.method, "DELETE");
+      assert.equal(calls.at(-1)!.url, `${URL_}/rest/v1/puzzles?id=eq.p-9`);
+    }
+  }
+});
+
+test("rejects a quiz whose image is missing from the request", async () => {
+  const quiz = structuredClone(examples.find((e) => e.doc.type === "quiz")!.doc) as any;
+  quiz.data.questions[0].image = { key: "c".repeat(64), alt: "Bild" };
+  const response = await handlePublish(post({ doc: quiz, title: "Quiz" }), { url: URL_, serviceKey: "sb_secret_x", fetch: backend({ status: 200, body: "p" }) });
+  assert.equal(response.status, 400);
+  assert.equal(await errorOf(response), "invalid-image");
 });

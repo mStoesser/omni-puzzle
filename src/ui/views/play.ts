@@ -4,6 +4,7 @@ import { canRedo, canUndo, currentState, moveCount } from "../../core/session.ts
 import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
+import type { ImageSource } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { showModal } from "../components/dialog.ts";
 import { reportDialog } from "../components/report-dialog.ts";
@@ -21,6 +22,7 @@ export type PlayViewModel = {
   published?: PublishedInfo; // for origin "published"
   backHref?: string; // where "back" leads; default depends on the origin
   progressKey: string | null; // null = test play (no progress)
+  images: ImageSource; // local pictures, or those of the published puzzle
 };
 
 /** A published puzzle's details and the player's reactions. */
@@ -69,7 +71,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
     </header>
     ${model.published ? publishedInfo(model.published) : nothing}
     <div class="board">
-      ${session.type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch })}
+      ${session.type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch, images: model.images })}
     </div>
     <footer class="toolbar">
       ${showUndo

@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { examples } from "../puzzles/index.ts";
 import { rulesRegistry } from "../puzzles/rules.ts";
-import { PublishError, preparePublication } from "./publish.ts";
+import { imageKey, toBase64 } from "./images.ts";
+import { PublishError, prepareImages, preparePublication } from "./publish.ts";
+import { fakeWebp } from "./test-fixtures.ts";
 import { progressKey } from "./storage.ts";
 import type { PuzzleDocument } from "./types.ts";
 
@@ -54,4 +56,33 @@ test("rejects malformed requests, titles, descriptions and oversized documents",
   rejects({ doc, title: "x".repeat(201) }, "invalid-title");
   rejects({ doc, title: "x", description: "x".repeat(2001) }, "invalid-description");
   rejects({ doc: { ...doc, padding: "x".repeat(140_000) }, title: "x" }, "too-large");
+});
+
+function quizWithImage(bytes: Uint8Array) {
+  const doc = docOf(examples.find((e) => e.doc.type === "quiz")!.id);
+  doc.data.questions[0].image = { key: imageKey(bytes), alt: "Ein Leuchtturm" };
+  return doc;
+}
+
+test("prepareImages returns the checked bytes of every referenced image", () => {
+  const bytes = fakeWebp(3);
+  const input = { doc: quizWithImage(bytes), title: "Quiz", images: { [imageKey(bytes)]: toBase64(bytes), unused: "eA==" } };
+  const pub = preparePublication(input, rulesRegistry);
+  assert.equal(pub.doc.typeVersion, 2);
+  const images = prepareImages(pub, input, rulesRegistry);
+  assert.deepEqual(images, [{ key: imageKey(bytes), type: "image/webp", bytes }]);
+  assert.deepEqual(prepareImages(preparePublication({ doc: docOf("rushhour-1"), title: "x" }, rulesRegistry), {}, rulesRegistry), []);
+});
+
+test("prepareImages rejects missing, wrong and mismatching images", () => {
+  const bytes = fakeWebp(3);
+  const doc = quizWithImage(bytes);
+  const fails = (images: unknown) => {
+    const input = { doc, title: "Quiz", images };
+    assert.throws(() => prepareImages(preparePublication(input, rulesRegistry), input, rulesRegistry), (e) => e instanceof PublishError && e.code === "invalid-image");
+  };
+  fails(undefined);
+  fails({ [imageKey(bytes)]: toBase64(fakeWebp(5)) }); // other bytes than the key says
+  fails({ [imageKey(bytes)]: "%%%" });
+  fails({ [imageKey(bytes)]: toBase64(new TextEncoder().encode("<svg/>")) });
 });

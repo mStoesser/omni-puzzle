@@ -12,10 +12,12 @@ import {
   setNumber,
   setOption,
   setPassPercent,
+  setImage,
+  setImageAlt,
   setQuestionText,
   toggleCorrect,
 } from "./edit.ts";
-import { LIMITS, choiceHash, correctChoices, findProblems, isCorrect, textHash } from "./logic.ts";
+import { LIMITS, choiceHash, correctChoices, findProblems, imageKeys, isCorrect, migrate, parseDraft, textHash, validate } from "./logic.ts";
 import type { QuizData, QuizQuestion } from "./logic.ts";
 
 const choice = (data: QuizData, i = 0) => data.questions[i] as QuizQuestion & { kind: "single" | "multi" };
@@ -131,4 +133,36 @@ test("question text and pass mark", () => {
   assert.equal(setPassPercent(data, 250).passPercent, 100);
   assert.equal(setPassPercent(data, 50), data);
   assert.equal(setPassPercent(data, Number.NaN), data);
+});
+
+const KEY_A = "a".repeat(64);
+const KEY_B = "b".repeat(64);
+
+test("images: set, replace keeps the alt text, alt text is required, remove", () => {
+  let data = setImage(choiceQuiz("single", [0]), 0, KEY_A);
+  assert.deepEqual(data.questions[0]!.image, { key: KEY_A, alt: "" });
+  assert.deepEqual(findProblems(data).map((p) => p.code), ["image-no-alt"]);
+  data = setImageAlt(data, 0, "Ein Leuchtturm");
+  assert.deepEqual(findProblems(data), []);
+  data = setImage(data, 0, KEY_B);
+  assert.deepEqual(data.questions[0]!.image, { key: KEY_B, alt: "Ein Leuchtturm" });
+  assert.equal(setImage(data, 0, KEY_B), data);
+  assert.deepEqual(imageKeys(data), [KEY_B]);
+  assert.equal(changeKind(data, 0, "text").questions[0]!.image?.key, KEY_B, "changing the kind keeps the picture");
+  data = setImage(data, 0, null);
+  assert.equal("image" in data.questions[0]!, false);
+  assert.equal(setImageAlt(data, 0, "x"), data);
+});
+
+test("images: validation, limit per quiz and migration from version 1", () => {
+  const question = (i: number, key: string) => ({ kind: "number", id: `n${i}`, text: "?", value: 1, tolerance: 0, image: { key, alt: "Bild" } });
+  const many = { passPercent: 50, questions: Array.from({ length: 11 }, (_, i) => question(i, i.toString(16).repeat(64))) };
+  assert.deepEqual(findProblems(parseDraft(many)).map((p) => p.code), ["too-many-images"]);
+  const shared = { passPercent: 50, questions: Array.from({ length: 11 }, (_, i) => question(i, KEY_A)) };
+  assert.equal(imageKeys(validate(shared)).length, 1, "the same picture counts once");
+  assert.throws(() => parseDraft({ passPercent: 50, questions: [{ ...question(0, KEY_A), image: { key: "../x", alt: "" } }] }), /image/);
+  assert.throws(() => parseDraft({ passPercent: 50, questions: [{ ...question(0, KEY_A), image: { key: KEY_A, alt: "x".repeat(301) } }] }));
+  const v1 = { passPercent: 50, questions: [{ kind: "number", id: "n", text: "?", value: 1, tolerance: 0 }] };
+  assert.deepEqual(validate(migrate(v1, 1)), v1);
+  assert.throws(() => migrate(v1, 3));
 });

@@ -1,4 +1,6 @@
 import { levelFromMoves } from "./difficulty.ts";
+import { IMAGE_LIMITS, fromBase64, imageProblem, sniffImageType } from "./images.ts";
+import type { ImageType } from "./images.ts";
 import type { Level } from "./difficulty.ts";
 import { DocumentError, loadDocument } from "./document.ts";
 import type { Registry } from "./registry.ts";
@@ -11,6 +13,8 @@ export const PUBLISH = {
   maxTitle: 200,
   maxDescription: 2000,
   perDay: 10, // enforced by publish_puzzle() in supabase/migrations/0004_publish.sql
+  // Document, title, description plus the images as base64 (4/3 of their size).
+  maxRequestBytes: 2 * 131_072 + Math.ceil((IMAGE_LIMITS.maxPerPuzzle * IMAGE_LIMITS.maxBytes * 4) / 3) + 10_000,
   // Lower than in the editor (200 000): Edge Functions get 2 s CPU per request, and 40 000 nodes take
   // about 0.7 s on a large 12×12 Rush Hour board. If the search stops there, minMoves stays unknown.
   solveLimits: { maxNodes: 40_000 },
@@ -23,7 +27,8 @@ export type PublishErrorCode =
   | "too-large"
   | "invalid-document" // fails loadDocument (format, type, validation)
   | "not-verified" // the creator has not solved it
-  | "unsolvable"; // the solver proved that there is no solution
+  | "unsolvable" // the solver proved that there is no solution
+  | "invalid-image"; // a referenced image is missing, too large, of the wrong type or does not match its key
 
 export class PublishError extends Error {
   readonly code: PublishErrorCode;
@@ -35,7 +40,8 @@ export class PublishError extends Error {
   }
 }
 
-export type PublishRequest = { doc: unknown; title: string; description: string };
+/** `images`: base64 bytes by key, for every image the document references (checked by the publish function). */
+export type PublishRequest = { doc: unknown; title: string; description: string; images?: Record<string, string> };
 
 /** A checked puzzle, ready for the puzzles table. */
 export type Publication = {
@@ -101,4 +107,29 @@ export function preparePublication(input: unknown, registry: Registry<AnyPuzzleR
     minMoves,
     difficulty: minMoves === null ? null : levelFromMoves(type, minMoves),
   };
+}
+
+export type UploadImage = { key: string; type: ImageType; bytes: Uint8Array };
+
+/**
+ * The images a publication must upload: every key its document references, with checked bytes from the request.
+ * Images in the request that the document does not use are ignored.
+ */
+export function prepareImages(publication: Publication, input: unknown, registry: Registry<AnyPuzzleRules>): UploadImage[] {
+  const keys = registry.get(publication.type)?.imageKeys?.(publication.doc.data) ?? [];
+  if (keys.length > IMAGE_LIMITS.maxPerPuzzle) throw new PublishError("invalid-image", "too many");
+  const provided = isRecord(input) && isRecord(input.images) ? input.images : {};
+  return keys.map((key) => {
+    const encoded = provided[key];
+    if (typeof encoded !== "string") throw new PublishError("invalid-image", `missing ${key}`);
+    let bytes: Uint8Array;
+    try {
+      bytes = fromBase64(encoded);
+    } catch {
+      throw new PublishError("invalid-image", `base64 ${key}`);
+    }
+    const problem = imageProblem(key, bytes);
+    if (problem) throw new PublishError("invalid-image", `${problem} ${key}`);
+    return { key, type: sniffImageType(bytes)!, bytes };
+  });
 }

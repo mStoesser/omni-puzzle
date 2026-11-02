@@ -21,6 +21,7 @@ export type ModerationItem = {
   title: string;
   hidden: boolean;
   publishedAt: string;
+  doc: unknown; // untrusted; for showing its images
   author: { id: string; username: string; banned: boolean; isModerator: boolean } | null;
   reports: ModerationReport[]; // open ones only
 };
@@ -31,6 +32,7 @@ type Row = {
   title: string;
   hidden: boolean;
   published_at: string;
+  doc: unknown;
   author: { id: string; username: string; banned: boolean; is_moderator: boolean } | null;
   reports: { reason: ReportReason; comment: string; created_at: string; reporter: { username: string } | null }[];
 };
@@ -42,7 +44,7 @@ export async function fetchModerationQueue(api: Api): Promise<ModerationItem[]> 
   const rows = await api.rest<Row[]>("puzzles", {
     query: {
       select:
-        "id,type,title,hidden,published_at," +
+        "id,type,title,hidden,published_at,doc," +
         "author:profiles!puzzles_author_id_fkey(id,username,banned,is_moderator)," +
         "reports(reason,comment,created_at,reporter:profiles!reports_reporter_id_fkey(username))",
       or: "(hidden.is.true,report_count.gt.0)",
@@ -58,6 +60,7 @@ export async function fetchModerationQueue(api: Api): Promise<ModerationItem[]> 
     title: row.title,
     hidden: row.hidden,
     publishedAt: row.published_at,
+    doc: row.doc,
     author: row.author
       ? { id: row.author.id, username: row.author.username, banned: row.author.banned, isModerator: row.author.is_moderator }
       : null,

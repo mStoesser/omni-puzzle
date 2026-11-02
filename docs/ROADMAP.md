@@ -185,19 +185,24 @@ folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
   (Aktionen als Datenbankfunktionen `mod_…`, die selbst `is_moderator()` prüfen; Migration `0007_moderation.sql`.
   Moderatoren können so nicht gesperrt werden. Link von der Kontoseite, nur für Moderatoren sichtbar.)
 - [x] Gesperrte Nutzer können nichts mehr veröffentlichen, liken oder melden.
-- [ ] Live testen (Skript mit einem Test-Moderator auf `dev`) und auf dem Handy.
+- [x] Live testen (Skript mit einem Test-Moderator auf `dev`) und auf dem Handy.
   (Gegen `dev` geprüft: 26 Fälle zu Melden, Ausblenden, Freigeben, Sperren, Namen zurücksetzen, Löschen und den Rechten;
-  Meldedialog und Moderationsseite im Browser. Offen: Handy-Test.)
+  Meldedialog und Moderationsseite im Browser; Handy-Test erfolgreich.)
 
 ### M14 – Bilder für Quizfragen
-- [ ] **Entscheidung im Meilenstein:** wie Quizze mit Bildern per Link geteilt werden.
-  Bilder gibt es nur bei veröffentlichten Quizzen; ein Teilen-Link zeigt sie entweder nicht oder verweist auf die veröffentlichte Fassung.
-- [ ] Quiz-Datenformat um optionales Bild pro Frage erweitern: `typeVersion` 2 mit `migrate` (CLAUDE.md, Regel 7).
-- [ ] Bild im Editor wählen; im Browser auf max. 1024 px verkleinern und als WebP kodieren, Limit z. B. 200 KB.
+- [x] **Entscheidung im Meilenstein:** wie Quizze mit Bildern per Link geteilt werden.
+  (Der Link funktioniert immer und zeigt statt der Bilder den Alternativtext; der Teilen-Dialog verweist auf „Veröffentlichen“.
+  Der Kurzlink `#/g/<id>` eines veröffentlichten Quiz zeigt die Bilder.)
+- [x] Quiz-Datenformat um optionales Bild pro Frage erweitern: `typeVersion` 2 mit `migrate` (CLAUDE.md, Regel 7).
+- [x] Bild im Editor wählen; im Browser auf max. 1024 px verkleinern und als WebP kodieren, Limit z. B. 200 KB.
   Bis zum Veröffentlichen liegt das Bild lokal in IndexedDB.
-- [ ] Upload nach Supabase Storage beim Veröffentlichen. Die Edge Function prüft Dateityp und Größe.
-- [ ] Alternativtext pro Bild ist Pflicht (Barrierefreiheit).
-- [ ] Moderation: Bilder erscheinen in der Moderationsansicht; beim Löschen eines Rätsels werden seine Bilder mitgelöscht.
+  (WebP, wo der Browser es nicht kann JPEG; höchstens 10 Bilder pro Quiz.)
+- [x] Upload nach Supabase Storage beim Veröffentlichen. Die Edge Function prüft Dateityp und Größe.
+  (Und den Hash; scheitert der Upload, wird das Rätsel zurückgenommen. Migration `0008_images.sql`.)
+- [x] Alternativtext pro Bild ist Pflicht (Barrierefreiheit).
+- [x] Moderation: Bilder erscheinen in der Moderationsansicht; beim Löschen eines Rätsels werden seine Bilder mitgelöscht.
+  (Täglicher Aufräumjob `cleanup-images`, weil Storage-Dateien nicht per SQL gelöscht werden können.)
+- [ ] Live testen: Quiz mit Bildern veröffentlichen, spielen, kopieren, zurückziehen und Aufräumjob; Handy-Test.
 
 ## Phase 3: Ausbau
 - [ ] Geräteübergreifende Synchronisierung von Bibliothek und Fortschritt mit dem Account.

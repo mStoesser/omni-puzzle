@@ -38,3 +38,11 @@ export function counterDocument(target: number): PuzzleDocument<CounterData> {
     data: { target },
   };
 }
+
+/** A tiny fake WebP file; the server only checks the header, size and hash. */
+export function fakeWebp(seed: number): Uint8Array {
+  const bytes = new Uint8Array(64).map((_, i) => (i * seed) & 0xff);
+  bytes.set(new TextEncoder().encode("RIFF"), 0);
+  bytes.set(new TextEncoder().encode("WEBP"), 8);
+  return bytes;
+}

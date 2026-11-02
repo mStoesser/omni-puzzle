@@ -16,7 +16,11 @@ const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
 
 /** SHA-256 of a UTF-8 string as lowercase hex. */
 export function sha256Hex(text: string): string {
-  const bytes = new TextEncoder().encode(text);
+  return sha256Bytes(new TextEncoder().encode(text));
+}
+
+/** SHA-256 of raw bytes (e.g. an image) as lowercase hex. */
+export function sha256Bytes(bytes: Uint8Array): string {
   // Message + 0x80 + zero padding + 64-bit length, in 64-byte blocks.
   const padded = new Uint8Array(((bytes.length + 9 + 63) >> 6) << 6);
   padded.set(bytes);

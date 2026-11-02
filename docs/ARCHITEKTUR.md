@@ -78,10 +78,14 @@ src/
     api.ts, auth.ts, account.ts  # Backend: fetch-Wrapper, Anmeldung, Konto (ab M8/M9)
     publish.ts            # Veröffentlichen prüfen (rein, läuft auch in der Edge Function)
     published.ts          # veröffentlichte Rätsel laden, ändern, zurückziehen, Spielzähler
+    images.ts             # Bilder: Grenzen, Schlüssel (SHA-256), Typprüfung, Base64
+    moderation.ts         # Melden und Moderationsaktionen
+    reactions.ts          # Likes und Bewertungen
     gallery.ts            # Galerie-Abfragen: Filter, Sortierung, Keyset-Pagination, Filter in der Route
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
+    cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts
     components/           # dialog, share-dialog, grid-editor, tap …
@@ -96,6 +100,7 @@ supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # deutsche Mail-Vorlagen
   functions/publish/      # Edge Function (Deno), importiert src/server/publish-handler.ts
+  functions/cleanup-images/  # Edge Function (Deno), importiert src/server/cleanup-handler.ts
   config.toml             # nur für das Deployment der Functions
 docs/
 ```
@@ -160,11 +165,13 @@ type SolveResult<M> =
 type PlayContext<D, S, M> = {
   data: D; state: S;
   dispatch(move: M): void;          // Core ruft applyMove, speichert History (Undo/Redo), prüft isSolved
+  images: ImageSource;              // ab M14: url(key) → Adresse, "loading" oder null (nicht verfügbar)
 };
 
 type EditorContext<D> = {
   data: D;
   update(next: D): void;            // Core speichert Undo-History des Editors
+  images: ImageSource & { add(file: Blob): Promise<string> };  // ab M14: Bild verkleinern, speichern, Schlüssel liefern
 };
 ```
 
@@ -286,7 +293,7 @@ type QuizMove = { type: "answer"; answer: QuizAnswer } | { type: "next" };
 - Editor formularbasiert (kein Raster): Fragen hinzufügen, verschieben, löschen, Fragetyp wechseln (zwischen Einfach- und
   Mehrfachauswahl bleiben Optionen erhalten). Textfelder übernehmen Änderungen bei `change` (nicht bei jedem Tastendruck),
   damit die Undo-Historie nicht pro Zeichen wächst.
-- Bilder erst ab Phase 2.
+- Bilder erst ab Phase 2 (M14, siehe „Bilder in Quizfragen“).
 
 ## Teilen per Link (`core/share.ts`)
 
@@ -461,6 +468,22 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 - `#/moderation` lädt ausgeblendete Rätsel und solche mit offenen Meldungen (höchstens 100), mit eingebetteten offenen
   Meldungen und Autor. Kommentare sind nicht vertrauenswürdig und werden nur als Text gerendert.
 - Live-Tests mit einem Test-Moderator auf `dev`: Zugangsdaten nur lokal in `.env.development.local`.
+
+### Bilder in Quizfragen (M14)
+- **Format:** Quiz `typeVersion` 2 mit optionalem `image: { key, alt }` pro Frage; `migrate` übernimmt Version 1 unverändert.
+  `key` ist der SHA-256 der Bilddatei (`core/images.ts`, synchron über `sha256Bytes`), der Alternativtext ist Pflicht.
+  Höchstens 10 verschiedene Bilder pro Quiz. Der Typ meldet seine Bilder über `rules.imageKeys(data)`.
+- **Im Browser** (`ui/image-encode.ts`): auf höchstens 1024 px verkleinern, als WebP (sonst JPEG) mit sinkender Qualität,
+  bis ≤ 200 KB. Gespeichert in IndexedDB (Store `images`, DB-Version 2). Nicht mehr benutzte Bilder löscht die Bibliothek beim Laden.
+- **Bildquelle:** Spiel und Editor bekommen eine `ImageSource`: eigene Rätsel aus IndexedDB (Object-URLs), veröffentlichte
+  aus Supabase Storage (`quiz-images/<rätsel-id>/<key>`, öffentlicher Bucket, Migration `0008_images.sql`). Fehlt ein Bild
+  (Teilen-Link), zeigt das Quiz den Alternativtext; der Teilen-Dialog weist darauf hin.
+- **Veröffentlichen:** Die App schickt die Bilder als Base64 mit. `prepareImages` prüft für jeden Schlüssel im Dokument
+  Größe, Typ (WebP/JPEG anhand der Datei-Signatur) und Hash. Die Function lädt sie nach dem Insert hoch; scheitert ein Upload,
+  löscht sie das Rätsel wieder. „In Bibliothek kopieren“ lädt die Bilder eines veröffentlichten Quiz nach IndexedDB.
+- **Löschen:** Storage-Dateien lassen sich nicht per SQL löschen. Die Edge Function `cleanup-images` entfernt einmal täglich
+  die Ordner von Rätseln, die es nicht mehr gibt (`.github/workflows/cleanup-images.yml`, geschützt mit `CLEANUP_SECRET`).
+- **Moderation:** Die Moderationsansicht zeigt Vorschaubilder der Bilder eines Rätsels.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

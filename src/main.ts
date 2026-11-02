@@ -32,7 +32,8 @@ import { decodeDocument, encodeDocument } from "./core/share.ts";
 import { copyRecord, memoryStorage, newPuzzleId, openStorage, progressKey, recordSolve } from "./core/storage.ts";
 import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
 import { createStore } from "./core/store.ts";
-import type { AnyPuzzleType, PuzzleDocument, SolveResult } from "./core/types.ts";
+import { imageProblem, imageKey, publishedImageUrl, sniffImageType, toBase64 } from "./core/images.ts";
+import type { AnyPuzzleType, ImageSource, PuzzleDocument, SolveResult } from "./core/types.ts";
 import { t } from "./i18n/t.ts";
 import type { MessageKey } from "./i18n/t.ts";
 import { examples, registry } from "./puzzles/index.ts";
@@ -53,6 +54,8 @@ import { messageView } from "./ui/views/message.ts";
 import { playView } from "./ui/views/play.ts";
 import type { PlayOrigin, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
 import { privacyView } from "./ui/views/privacy.ts";
+import { encodeImage } from "./ui/image-encode.ts";
+import type { EncodeError } from "./ui/image-encode.ts";
 
 type EditorState = {
   id: string; // library id; a new puzzle is saved under it on its first change
@@ -251,7 +254,7 @@ function startPlay(
   route: Route,
   raw: unknown,
   origin: PlayOrigin,
-  extra: Pick<PlayViewModel, "localId" | "published" | "backHref"> & { title?: string } = {},
+  extra: Pick<PlayViewModel, "localId" | "published" | "backHref"> & { title?: string; images?: ImageSource } = {},
 ): boolean {
   let loaded: { type: AnyPuzzleType; doc: PuzzleDocument };
   try {
@@ -272,6 +275,7 @@ function startPlay(
     showSolved: false,
     origin,
     progressKey: progressKey(doc),
+    images: extra.images ?? localImages,
   };
   if (extra.localId !== undefined) play.localId = extra.localId;
   if (extra.published !== undefined) play.published = extra.published;
@@ -303,7 +307,8 @@ async function openPublished(route: Route & { name: "published" }) {
     // Back to the gallery with the filter the player came from.
     const gallery = store.get().gallery;
     const backHref = formatRoute({ name: "gallery", filter: gallery?.filter ?? { type: null, level: null, sort: "new" } });
-    if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published, backHref })) {
+    const images = publishedImages(puzzle.id);
+    if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published, backHref, images })) {
       countPlayOnce(puzzle.id);
       void loadReaction();
     }
@@ -447,6 +452,7 @@ const moderationActions = {
   remove: (id: string) => void moderate(() => withdrawPublication(api!, id)),
   setBanned: (userId: string, ban: boolean) => void moderate(() => setBanned(api!, userId, ban)),
   resetName: (userId: string) => void moderate(() => resetUsername(api!, userId)),
+  imageUrl: (puzzleId: string, key: string) => (backend ? publishedImageUrl(backend.url, puzzleId, key) : null),
 };
 
 // Plays are counted once per device and puzzle; the ids are remembered in localStorage.
@@ -511,6 +517,7 @@ const playActions = {
     const play = store.get().play;
     if (!play) return;
     const { type, data } = play.session;
+    if (play.published) await downloadImages(play.published.id, type.imageKeys?.(data) ?? []);
     const record: PuzzleRecord = {
       id: newPuzzleId(),
       doc: { format: 1, type: type.id, typeVersion: type.version, meta: { title: play.title, createdAt: now() }, data },
@@ -756,7 +763,8 @@ async function openShare() {
   const editor = store.get().editor;
   if (!editor || !editing.readiness(editorCheck(editor)).canShare) return;
   const doc = editorDocument(editor);
-  const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle" };
+  const hasImages = (editor.type.imageKeys?.(doc.data).length ?? 0) > 0;
+  const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", hasImages };
   patch({ share });
   const code = await encodeDocument(doc);
   const url = `${location.origin}${location.pathname}${formatRoute({ name: "shared", code })}`;
@@ -790,12 +798,13 @@ async function publish(description: string) {
   setPublish({ state: "busy", error: null, publishedId: null });
   const doc = editorDocument(editor);
   try {
-    const id = await publishPuzzle(api, { doc, title: doc.meta.title, description });
+    const images = await imagesForUpload(editor.type.imageKeys?.(doc.data) ?? []);
+    const id = await publishPuzzle(api, { doc, title: doc.meta.title, description, images });
     setPublish({ state: "done", publishedId: id });
     setAccount({ publications: null }); // reload on the account page
   } catch (error) {
     console.warn(error);
-    setPublish({ state: "confirm", error: publishErrorText(error) });
+    setPublish({ state: "confirm", error: error instanceof InputProblem ? error.text : publishErrorText(error) });
     if (error instanceof ApiError && error.code === "duplicate") {
       // Same key as the server computes: progressKey of the checked document.
       const existing = await findByContentKey(api, progressKey(loadDocument(doc, registry).doc)).catch(() => null);
@@ -823,6 +832,7 @@ const editorActions = {
       showSolved: false,
       origin: "test",
       progressKey: null,
+      images: localImages,
     };
     patch({ play });
   },
@@ -831,6 +841,105 @@ const editorActions = {
   openPublish,
   publish: publishActions,
 };
+
+// --- Images ---
+
+// Object URLs of local images by key; "loading" while IndexedDB is read, null if missing.
+const localImageUrls = new Map<string, string | "loading" | null>();
+
+function rememberImage(key: string, record: { type: string; bytes: Uint8Array } | null) {
+  const previous = localImageUrls.get(key);
+  if (previous && previous !== "loading") URL.revokeObjectURL(previous);
+  localImageUrls.set(key, record ? URL.createObjectURL(new Blob([new Uint8Array(record.bytes)], { type: record.type })) : null);
+}
+
+/** Pictures of own puzzles, from IndexedDB. Unknown keys (e.g. from share links) resolve to null. */
+const localImages: ImageSource = {
+  url(key) {
+    const known = localImageUrls.get(key);
+    if (known !== undefined) return known;
+    localImageUrls.set(key, "loading");
+    storage
+      .then((s) => s.getImage(key))
+      .then((record) => rememberImage(key, record), () => rememberImage(key, null))
+      .finally(() => store.set((state) => ({ ...state }))); // re-render with the picture
+    return "loading";
+  },
+};
+
+const ENCODE_TEXT: Record<EncodeError, MessageKey> = { unreadable: "imageUnreadable", "too-large": "imageTooLarge" };
+
+const editorImages = {
+  ...localImages,
+  /** Scales, encodes and stores a picture; shows the reason and rejects if that fails. */
+  async add(file: Blob): Promise<string> {
+    try {
+      const { type, bytes } = await encodeImage(file);
+      const key = imageKey(bytes);
+      await (await storage).putImage({ key, type, bytes });
+      rememberImage(key, { type, bytes });
+      return key;
+    } catch (error) {
+      console.warn("image", error);
+      patch({ notice: typeof error === "string" && error in ENCODE_TEXT ? ENCODE_TEXT[error as EncodeError] : "imageStoreFailed" });
+      throw error;
+    }
+  },
+};
+
+function publishedImages(puzzleId: string): ImageSource {
+  return { url: (key) => (backend ? publishedImageUrl(backend.url, puzzleId, key) : null) };
+}
+
+/** Base64 bytes of local images for publishing; throws InputProblem if one is missing. */
+async function imagesForUpload(keys: string[]): Promise<Record<string, string>> {
+  const images: Record<string, string> = {};
+  for (const key of keys) {
+    const record = await (await storage).getImage(key);
+    if (!record) throw new InputProblem("publishImageMissing");
+    images[key] = toBase64(record.bytes);
+  }
+  return images;
+}
+
+/** Copies the pictures of a published puzzle into IndexedDB, so a library copy keeps them. Best effort. */
+async function downloadImages(puzzleId: string, keys: string[]) {
+  if (!backend) return;
+  for (const key of keys) {
+    try {
+      const response = await fetch(publishedImageUrl(backend.url, puzzleId, key));
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const type = sniffImageType(bytes);
+      if (!response.ok || !type || imageProblem(key, bytes)) continue;
+      await (await storage).putImage({ key, type, bytes });
+      rememberImage(key, { type, bytes });
+    } catch (error) {
+      console.warn("image download", error);
+    }
+  }
+}
+
+/** Deletes local images no library puzzle uses any more (removed questions, deleted puzzles). */
+async function removeUnusedImages(items: readonly LibraryItem[]) {
+  const used = new Set(items.flatMap(({ record, type }) => {
+    try {
+      return type.imageKeys?.(loadDocument(record.doc, registry, { draft: true }).doc.data) ?? [];
+    } catch {
+      return [];
+    }
+  }));
+  try {
+    const s = await storage;
+    for (const key of await s.listImageKeys()) {
+      if (!used.has(key)) {
+        await s.deleteImage(key);
+        localImageUrls.delete(key);
+      }
+    }
+  } catch (error) {
+    console.warn("image cleanup", error);
+  }
+}
 
 // --- Library ---
 
@@ -851,6 +960,7 @@ async function loadLibrary() {
     }
   });
   patch({ library: items });
+  void removeUnusedImages(items);
 }
 
 const libraryActions = {
@@ -1116,6 +1226,7 @@ function view(state: AppState) {
           share: state.share,
           publishing: publishing(state),
           publish: state.publish,
+          images: editorImages,
           ...editorCheck(editor),
         },
         editorActions,

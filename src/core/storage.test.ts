@@ -43,6 +43,16 @@ test("memory storage keeps progress per key", async () => {
   assert.deepEqual(await storage.listProgress(), [{ key: "k", solved: true, bestMoves: 4 }]);
 });
 
+test("memory storage keeps images by key", async () => {
+  const storage = memoryStorage();
+  const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+  await storage.putImage({ key: "k1", type: "image/jpeg", bytes });
+  assert.deepEqual(await storage.getImage("k1"), { key: "k1", type: "image/jpeg", bytes });
+  assert.deepEqual(await storage.listImageKeys(), ["k1"]);
+  await storage.deleteImage("k1");
+  assert.equal(await storage.getImage("k1"), null);
+});
+
 test("newPuzzleId is unique and a valid route id", () => {
   const a = newPuzzleId();
   assert.notEqual(a, newPuzzleId());

@@ -39,7 +39,7 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 2.121.0
-      - name: Deploy publish
+      - name: Deploy all functions (publish, cleanup-images)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           ENV_FILE: ${{ matrix.env-file }}
@@ -47,4 +47,4 @@ jobs:
           url=$(grep '^VITE_SUPABASE_URL=' "$ENV_FILE" | cut -d= -f2-)
           ref=$(echo "$url" | sed -nE 's#^https://([a-z0-9]+)\.supabase\.co/?$#\1#p')
           if [ -z "$ref" ]; then echo "No project in $ENV_FILE"; exit 1; fi
-          supabase functions deploy publish --use-api --project-ref "$ref"
+          supabase functions deploy --use-api --project-ref "$ref"

@@ -26,17 +26,26 @@ export type SolveResult<M> =
   | { status: "unsolvable" }
   | { status: "aborted" }; // search limit reached
 
+/**
+ * Where the pictures of a puzzle come from: IndexedDB for own puzzles, Supabase Storage for published ones.
+ * `url` returns "loading" while a local image is read, null if the image is not available (e.g. a share link).
+ */
+export type ImageSource = { url(key: string): string | "loading" | null };
+
 export type PlayContext<D, S, M> = {
   data: D;
   state: S;
   /** The core applies the move, records history (undo/redo) and checks isSolved. */
   dispatch(move: M): void;
+  images: ImageSource;
 };
 
 export type EditorContext<D> = {
   data: D;
   /** The core records the editor's undo history. */
   update(next: D): void;
+  /** Local images plus `add`: scales, encodes and stores a picture, resolves to its key or rejects with a reason. */
+  images: ImageSource & { add(file: Blob): Promise<string> };
 };
 
 /**
@@ -67,6 +76,8 @@ export type PuzzleRules<D, S, M> = {
    * more is hard. Only for types with a solver; others get their difficulty from player ratings.
    */
   levels?: { easy: number; medium: number };
+  /** Keys of the images the data references (see core/images.ts). Without it, the type has no images. */
+  imageKeys?(data: D): string[];
 };
 
 /** Plugin interface every puzzle type implements: its rules plus texts and UI. D = data, S = play state, M = move. */

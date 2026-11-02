@@ -1,4 +1,5 @@
-import { PUBLISH, PublishError, preparePublication } from "../core/publish.ts";
+import { PUBLISH, PublishError, prepareImages, preparePublication } from "../core/publish.ts";
+import type { UploadImage } from "../core/publish.ts";
 import { rulesRegistry } from "../puzzles/rules.ts";
 
 // Request handler of the Edge Function "publish" (supabase/functions/publish/index.ts). Runtime-neutral
@@ -11,7 +12,15 @@ export type PublishEnv = {
 };
 
 /** Error codes in the JSON body `{ error }`; the app maps them to texts. */
-export type PublishFailure = PublishError["code"] | "method" | "unauthorized" | "banned" | "daily-limit" | "duplicate" | "server";
+export type PublishFailure =
+  | PublishError["code"]
+  | "method"
+  | "unauthorized"
+  | "banned"
+  | "daily-limit"
+  | "duplicate"
+  | "upload"
+  | "server";
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*", // access is guarded by the user's token, not the origin
@@ -50,7 +59,7 @@ async function handle(request: Request, env: PublishEnv): Promise<Response> {
   if (!token) return failure(401, "unauthorized");
 
   const text = await request.text();
-  if (text.length > PUBLISH.maxDocBytes * 2) return failure(413, "too-large");
+  if (text.length > PUBLISH.maxRequestBytes) return failure(413, "too-large");
 
   // The user behind the token, checked by Supabase Auth (works with any signing key).
   const userResponse = await doFetch(`${env.url}/auth/v1/user`, {
@@ -61,8 +70,11 @@ async function handle(request: Request, env: PublishEnv): Promise<Response> {
   if (typeof user.id !== "string") return failure(401, "unauthorized");
 
   let publication;
+  let images: UploadImage[];
   try {
-    publication = preparePublication(JSON.parse(text), rulesRegistry);
+    const input: unknown = JSON.parse(text);
+    publication = preparePublication(input, rulesRegistry);
+    images = prepareImages(publication, input, rulesRegistry);
   } catch (error) {
     if (error instanceof PublishError) return failure(400, error.code);
     if (error instanceof SyntaxError) return failure(400, "invalid-request");
@@ -84,7 +96,13 @@ async function handle(request: Request, env: PublishEnv): Promise<Response> {
       difficulty: publication.difficulty,
     }),
   });
-  if (insert.ok) return json(201, { id: await insert.json() });
+  if (insert.ok) {
+    const id = (await insert.json()) as string;
+    if (await uploadImages(id, images, env, doFetch)) return json(201, { id });
+    // Without its pictures the puzzle is incomplete: take it back. Uploaded files are removed by cleanup-images.
+    await doFetch(`${env.url}/rest/v1/puzzles?id=eq.${id}`, { method: "DELETE", headers: serviceHeaders(env.serviceKey) });
+    return failure(502, "upload");
+  }
 
   const body = (await insert.json().catch(() => ({}))) as { code?: unknown };
   switch (body.code) {
@@ -97,4 +115,20 @@ async function handle(request: Request, env: PublishEnv): Promise<Response> {
   }
   console.error("publish_puzzle failed", insert.status, body);
   return failure(500, "server");
+}
+
+/** Uploads to quiz-images/<puzzle id>/<key>; false if any upload fails. */
+async function uploadImages(puzzleId: string, images: UploadImage[], env: PublishEnv, doFetch: typeof fetch): Promise<boolean> {
+  for (const image of images) {
+    const response = await doFetch(`${env.url}/storage/v1/object/quiz-images/${puzzleId}/${image.key}`, {
+      method: "POST",
+      headers: { ...serviceHeaders(env.serviceKey), "Content-Type": image.type, "x-upsert": "true" },
+      body: new Uint8Array(image.bytes), // copy with a plain ArrayBuffer, as fetch expects
+    });
+    if (!response.ok) {
+      console.error("image upload failed", response.status, await response.text().catch(() => ""));
+      return false;
+    }
+  }
+  return true;
 }

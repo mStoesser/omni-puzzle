@@ -1,14 +1,21 @@
 import { normalizeAnswer, sha256Hex } from "../../core/hash.ts";
+import { IMAGE_KEY, IMAGE_LIMITS } from "../../core/images.ts";
+import type { ImageRef } from "../../core/images.ts";
 
 export type QuestionKind = "single" | "multi" | "text" | "number";
 
 // Answers are not stored in plain text, so a glance at the link does not give them away:
 // choice and text answers are hashes, salted with the question id. Numbers stay plain (tolerance check).
-export type QuizQuestion =
-  | { kind: "single"; id: string; text: string; options: string[]; answer: string } // answer = choiceHash, "" = not set
-  | { kind: "multi"; id: string; text: string; options: string[]; answer: string }
-  | { kind: "text"; id: string; text: string; answers: string[] } // textHash of each accepted answer
-  | { kind: "number"; id: string; text: string; value: number; tolerance: number };
+// typeVersion 2 added the optional image per question; version 1 data is valid version 2 data.
+type QuestionBase = { id: string; text: string; image?: ImageRef };
+
+export type QuizQuestion = QuestionBase &
+  (
+    | { kind: "single"; options: string[]; answer: string } // answer = choiceHash, "" = not set
+    | { kind: "multi"; options: string[]; answer: string }
+    | { kind: "text"; answers: string[] } // textHash of each accepted answer
+    | { kind: "number"; value: number; tolerance: number }
+  );
 
 export type QuizData = { questions: QuizQuestion[]; passPercent: number };
 
@@ -117,19 +124,23 @@ export type ProblemCode =
   | "empty-option"
   | "too-few-options"
   | "no-correct-option"
-  | "no-text-answer";
+  | "no-text-answer"
+  | "image-no-alt"
+  | "too-many-images";
 
 export type Problem = { code: ProblemCode; question?: number };
 
 export function findProblems(data: QuizData): Problem[] {
   const problems: Problem[] = [];
   if (data.questions.length === 0) problems.push({ code: "no-questions" });
+  if (imageKeys(data).length > IMAGE_LIMITS.maxPerPuzzle) problems.push({ code: "too-many-images" });
   const ids = new Set<string>();
   data.questions.forEach((q, i) => {
     const add = (code: ProblemCode) => problems.push({ code, question: i });
     if (ids.has(q.id)) add("duplicate-id");
     ids.add(q.id);
     if (q.text.trim() === "") add("empty-question");
+    if (q.image && q.image.alt.trim() === "") add("image-no-alt");
     switch (q.kind) {
       case "single":
       case "multi":
@@ -167,6 +178,14 @@ export function parseDraft(raw: unknown): QuizData {
 }
 
 function parseQuestion(raw: unknown): QuizQuestion {
+  const question = parseQuestionBody(raw);
+  const image = (raw as Record<string, unknown>).image;
+  if (image === undefined) return question;
+  if (!isRecord(image) || typeof image.key !== "string" || !IMAGE_KEY.test(image.key)) throw new Error("image");
+  return { ...question, image: { key: image.key, alt: string(image.alt, IMAGE_LIMITS.maxAlt, "image alt") } };
+}
+
+function parseQuestionBody(raw: unknown): QuizQuestion {
   if (!isRecord(raw)) throw new Error("question is not an object");
   if (typeof raw.id !== "string" || !ID.test(raw.id)) throw new Error("question id");
   const id = raw.id;
@@ -192,6 +211,17 @@ function parseQuestion(raw: unknown): QuizQuestion {
     default:
       throw new Error("question kind");
   }
+}
+
+/** Version 1 had no images; its data is valid as version 2. */
+export function migrate(data: unknown, fromVersion: number): unknown {
+  if (fromVersion === 1) return data;
+  throw new Error(`no migration from version ${fromVersion}`);
+}
+
+/** Distinct keys of all question images. */
+export function imageKeys(data: QuizData): string[] {
+  return [...new Set(data.questions.flatMap((q) => (q.image ? [q.image.key] : [])))];
 }
 
 // --- Play ---

@@ -1,5 +1,6 @@
 import { html, nothing } from "lit-html";
 import { repeat } from "lit-html/directives/repeat.js";
+import { IMAGE_LIMITS } from "../../core/images.ts";
 import type { EditorContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
@@ -14,13 +15,15 @@ import {
   removeTextAnswer,
   setNumber,
   setOption,
+  setImage,
+  setImageAlt,
   setPassPercent,
   setQuestionText,
   toggleCorrect,
 } from "./edit.ts";
 import { LIMITS, QUESTION_KINDS, correctChoices, findProblems, newQuestionId, textHash } from "./logic.ts";
 import type { ProblemCode, QuestionKind, QuizData, QuizQuestion } from "./logic.ts";
-import { parseDecimal } from "./render.ts";
+import { parseDecimal, questionImage } from "./render.ts";
 
 type Ctx = EditorContext<QuizData>;
 
@@ -39,6 +42,8 @@ const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {
   "too-few-options": "quizProblemTooFewOptions",
   "no-correct-option": "quizProblemNoCorrect",
   "no-text-answer": "quizProblemNoTextAnswer",
+  "image-no-alt": "quizProblemImageNoAlt",
+  "too-many-images": "quizProblemTooManyImages",
 };
 
 // Free-text answers typed in this session, by hash, so the creator can still read them.
@@ -48,7 +53,7 @@ const typedAnswers = new Map<string, string>();
 export function problems(data: QuizData): string[] {
   return findProblems(data).map((p) =>
     p.question === undefined
-      ? t(PROBLEM_TEXT[p.code])
+      ? t(PROBLEM_TEXT[p.code], { max: IMAGE_LIMITS.maxPerPuzzle })
       : t("quizProblemAt", { number: p.question + 1, problem: t(PROBLEM_TEXT[p.code]) }),
   );
 }
@@ -124,8 +129,47 @@ function questionEditor(q: QuizQuestion, i: number, ctx: Ctx, problem: boolean) 
         .value=${q.text}
         @change=${(e: Event) => ctx.update(setQuestionText(data, i, inputValue(e)))}
       ></textarea>
+      ${imageEditor(q, i, ctx)}
       ${answerEditor(q, i, ctx)}
     </li>
+  `;
+}
+
+function imageEditor(q: QuizQuestion, i: number, ctx: Ctx) {
+  const { data } = ctx;
+  // The core scales, encodes and stores the picture; on failure it shows the reason itself.
+  const pick = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (file) ctx.images.add(file).then((key) => ctx.update(setImage(data, i, key)), () => {});
+  };
+  const fileButton = (label: MessageKey) => html`<label class="button secondary quiz-image-pick">
+    ${t(label)}
+    <input type="file" accept="image/*" class="visually-hidden" @change=${pick} />
+  </label>`;
+  if (!q.image) return html`<div class="quiz-image-actions">${fileButton("quizImageAdd")}</div>`;
+  return html`
+    <div class="quiz-image-edit">
+      ${questionImage(q.image, ctx.images)}
+      <label class="field">
+        <span>${t("quizImageAlt")}</span>
+        <input
+          type="text"
+          required
+          maxlength=${IMAGE_LIMITS.maxAlt}
+          .value=${q.image.alt}
+          @change=${(e: Event) => ctx.update(setImageAlt(data, i, inputValue(e)))}
+        />
+        <span class="hint">${t("quizImageAltHint")}</span>
+      </label>
+      <div class="quiz-image-actions">
+        ${fileButton("quizImageReplace")}
+        <button type="button" class="secondary danger" @click=${() => ctx.update(setImage(data, i, null))}>
+          ${t("quizImageRemove")}
+        </button>
+      </div>
+    </div>
   `;
 }
 

@@ -10,6 +10,7 @@ export type ShareDialogModel = {
   title: string;
   url: string | null; // null = still encoding
   copy: "idle" | "copied" | "failed";
+  hasImages: boolean; // the link carries only the alt texts
 };
 
 export type ShareDialogActions = {
@@ -39,6 +40,7 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
             </label>
             <p>${t("shareLength", { length: url.length })}</p>
             ${url.length > RECOMMENDED_LINK_LENGTH ? html`<p class="status-problem">${t("shareTooLong")}</p>` : nothing}
+            ${model.hasImages ? html`<p class="hint">${t("shareImagesHint")}</p>` : nothing}
             ${model.copy === "failed" ? html`<p class="status-problem">${t("shareCopyFailed")}</p>` : nothing}
           `}
       <div class="dialog-actions">

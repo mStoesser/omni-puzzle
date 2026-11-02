@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeAnswer, sha256Hex } from "./hash.ts";
+import { normalizeAnswer, sha256Bytes, sha256Hex } from "./hash.ts";
 
 test("sha256Hex matches known digests", () => {
   assert.equal(sha256Hex(""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
@@ -21,6 +21,12 @@ test("sha256Hex agrees with crypto.subtle for many lengths and non-ASCII text", 
     const expected = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
     assert.equal(sha256Hex(text), expected, JSON.stringify(text));
   }
+});
+
+test("sha256Bytes agrees with crypto.subtle on binary data", async () => {
+  const bytes = new Uint8Array(70_000).map((_, i) => (i * 31 + 7) & 0xff);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  assert.equal(sha256Bytes(bytes), Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""));
 });
 
 test("normalizeAnswer ignores case and whitespace", () => {

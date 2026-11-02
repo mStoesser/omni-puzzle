@@ -105,7 +105,8 @@ svg {
   touch-action: none;
 }
 
-a.button {
+a.button,
+label.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -125,7 +126,8 @@ a.button:focus-visible {
 }
 
 button.secondary,
-a.button.secondary {
+a.button.secondary,
+label.button.secondary {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -289,6 +291,10 @@ input[type="password"]:focus-visible,
 
 .hint {
   font-size: 0.875rem;
+}
+
+.field .hint {
+  font-weight: 400;
 }
 
 .grid-editor {
@@ -1027,4 +1033,67 @@ button.danger-button {
 .moderation-comment {
   white-space: pre-line;
   overflow-wrap: anywhere;
+}
+
+.quiz-image {
+  display: block;
+  width: 100%;
+  max-height: 50dvh;
+  margin: 0 0 var(--space-3);
+  object-fit: contain;
+  border-radius: var(--radius);
+}
+
+.quiz-image-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 6rem;
+  padding: var(--space-3);
+  border: 1px dashed var(--control-border);
+  color: var(--text-muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.quiz-image-edit {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.quiz-image-edit .quiz-image {
+  max-height: 12rem;
+  margin: 0;
+}
+
+.quiz-image-edit .field {
+  margin: 0;
+}
+
+.quiz-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.quiz-image-pick {
+  cursor: pointer;
+}
+
+.quiz-image-pick:focus-within {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.moderation-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.moderation-images img {
+  width: 6rem;
+  height: 6rem;
+  object-fit: cover;
+  border-radius: var(--radius);
 }

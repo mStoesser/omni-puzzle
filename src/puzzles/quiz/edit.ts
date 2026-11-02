@@ -1,3 +1,4 @@
+import { IMAGE_LIMITS } from "../../core/images.ts";
 import { LIMITS, choiceHash, correctChoices, emptyQuestion, textHash } from "./logic.ts";
 import type { QuestionKind, QuizData, QuizQuestion } from "./logic.ts";
 
@@ -40,8 +41,27 @@ export function changeKind(data: QuizData, index: number, kind: QuestionKind): Q
       const answer = kind === "multi" || correct?.length === 1 ? q.answer : "";
       return { ...q, kind, answer };
     }
-    return emptyQuestion(kind, q.id, q.text);
+    const fresh = emptyQuestion(kind, q.id, q.text);
+    return q.image ? { ...fresh, image: q.image } : fresh;
   });
+}
+
+/** Sets the question's picture (keeping its alt text when replacing one), or removes it with null. */
+export function setImage(data: QuizData, index: number, key: string | null): QuizData {
+  return update(data, index, (q) => {
+    if (key === null) {
+      if (!q.image) return q;
+      const { image: _, ...rest } = q;
+      return rest as QuizQuestion;
+    }
+    return q.image?.key === key ? q : { ...q, image: { key, alt: q.image?.alt ?? "" } };
+  });
+}
+
+export function setImageAlt(data: QuizData, index: number, alt: string): QuizData {
+  return update(data, index, (q) =>
+    !q.image || q.image.alt === alt ? q : { ...q, image: { ...q.image, alt: alt.slice(0, IMAGE_LIMITS.maxAlt) } },
+  );
 }
 
 export function setQuestionText(data: QuizData, index: number, text: string): QuizData {
