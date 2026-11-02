@@ -145,16 +145,23 @@ folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
   Fortschritt und Bestwert funktionieren automatisch über `progressKey`. „In Bibliothek kopieren“ geht wie bei geteilten Links.
 - [x] „Meine Veröffentlichungen“ auf der Kontoseite: Titel und Beschreibung ändern, zurückziehen (löschen).
 - [x] Spielzähler: eine Datenbankfunktion zählt einen Aufruf pro Gerät und Rätsel (im Browser gemerkt). Bewusst einfach und nicht fälschungssicher.
-- [ ] Live testen: veröffentlichen, doppelt veröffentlichen, Tageslimit, `#/g/<id>` auf dem Handy, ändern und zurückziehen.
+- [x] Live testen: veröffentlichen, doppelt veröffentlichen, Tageslimit, `#/g/<id>` auf dem Handy, ändern und zurückziehen.
+  (Gegen `dev` automatisch geprüft, inkl. gefälschter Tokens und direktem Aufruf von `publish_puzzle`; Handy-Test erfolgreich.)
 
 ### M11 – Galerie
-- [ ] Route `#/gallery`, verlinkt von der Startseite und von jeder Typ-Kachel.
-- [ ] Filter: Typ, Schwierigkeit (bei Typen mit Solver Stufen aus `minMoves`, sonst aus Spielerbewertungen).
-- [ ] Sortierung: neu, beliebt (Likes), meistgespielt, schwierigste.
-- [ ] Seitenweises Nachladen (Keyset-Pagination, „Mehr laden“-Knopf statt Endlos-Scrollen).
-- [ ] Karten zeigen Titel, Autor, Typ, Schwierigkeit, Likes, und ob man das Rätsel schon gelöst hat (lokaler Fortschritt).
-- [ ] Startseite: Bereich „Neu in der Galerie“ mit den neuesten Rätseln.
-- [ ] Ladezustände, Fehler und Offline-Hinweis; Barrierefreiheit wie in M7 (Fokus, Labels, Live-Region beim Nachladen).
+- [x] Route `#/gallery`, verlinkt von der Startseite und von jeder Typ-Kachel.
+  (Filter stehen in der Route: `#/gallery?type=laser&level=2&sort=likes`.)
+- [x] Filter: Typ, Schwierigkeit (bei Typen mit Solver Stufen aus `minMoves`, sonst aus Spielerbewertungen).
+  (3 Stufen; Grenzen je Typ in `rules.ts` → `levels`. Quiz-Stufen kommen mit den Bewertungen in M12. Migration `0005_gallery.sql`.)
+- [x] Sortierung: neu, beliebt (Likes), meistgespielt, schwierigste.
+- [x] Seitenweises Nachladen (Keyset-Pagination, „Mehr laden“-Knopf statt Endlos-Scrollen).
+- [x] Karten zeigen Titel, Autor, Typ, Schwierigkeit, Likes, und ob man das Rätsel schon gelöst hat (lokaler Fortschritt).
+- [x] Startseite: Bereich „Neu in der Galerie“ mit den neuesten Rätseln.
+- [x] Ladezustände, Fehler und Offline-Hinweis; Barrierefreiheit wie in M7 (Fokus, Labels, Live-Region beim Nachladen).
+- [x] Name des Spiels: **Knobelkiste** (Titel, PWA-Manifest, Mail-Vorlagen).
+- [ ] Live testen: Galerie mit echten Rätseln (Filter, Sortierung, Nachladen), auch auf dem Handy.
+  (Gegen `dev` geprüft: alle Sortierungen über mehrere Seiten, Typfilter, Spielzähler, Autor. Offen: Stufenfilter mit der
+  neuen Edge Function, die die Schwierigkeit mitschickt, und der Handy-Test.)
 
 ### M12 – Likes und Bewertungen
 - [ ] Like-Knopf (Herz) auf `#/g/<id>` und auf dem Gelöst-Bildschirm; ohne Anmeldung kommt ein Hinweis mit Anmelde-Link.
@@ -191,9 +198,8 @@ folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
 ---
 
 ## Offene Entscheidungen
-- [ ] Name des Spiels.
+- [x] Name des Spiels: **Knobelkiste**.
 - [ ] Visueller Stil (Farbpalette, flach oder verspielt).
 - [x] Backend für Phase 2: Supabase (EU-Region).
 - [x] SMTP-Anbieter für Account-Mails: Brevo (Absender-Domain `stits.dev`).
-- [ ] Name des Spiels sollte vor dem Start der öffentlichen Galerie (M11) feststehen.
 - [ ] Wird Englisch als zweite Sprache schon in Phase 1 benötigt?

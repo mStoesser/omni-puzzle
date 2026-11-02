@@ -81,6 +81,7 @@ async function handle(request: Request, env: PublishEnv): Promise<Response> {
       title: publication.title,
       description: publication.description,
       min_moves: publication.minMoves,
+      difficulty: publication.difficulty,
     }),
   });
   if (insert.ok) return json(201, { id: await insert.json() });

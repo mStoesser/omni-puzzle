@@ -1,5 +1,9 @@
+import { formatGalleryFilter, parseGalleryFilter } from "./gallery.ts";
+import type { GalleryFilter } from "./gallery.ts";
+
 export type Route =
   | { name: "home" }
+  | { name: "gallery"; filter: GalleryFilter }
   | { name: "library" }
   | { name: "imprint" }
   | { name: "privacy" }
@@ -19,8 +23,11 @@ const HOME: Route = { name: "home" };
 
 /** Parses a location hash like "#/play/abc". Anything unknown maps to home. */
 export function parseRoute(hash: string): Route {
-  const path = hash.replace(/^#\/?/, "");
+  const [path = "", search = ""] = hash.replace(/^#\/?/, "").split("?", 2);
   if (path === "") return HOME;
+  // Only the gallery has a query part: its filters.
+  if (path === "gallery") return { name: "gallery", filter: parseGalleryFilter(search) };
+  if (search !== "") return HOME;
   const [head, arg, ...rest] = path.split("/");
   if (rest.length > 0) return HOME;
 
@@ -51,6 +58,10 @@ export function formatRoute(route: Route): string {
   switch (route.name) {
     case "home":
       return "#/";
+    case "gallery": {
+      const search = formatGalleryFilter(route.filter);
+      return search ? `#/gallery?${search}` : "#/gallery";
+    }
     case "library":
       return "#/library";
     case "imprint":

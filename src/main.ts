@@ -6,6 +6,8 @@ import { ApiError, apiErrorText, createApi } from "./core/api.ts";
 import { SESSION_KEY, createAuth } from "./core/auth.ts";
 import type { KeyValueStore, Session } from "./core/auth.ts";
 import { DocumentError, loadDocument } from "./core/document.ts";
+import { fetchGalleryPage } from "./core/gallery.ts";
+import type { GalleryCursor, GalleryFilter, GalleryItem } from "./core/gallery.ts";
 import * as editing from "./core/editor-session.ts";
 import type { EditorSession } from "./core/editor-session.ts";
 import {
@@ -36,6 +38,8 @@ import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
 import { accountView } from "./ui/views/account.ts";
 import type { AccountMessage, AccountViewModel } from "./ui/views/account.ts";
 import { editorView } from "./ui/views/editor.ts";
+import { galleryView } from "./ui/views/gallery.ts";
+import type { GalleryViewModel } from "./ui/views/gallery.ts";
 import { homeView, siteFooter } from "./ui/views/home.ts";
 import { imprintView } from "./ui/views/imprint.ts";
 import { libraryView } from "./ui/views/library.ts";
@@ -54,6 +58,8 @@ type EditorState = {
   verifiedData: unknown;
 };
 
+type GalleryState = GalleryViewModel & { next: GalleryCursor | null };
+
 type ErrorInfo = { text: MessageKey; action?: { href: string; label: MessageKey } };
 
 type AppState = {
@@ -69,6 +75,8 @@ type AppState = {
   progress: ReadonlyMap<string, ProgressRecord>;
   exampleKeys: ReadonlyMap<string, string>; // example id → progress key
   account: AccountViewModel;
+  gallery: GalleryState | null; // gallery route
+  newest: GalleryItem[]; // "new in the gallery" on the home page
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -128,6 +136,8 @@ const store = createStore<AppState>({
     editingPublication: null,
     confirmWithdraw: null,
   },
+  gallery: null,
+  newest: [],
 });
 
 const storage: Promise<Storage> = openStorage().catch((error: unknown) => {
@@ -155,6 +165,12 @@ function enterRoute(route: Route) {
   patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
+    case "home":
+      void loadNewest();
+      break;
+    case "gallery":
+      void openGallery(route);
+      break;
     case "account":
       void loadPublications();
       break;
@@ -225,7 +241,7 @@ function startPlay(
   route: Route,
   raw: unknown,
   origin: PlayOrigin,
-  extra: Pick<PlayViewModel, "localId" | "published"> & { title?: string } = {},
+  extra: Pick<PlayViewModel, "localId" | "published" | "backHref"> & { title?: string } = {},
 ): boolean {
   let loaded: { type: AnyPuzzleType; doc: PuzzleDocument };
   try {
@@ -249,6 +265,7 @@ function startPlay(
   };
   if (extra.localId !== undefined) play.localId = extra.localId;
   if (extra.published !== undefined) play.published = extra.published;
+  if (extra.backHref !== undefined) play.backHref = extra.backHref;
   patch({ pending: false, play });
   return true;
 }
@@ -261,7 +278,10 @@ async function openPublished(route: Route & { name: "published" }) {
     if (!isCurrent(route)) return;
     if (!puzzle) return fail(route, { text: "publishedNotFound" });
     const published = { author: puzzle.author, description: puzzle.description, hidden: puzzle.hidden };
-    if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published })) countPlayOnce(puzzle.id);
+    // Back to the gallery with the filter the player came from.
+    const gallery = store.get().gallery;
+    const backHref = formatRoute({ name: "gallery", filter: gallery?.filter ?? { type: null, level: null, sort: "new" } });
+    if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published, backHref })) countPlayOnce(puzzle.id);
   } catch (error) {
     console.warn(error);
     fail(route, { text: apiErrorText(error) });
@@ -334,6 +354,78 @@ const playActions = {
     if (await save((s) => s.putPuzzle(record))) location.hash = formatRoute({ name: "edit", id: record.id });
   },
 };
+
+// --- Gallery ---
+
+const NEWEST_ON_HOME = 3;
+
+async function loadNewest() {
+  if (!api) return;
+  try {
+    const { items } = await fetchGalleryPage(api, { type: null, level: null, sort: "new" }, null, NEWEST_ON_HOME);
+    patch({ newest: items });
+  } catch (error) {
+    console.warn("gallery", error); // the home page then only links to the gallery
+  }
+}
+
+async function openGallery(route: Route & { name: "gallery" }) {
+  if (!api) return fail(route, { text: "galleryUnavailable" });
+  const keep = store.get().gallery;
+  // Back from a puzzle to the same filter: keep what was loaded instead of starting over.
+  if (keep && keep.status !== "error" && JSON.stringify(keep.filter) === JSON.stringify(route.filter)) return;
+  patch({
+    gallery: { filter: route.filter, items: [], status: "loading", error: null, hasMore: false, announcement: "", next: null },
+  });
+  await loadGalleryPage(route);
+}
+
+async function loadGalleryPage(route: Route & { name: "gallery" }) {
+  const gallery = store.get().gallery;
+  if (!api || !gallery) return;
+  const more = gallery.items.length > 0;
+  patch({ gallery: { ...gallery, status: more ? "loading-more" : "loading", error: null, announcement: "" } });
+  try {
+    const page = await fetchGalleryPage(api, route.filter, gallery.next);
+    if (!isCurrent(route)) return;
+    patch({
+      gallery: {
+        ...gallery,
+        items: [...gallery.items, ...page.items],
+        next: page.next,
+        hasMore: page.next !== null,
+        status: "idle",
+        error: null,
+        announcement: more ? t("galleryLoaded", { count: page.items.length }) : "",
+      },
+    });
+  } catch (error) {
+    console.warn("gallery", error);
+    if (isCurrent(route)) patch({ gallery: { ...gallery, status: "error", error: apiErrorText(error) } });
+  }
+}
+
+function currentGalleryRoute() {
+  const { route } = store.get();
+  return route.name === "gallery" ? route : null;
+}
+
+const galleryActions = {
+  // Filters are part of the route; replace, so the back button leaves the gallery instead of undoing filters.
+  setFilter: (filter: GalleryFilter) => location.replace(formatRoute({ name: "gallery", filter })),
+  loadMore: () => {
+    const route = currentGalleryRoute();
+    if (route && store.get().gallery?.status === "idle") void loadGalleryPage(route);
+  },
+  retry: () => {
+    const route = currentGalleryRoute();
+    if (route) void loadGalleryPage(route);
+  },
+};
+
+function isSolved(contentKey: string) {
+  return store.get().progress.get(contentKey)?.solved === true;
+}
 
 // --- Editor ---
 
@@ -813,8 +905,11 @@ function view(state: AppState) {
       const solved = examples.filter((e) => state.progress.get(state.exampleKeys.get(e.id) ?? "")?.solved);
       const { user, profile } = state.account;
       const badge = auth ? { username: user ? (profile?.username ?? "…") : null } : null;
-      return homeView(registry.all(), examples, new Set(solved.map((e) => e.id)), badge);
+      const gallery = api ? { newest: state.newest, solved: isSolved } : null;
+      return homeView(registry.all(), examples, new Set(solved.map((e) => e.id)), badge, gallery);
     }
+    case "gallery":
+      return state.gallery ? galleryView(state.gallery, registry, isSolved, galleryActions) : nothing;
     case "library":
       return html`${libraryView(state.library, registry.all(), libraryActions)} ${siteFooter()}`;
     case "imprint":
@@ -862,6 +957,7 @@ function pageTitle(state: AppState): string {
   const part =
     state.play?.title ||
     (route.name === "library" ? t("library")
+    : route.name === "gallery" ? t("gallery")
     : route.name === "imprint" ? t("imprint")
     : route.name === "privacy" ? t("privacy")
     : route.name === "account" ? t("account")

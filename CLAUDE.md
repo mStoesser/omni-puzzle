@@ -1,4 +1,4 @@
-# Rätselspiel – Projektkontext für Claude Code
+# Knobelkiste – Projektkontext für Claude Code
 
 Hobbyprojekt: Eine Web-App (Browser + Handy als PWA), in der man Rätsel verschiedener Typen spielen,
 **selbst bauen** und **per Link teilen** kann. Später kommt eine öffentliche Galerie dazu.

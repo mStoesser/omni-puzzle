@@ -11,6 +11,11 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute("#/impressum"), { name: "imprint" });
   assert.deepEqual(parseRoute("#/datenschutz"), { name: "privacy" });
   assert.deepEqual(parseRoute("#/account"), { name: "account" });
+  assert.deepEqual(parseRoute("#/gallery"), { name: "gallery", filter: { type: null, level: null, sort: "new" } });
+  assert.deepEqual(parseRoute("#/gallery?type=laser&sort=likes"), {
+    name: "gallery",
+    filter: { type: "laser", level: null, sort: "likes" },
+  });
   assert.deepEqual(parseRoute("#/p/1.abc_-XYZ"), { name: "shared", code: "1.abc_-XYZ" });
   assert.deepEqual(parseRoute("#/new/rushhour"), { name: "new", type: "rushhour" });
   assert.deepEqual(parseRoute("#/edit/a1-b2"), { name: "edit", id: "a1-b2" });
@@ -33,6 +38,7 @@ test("unknown or malformed routes lead to home", () => {
     "#/p/<script>",
     "#/edit/" + "x".repeat(65),
     "#/g/abc",
+    "#/library?x=1",
     "#/g/8C0F4F0E-1D2B-4C3A-9E8F-0A1B2C3D4E5F",
   ]) {
     assert.deepEqual(parseRoute(hash), { name: "home" }, hash);
@@ -46,6 +52,8 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "imprint" },
     { name: "privacy" },
     { name: "account" },
+    { name: "gallery", filter: { type: null, level: null, sort: "new" } },
+    { name: "gallery", filter: { type: "quiz", level: 2, sort: "plays" } },
     { name: "shared", code: "1.abc" },
     { name: "new", type: "laser" },
     { name: "edit", id: "x1" },

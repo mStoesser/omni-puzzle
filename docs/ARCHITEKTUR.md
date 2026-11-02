@@ -78,6 +78,8 @@ src/
     api.ts, auth.ts, account.ts  # Backend: fetch-Wrapper, Anmeldung, Konto (ab M8/M9)
     publish.ts            # Veröffentlichen prüfen (rein, läuft auch in der Edge Function)
     published.ts          # veröffentlichte Rätsel laden, ändern, zurückziehen, Spielzähler
+    gallery.ts            # Galerie-Abfragen: Filter, Sortierung, Keyset-Pagination, Filter in der Route
+    difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
   ui/
@@ -168,7 +170,7 @@ type EditorContext<D> = {
 
 Seit M10 ist die Schnittstelle zweigeteilt: `PuzzleRules<D, S, M>` enthält `id`, `version` und alle Daten-, Spiel- und
 Solver-Funktionen (also alles oben ohne Texte, `controls`, `problems` und Darstellung). Jeder Typ exportiert sie aus
-`rules.ts`, `index.ts` ergänzt UI und Texte (`{ ...rules, name, …, renderPlay }`). So kann die Edge Function die Regeln
+`rules.ts` (dazu optional `levels`: Zuggrenzen für leicht/mittel/schwer), `index.ts` ergänzt UI und Texte (`{ ...rules, name, …, renderPlay }`). So kann die Edge Function die Regeln
 importieren, ohne lit-html oder das DOM zu laden. `src/puzzles/rules.test.ts` prüft, dass beide Registrierungen übereinstimmen.
 
 **Wichtig:** Undo/Redo, Zugzähler, Timer, „Gelöst!“-Dialog und Neustart gehören in den **Core**, nicht in die Plugins.
@@ -425,6 +427,20 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 - Auf der Kontoseite listet „Meine Veröffentlichungen“ die eigenen Rätsel; Titel und Beschreibung lassen sich ändern,
   zurückziehen heißt löschen.
 
+### Galerie (M11)
+- **Schwierigkeit:** eine gemeinsame Skala 1–3 (leicht, mittel, schwer) in `puzzles.difficulty`. Typen mit Solver bekommen
+  sie beim Veröffentlichen aus `minMoves` und den `levels` ihrer `rules.ts` (Rush Hour ≤ 8 / ≤ 20, Laser ≤ 3 / ≤ 7),
+  das Quiz später aus den Bewertungen (M12, 1–2 leicht, 3 mittel, 4–5 schwer). Für „Schwierigste zuerst“ gibt es die
+  generierte Spalte `hardness` = Stufe · 100 000 + Züge (Migration `0005_gallery.sql`).
+- **Route** `#/gallery?type=laser&level=2&sort=likes`: Filter stehen in der Route (Standardwerte weggelassen), damit
+  Zurück und Links sie behalten. Filterwechsel ersetzen den Verlaufseintrag. Zurück von einem Rätsel behält die geladene Liste.
+- **Keyset-Pagination** (`core/gallery.ts`): sortiert nach `<spalte> desc, id desc`, die nächste Seite filtert per
+  `or=(<spalte>.lt.<wert>,and(<spalte>.eq.<wert>,id.lt.<id>))`. Eine Zeile mehr als die Seitengröße verrät, ob es weitergeht.
+  Pro Sortierung gibt es einen Index (nur sichtbare Rätsel).
+- **Gelöst-Markierung:** Die Karten laden `content_key` mit; er ist gleich dem `progressKey`, also reicht ein Blick in den
+  lokalen Fortschritt.
+- Startseite: „Neu in der Galerie“ (die drei neuesten) und je Typ ein Link auf die gefilterte Galerie.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -445,7 +461,7 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 | Tabelle | Inhalt | Schreiben durch |
 |---|---|---|
 | `profiles` | `id` (= Auth-User), `username` (eindeutig), `is_moderator`, `banned`, `created_at` | Nutzer (nur `username`) |
-| `puzzles` | `id`, `author_id`, `type`, `type_version`, `doc` (jsonb), `content_key` (eindeutig), `title`, `description`, `min_moves`, `hidden`, `like_count`, `play_count`, `rating_sum`, `rating_count`, `report_count`, `published_at` | Edge Function `publish`; Autor nur Titel/Beschreibung/Löschen |
+| `puzzles` | `id`, `author_id`, `type`, `type_version`, `doc` (jsonb), `content_key` (eindeutig), `title`, `description`, `min_moves`, `difficulty`, `hardness`, `hidden`, `like_count`, `play_count`, `rating_sum`, `rating_count`, `report_count`, `published_at` | Edge Function `publish`; Autor nur Titel/Beschreibung/Löschen |
 | `likes` | `user_id`, `puzzle_id` (Primärschlüssel aus beiden) | angemeldete Nutzer, nicht für eigene Rätsel |
 | `ratings` | `user_id`, `puzzle_id`, `value` 1–5 | angemeldete Nutzer, nicht für eigene Rätsel |
 | `reports` | `id`, `puzzle_id`, `reporter_id`, `reason`, `comment`, `resolved`, `created_at` | angemeldete Nutzer, eine Meldung pro Rätsel |
@@ -458,7 +474,7 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 
 | Hash | View |
 |---|---|
-| `#/gallery` | Galerie mit Filtern und Sortierung |
+| `#/gallery?type=…&level=…&sort=…` | Galerie mit Filtern und Sortierung |
 | `#/g/<id>` | veröffentlichtes Rätsel spielen (kurzer Teilen-Link) |
 | `#/account` | Anmelden/Registrieren bzw. Kontoseite mit „Meine Veröffentlichungen“ |
 | `#/moderation` | Moderationsansicht (nur Moderatoren) |

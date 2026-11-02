@@ -13,4 +13,5 @@ export const laserRules: PuzzleRules<LaserData, LaserState, LaserMove> = {
   applyMove,
   isSolved,
   solve,
+  levels: { easy: 3, medium: 7 },
 };

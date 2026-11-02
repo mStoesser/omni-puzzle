@@ -1,4 +1,4 @@
-# Rätselspiel
+# Knobelkiste
 
 Web-App (Browser und Handy als PWA) zum Spielen, Bauen und Teilen von Rätseln.
 

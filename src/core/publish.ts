@@ -1,3 +1,5 @@
+import { levelFromMoves } from "./difficulty.ts";
+import type { Level } from "./difficulty.ts";
 import { DocumentError, loadDocument } from "./document.ts";
 import type { Registry } from "./registry.ts";
 import { progressKey } from "./storage.ts";
@@ -44,6 +46,7 @@ export type Publication = {
   title: string;
   description: string;
   minMoves: number | null; // null = no solver or the search limit was reached
+  difficulty: Level | null; // from minMoves; null = unknown (ratings decide later)
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -96,5 +99,6 @@ export function preparePublication(input: unknown, registry: Registry<AnyPuzzleR
     title: cleanTitle,
     description: description.trim(),
     minMoves,
+    difficulty: minMoves === null ? null : levelFromMoves(type, minMoves),
   };
 }

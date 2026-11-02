@@ -13,4 +13,5 @@ export const rushHourRules: PuzzleRules<RushHourData, RushHourState, RushHourMov
   applyMove,
   isSolved,
   solve,
+  levels: { easy: 8, medium: 20 },
 };

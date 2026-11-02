@@ -44,6 +44,7 @@ test("publishes a checked puzzle via the service-role RPC", async () => {
   const args = JSON.parse(String(rpc.init.body));
   assert.equal(args.author, "u1");
   assert.equal(args.min_moves, 3);
+  assert.equal(args.difficulty, 1);
   assert.match(args.content_key, /^[0-9a-f]{64}$/);
 });
 

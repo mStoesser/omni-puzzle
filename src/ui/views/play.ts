@@ -16,6 +16,7 @@ export type PlayViewModel = {
   localId?: string; // library id for origin "own"
   /** For origin "published": author (null = deleted account), description and visibility. */
   published?: { author: string | null; description: string; hidden: boolean };
+  backHref?: string; // where "back" leads; default depends on the origin
   progressKey: string | null; // null = test play (no progress)
 };
 
@@ -39,7 +40,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
     <header class="toolbar">
       ${model.origin === "test"
         ? html`<button class="secondary" @click=${actions.backToEditor} aria-label=${t("backToEditor")}>←</button>`
-        : html`<a class="button secondary" href=${model.origin === "own" ? "#/library" : "#/"} aria-label=${t("back")}>←</a>`}
+        : html`<a class="button secondary" href=${model.backHref ?? (model.origin === "own" ? "#/library" : "#/")} aria-label=${t("back")}>←</a>`}
       <h1 class="toolbar-title">${model.title || t("untitled")}</h1>
     </header>
     ${model.published ? publishedInfo(model.published) : nothing}

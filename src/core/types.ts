@@ -62,6 +62,11 @@ export type PuzzleRules<D, S, M> = {
   isSolved(data: D, state: S): boolean;
 
   solve?(data: D, limits: SolveLimits): SolveResult<M>;
+  /**
+   * Difficulty from the solver's minimal move count: up to `easy` moves is easy, up to `medium` medium,
+   * more is hard. Only for types with a solver; others get their difficulty from player ratings.
+   */
+  levels?: { easy: number; medium: number };
 };
 
 /** Plugin interface every puzzle type implements: its rules plus texts and UI. D = data, S = play state, M = move. */

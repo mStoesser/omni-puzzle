@@ -18,6 +18,7 @@ test("a verified puzzle is published with minMoves computed by the solver", () =
   assert.equal(pub.title, "Erste Ausfahrt");
   assert.equal(pub.description, "Leicht");
   assert.equal(pub.minMoves, 3);
+  assert.equal(pub.difficulty, 1);
   assert.deepEqual(pub.doc.meta, { title: "Erste Ausfahrt", createdAt: doc.meta.createdAt, verified: true, minMoves: 3 });
   // Same key as local progress for this puzzle.
   assert.equal(pub.contentKey, progressKey(doc));
@@ -27,6 +28,7 @@ test("a quiz has no solver; being solved by its creator is enough", () => {
   const doc = docOf(examples.find((e) => e.doc.type === "quiz")!.id);
   const pub = preparePublication({ doc, title: "Quiz" }, rulesRegistry);
   assert.equal(pub.minMoves, null);
+  assert.equal(pub.difficulty, null);
   assert.equal(pub.description, "");
 });
 

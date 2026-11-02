@@ -1,6 +1,6 @@
 {
-  "name": "Rätsel – spielen, bauen, teilen",
-  "short_name": "Rätsel",
+  "name": "Knobelkiste – Rätsel spielen, bauen, teilen",
+  "short_name": "Knobelkiste",
   "description": "Rätsel spielen, selbst bauen und per Link teilen.",
   "lang": "de",
   "start_url": "./",
