@@ -927,3 +927,51 @@ button.danger-button {
 .gallery-more {
   margin-top: var(--space-3);
 }
+
+.reactions {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.reactions p {
+  margin: 0;
+}
+
+.reaction-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.like-button[aria-pressed="true"] span[aria-hidden="true"] {
+  color: var(--danger);
+}
+
+.like-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.rating {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rating legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-weight: 600;
+}
+
+.rating-scale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rating-scale button {
+  min-width: var(--tap-min);
+}

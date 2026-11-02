@@ -159,15 +159,21 @@ folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
 - [x] Startseite: Bereich „Neu in der Galerie“ mit den neuesten Rätseln.
 - [x] Ladezustände, Fehler und Offline-Hinweis; Barrierefreiheit wie in M7 (Fokus, Labels, Live-Region beim Nachladen).
 - [x] Name des Spiels: **Knobelkiste** (Titel, PWA-Manifest, Mail-Vorlagen).
-- [ ] Live testen: Galerie mit echten Rätseln (Filter, Sortierung, Nachladen), auch auf dem Handy.
-  (Gegen `dev` geprüft: alle Sortierungen über mehrere Seiten, Typfilter, Spielzähler, Autor. Offen: Stufenfilter mit der
-  neuen Edge Function, die die Schwierigkeit mitschickt, und der Handy-Test.)
+- [x] Live testen: Galerie mit echten Rätseln (Filter, Sortierung, Nachladen), auch auf dem Handy.
+  (Gegen `dev` geprüft: alle Sortierungen über mehrere Seiten, Typ- und Stufenfilter, „Schwierigste“-Reihenfolge,
+  Spielzähler, Autor. Handy-Test erfolgreich.)
 
 ### M12 – Likes und Bewertungen
-- [ ] Like-Knopf (Herz) auf `#/g/<id>` und auf dem Gelöst-Bildschirm; ohne Anmeldung kommt ein Hinweis mit Anmelde-Link.
-- [ ] Schwierigkeitsbewertung (1–5) erst nach dem Lösen; man kann sie ändern.
-- [ ] Durchschnitt und Anzahl der Bewertungen auf Karte und Spielseite, erst ab einer Mindestzahl an Stimmen.
-- [ ] Eigene Rätsel kann man nicht liken oder bewerten (über RLS geprüft).
+- [x] Like-Knopf (Herz) auf `#/g/<id>` und auf dem Gelöst-Bildschirm; ohne Anmeldung kommt ein Hinweis mit Anmelde-Link.
+- [x] Schwierigkeitsbewertung (1–5) erst nach dem Lösen; man kann sie ändern.
+  („Gelöst“ heißt: auf diesem Gerät gelöst, laut lokalem Fortschritt. Der Server kann das nicht prüfen.)
+- [x] Durchschnitt und Anzahl der Bewertungen auf Karte und Spielseite, erst ab einer Mindestzahl an Stimmen.
+  (Ab 3 Bewertungen. Für Rätsel ohne Zugzahl, also das Quiz, setzt ein Trigger daraus die Stufe; Migration `0006_ratings.sql`.)
+- [x] Eigene Rätsel kann man nicht liken oder bewerten (über RLS geprüft).
+- [ ] Live testen: Stufe aus Bewertungen nach Migration 0006, Handy-Test.
+  (Gegen `dev` geprüft: eigene/fremde/anonyme Likes und Bewertungen, doppelte Likes, Zähler, Bewertung ändern,
+  Stufe aus Bewertungen (ab 3, folgt Änderungen, gemessene Stufen bleiben); in der Oberfläche Liken, Entliken und
+  Bewerten als angemeldeter Nutzer. Offen: Handy-Test.)
 
 ### M13 – Melden und Moderation
 - [ ] Melden-Knopf mit Grund (unangemessen, Spam, nicht lösbar, Sonstiges) und optionalem Kommentar; eine Meldung pro Nutzer und Rätsel.

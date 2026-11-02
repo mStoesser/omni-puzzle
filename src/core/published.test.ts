@@ -16,6 +16,9 @@ function fakeApi(replies: { status: number; body?: unknown }[], calls: Call[]) {
 
 const ROW = {
   id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f",
+  author_id: "u1",
+  rating_sum: 7,
+  rating_count: 2,
   doc: { format: 1 },
   type: "rushhour",
   title: "T",
@@ -33,7 +36,9 @@ test("fetchPublished embeds the author and maps the row", async () => {
   const puzzle = await fetchPublished(api, ROW.id);
   assert.equal(puzzle?.author, "fan");
   assert.equal(puzzle?.playCount, 2);
-  assert.match(calls[0]!.url, /select=id%2Cdoc%2C.*author%3Aprofiles%21puzzles_author_id_fkey%28username%29/);
+  assert.equal(puzzle?.authorId, "u1");
+  assert.equal(puzzle?.ratingCount, 2);
+  assert.match(calls[0]!.url, /select=id%2Cauthor_id%2Cdoc%2C.*author%3Aprofiles%21puzzles_author_id_fkey%28username%29/);
   assert.equal(await fetchPublished(api, ROW.id), null);
 });
 

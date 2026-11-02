@@ -33,6 +33,8 @@ test("fetchGalleryPage detects the next page with one extra row", async () => {
     difficulty: 1,
     like_count: 10 - i,
     play_count: 0,
+    rating_sum: 0,
+    rating_count: 0,
     published_at: "2026-11-02T10:00:00+00:00",
     hardness: 100003,
     author: i === 0 ? null : { username: "fan" },

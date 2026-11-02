@@ -10,8 +10,11 @@ export type PublishedPuzzle = {
   title: string;
   description: string;
   author: string | null; // null if the profile is gone
+  authorId: string;
   playCount: number;
   likeCount: number;
+  ratingSum: number;
+  ratingCount: number;
   publishedAt: string;
   hidden: boolean; // only visible to its author and moderators
 };
@@ -32,12 +35,15 @@ export const PUBLISHED_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 
 type Row = {
   id: string;
+  author_id: string;
   doc: unknown;
   type: string;
   title: string;
   description: string;
   play_count: number;
   like_count: number;
+  rating_sum: number;
+  rating_count: number;
   published_at: string;
   hidden: boolean;
   author: { username: string } | null;
@@ -47,7 +53,9 @@ export async function fetchPublished(api: Api, id: string): Promise<PublishedPuz
   const rows = await api.rest<Row[]>("puzzles", {
     query: {
       id: `eq.${id}`,
-      select: "id,doc,title,description,play_count,like_count,published_at,hidden,author:profiles!puzzles_author_id_fkey(username)",
+      select:
+        "id,author_id,doc,title,description,play_count,like_count,rating_sum,rating_count,published_at,hidden," +
+        "author:profiles!puzzles_author_id_fkey(username)",
     },
   });
   const row = rows[0];
@@ -58,8 +66,11 @@ export async function fetchPublished(api: Api, id: string): Promise<PublishedPuz
     title: row.title,
     description: row.description,
     author: row.author?.username ?? null,
+    authorId: row.author_id,
     playCount: row.play_count,
     likeCount: row.like_count,
+    ratingSum: row.rating_sum,
+    ratingCount: row.rating_count,
     publishedAt: row.published_at,
     hidden: row.hidden,
   };

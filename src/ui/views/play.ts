@@ -1,6 +1,8 @@
 import { html, nothing } from "lit-html";
 import { ref } from "lit-html/directives/ref.js";
 import { canRedo, canUndo, currentState, moveCount } from "../../core/session.ts";
+import { averageRating, formatAverage } from "../../core/reactions.ts";
+import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
 import { t } from "../../i18n/t.ts";
 import { showModal } from "../components/dialog.ts";
@@ -14,10 +16,25 @@ export type PlayViewModel = {
   showSolved: boolean;
   origin: PlayOrigin;
   localId?: string; // library id for origin "own"
-  /** For origin "published": author (null = deleted account), description and visibility. */
-  published?: { author: string | null; description: string; hidden: boolean };
+  published?: PublishedInfo; // for origin "published"
   backHref?: string; // where "back" leads; default depends on the origin
   progressKey: string | null; // null = test play (no progress)
+};
+
+/** A published puzzle's details and the player's reactions. */
+export type PublishedInfo = {
+  id: string;
+  author: string | null; // null = deleted account
+  authorId: string;
+  description: string;
+  hidden: boolean;
+  likeCount: number;
+  ratingSum: number;
+  ratingCount: number;
+  me: MyReaction | null; // null = signed out or not loaded yet
+  /** Whether the player may like and rate; computed from the session when rendering. */
+  access?: "yes" | "loading" | "signed-out" | "own" | "hidden";
+  busy: boolean;
 };
 
 export type PlayViewActions = {
@@ -28,6 +45,8 @@ export type PlayViewActions = {
   dismissSolved(): void;
   backToEditor(): void;
   copyToLibrary(): void;
+  toggleLike(): void;
+  rate(value: number): void;
 };
 
 /** `best` = best result so far for this puzzle, if solved before. */
@@ -59,6 +78,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
         ${t("restart")}
       </button>
     </footer>
+    ${model.published ? reactions(model.published, best !== null || session.solved, actions) : nothing}
     ${extras(model, actions)}
     ${model.showSolved ? solvedDialog(showMoves ? moves : null, model, best, actions) : nothing}
   `;
@@ -81,7 +101,60 @@ function extras(model: PlayViewModel, actions: PlayViewActions) {
   }
 }
 
-function publishedInfo(info: NonNullable<PlayViewModel["published"]>) {
+/** Like button, average rating and the own rating (only after solving). */
+function reactions(info: PublishedInfo, solved: boolean, actions: PlayViewActions) {
+  const { access = "loading", me } = info;
+  const average = averageRating(info.ratingSum, info.ratingCount);
+  const liked = me?.liked === true;
+  return html`<section class="reactions">
+    <div class="reaction-row">
+      <button
+        class="secondary like-button"
+        aria-pressed=${liked ? "true" : "false"}
+        ?disabled=${access !== "yes" || info.busy}
+        @click=${actions.toggleLike}
+      >
+        <span aria-hidden="true">${liked ? "♥" : "♡"}</span> ${t("like")}
+        <span class="like-count" aria-label=${t("likeCount", { count: info.likeCount })}>${info.likeCount}</span>
+      </button>
+      <span class="hint">
+        ${average !== null
+          ? t("ratingAverage", { average: formatAverage(average), count: info.ratingCount })
+          : info.ratingCount > 0
+            ? t("ratingTooFew")
+            : nothing}
+      </span>
+    </div>
+    ${access === "signed-out"
+      ? html`<p class="hint">${t("reactionsSignIn")} <a href="#/account">${t("accountLink")}</a></p>`
+      : access === "own"
+        ? html`<p class="hint">${t("reactionsOwn")}</p>`
+        : nothing}
+    ${access !== "yes"
+      ? nothing
+      : solved
+        ? html`<fieldset class="rating" ?disabled=${info.busy}>
+            <legend>${t("ratingQuestion")}</legend>
+            <div class="rating-scale">
+              <span class="hint" aria-hidden="true">${t("ratingEasy")}</span>
+              ${[1, 2, 3, 4, 5].map(
+                (value) => html`<button
+                  class=${me?.rating === value ? "" : "secondary"}
+                  aria-pressed=${me?.rating === value ? "true" : "false"}
+                  aria-label=${t("ratingValue", { value })}
+                  @click=${() => actions.rate(value)}
+                >
+                  ${value}
+                </button>`,
+              )}
+              <span class="hint" aria-hidden="true">${t("ratingHard")}</span>
+            </div>
+          </fieldset>`
+        : html`<p class="hint">${t("ratingAfterSolve")}</p>`}
+  </section>`;
+}
+
+function publishedInfo(info: PublishedInfo) {
   return html`<div class="published-info">
     <p class="hint">${info.author === null ? t("publishedByUnknown") : t("publishedBy", { author: info.author })}</p>
     ${info.hidden ? html`<p class="notice">${t("publishedHidden")}</p>` : nothing}
@@ -98,6 +171,7 @@ function solvedDialog(moves: number | null, model: PlayViewModel, best: number |
       <p>${moves === null ? t("solvedText") : moves === 1 ? t("solvedTextOne") : t("solvedTextOther", { moves })}</p>
       ${test ? html`<p>${t("solvedVerified")}</p>` : nothing}
       ${!test && moves !== null && best !== null ? html`<p>${best === 1 ? t("bestMovesOne") : t("bestMoves", { moves: best })}</p>` : nothing}
+      ${model.published ? reactions(model.published, true, actions) : nothing}
       <div class="dialog-actions">
         <button class="secondary" @click=${actions.dismissSolved}>${t("close")}</button>
         <button class="secondary" @click=${actions.restart}>${t("playAgain")}</button>

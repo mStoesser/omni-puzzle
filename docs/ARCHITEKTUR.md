@@ -441,6 +441,15 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   lokalen Fortschritt.
 - Startseite: „Neu in der Galerie“ (die drei neuesten) und je Typ ein Link auf die gefilterte Galerie.
 
+### Likes und Bewertungen (M12)
+- `core/reactions.ts`: eigenes Like und eigene Bewertung laden, setzen und ändern. Likes per Insert/Delete, Bewertungen
+  per Insert bzw. Patch nur von `value` (kein PostgREST-Upsert, weil Nutzer die Schlüsselspalten nicht ändern dürfen).
+- Die Spielseite ändert Zähler sofort (optimistisch) und nimmt die Änderung zurück, wenn der Server ablehnt.
+- Wer darf: angemeldet, nicht der Autor, Rätsel nicht ausgeblendet, Konto nicht gesperrt. Das prüft RLS (Migration 0001),
+  die App blendet die Knöpfe nur passend aus. Bewerten erst nach dem Lösen (lokaler Fortschritt).
+- Durchschnitt ab 3 Bewertungen (`MIN_RATINGS`). Für Rätsel ohne `min_moves` setzt `count_rating` (Migration 0006)
+  daraus `difficulty`: Ø < 2,5 leicht, < 3,5 mittel, sonst schwer.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.

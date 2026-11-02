@@ -20,6 +20,7 @@ import {
   updatePublication,
   withdrawPublication,
 } from "./core/published.ts";
+import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
 import { formatRoute, parseRoute, startRouter } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
@@ -46,7 +47,7 @@ import { libraryView } from "./ui/views/library.ts";
 import type { LibraryItem } from "./ui/views/library.ts";
 import { messageView } from "./ui/views/message.ts";
 import { playView } from "./ui/views/play.ts";
-import type { PlayOrigin, PlayViewModel } from "./ui/views/play.ts";
+import type { PlayOrigin, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
 import { privacyView } from "./ui/views/privacy.ts";
 
 type EditorState = {
@@ -277,15 +278,88 @@ async function openPublished(route: Route & { name: "published" }) {
     const puzzle = await fetchPublished(api, route.id);
     if (!isCurrent(route)) return;
     if (!puzzle) return fail(route, { text: "publishedNotFound" });
-    const published = { author: puzzle.author, description: puzzle.description, hidden: puzzle.hidden };
+    const published: PublishedInfo = {
+      id: puzzle.id,
+      author: puzzle.author,
+      authorId: puzzle.authorId,
+      description: puzzle.description,
+      hidden: puzzle.hidden,
+      likeCount: puzzle.likeCount,
+      ratingSum: puzzle.ratingSum,
+      ratingCount: puzzle.ratingCount,
+      me: null,
+      busy: false,
+    };
     // Back to the gallery with the filter the player came from.
     const gallery = store.get().gallery;
     const backHref = formatRoute({ name: "gallery", filter: gallery?.filter ?? { type: null, level: null, sort: "new" } });
-    if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published, backHref })) countPlayOnce(puzzle.id);
+    if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published, backHref })) {
+      countPlayOnce(puzzle.id);
+      void loadReaction();
+    }
   } catch (error) {
     console.warn(error);
     fail(route, { text: apiErrorText(error) });
   }
+}
+
+// --- Likes and ratings ---
+
+function setPublished(change: Partial<PublishedInfo>, id: string) {
+  store.set((state) => {
+    const published = state.play?.published;
+    if (!state.play || published?.id !== id) return state; // the player moved on
+    return { ...state, play: { ...state.play, published: { ...published, ...change } } };
+  });
+}
+
+/** Loads the own like and rating of the open puzzle, if signed in. */
+async function loadReaction() {
+  const { play, account } = store.get();
+  const published = play?.published;
+  if (!api || !published || !account.user) return;
+  try {
+    setPublished({ me: await fetchMyReaction(api, account.user.id, published.id) }, published.id);
+  } catch (error) {
+    console.warn("reactions", error);
+  }
+}
+
+function reactionAccess(published: PublishedInfo, user: { id: string } | null): NonNullable<PublishedInfo["access"]> {
+  if (published.hidden) return "hidden";
+  if (!user) return "signed-out";
+  if (published.authorId === user.id) return "own";
+  return published.me === null ? "loading" : "yes";
+}
+
+/** Runs a like or rating change optimistically; reverts and shows a notice if the server refuses. */
+async function react(change: (p: PublishedInfo) => Partial<PublishedInfo>, send: (p: PublishedInfo, userId: string) => Promise<void>) {
+  const { play, account } = store.get();
+  const published = play?.published;
+  if (!api || !published || !account.user || published.busy || reactionAccess(published, account.user) !== "yes") return;
+  setPublished({ ...change(published), busy: true }, published.id);
+  try {
+    await send(published, account.user.id);
+    setPublished({ busy: false }, published.id);
+  } catch (error) {
+    console.warn("reactions", error);
+    setPublished({ ...published, busy: false }, published.id);
+    patch({ notice: apiErrorText(error) });
+  }
+}
+
+function toggleLike() {
+  void react(
+    (p) => ({ me: { ...p.me!, liked: !p.me!.liked }, likeCount: p.likeCount + (p.me!.liked ? -1 : 1) }),
+    (p, userId) => setLike(api!, userId, p.id, !p.me!.liked),
+  );
+}
+
+function rate(value: number) {
+  void react(
+    (p) => ({ me: { ...p.me!, rating: value }, ...applyRating(p, p.me!.rating, value) }),
+    (p, userId) => (p.me!.rating === value ? Promise.resolve() : setRating(api!, userId, p.id, value, p.me!.rating !== null)),
+  );
 }
 
 // Plays are counted once per device and puzzle; the ids are remembered in localStorage.
@@ -341,6 +415,8 @@ const playActions = {
       state.play?.showSolved ? { ...state, play: { ...state.play, showSolved: false } } : state,
     ),
   backToEditor: () => patch({ play: null }),
+  toggleLike,
+  rate,
   // Remixing: the copy is a new, unverified draft of the creator.
   copyToLibrary: async () => {
     const play = store.get().play;
@@ -795,6 +871,11 @@ function onSession(session: Session | null) {
   setAccount({ user, profile: null, confirmDelete: false, publications: null, editingPublication: null, confirmWithdraw: null });
   if (user) void loadProfile(user.id);
   if (user && store.get().route.name === "account") void loadPublications();
+  const published = store.get().play?.published;
+  if (published) {
+    setPublished({ me: null }, published.id);
+    void loadReaction();
+  }
 }
 
 async function loadProfile(userId: string) {
@@ -923,7 +1004,11 @@ function view(state: AppState) {
     case "published": {
       if (!state.play) return messageView(t("puzzleNotFound"));
       const best = state.progress.get(state.play.progressKey ?? "")?.bestMoves ?? null;
-      return playView(state.play, best, playActions);
+      const { published } = state.play;
+      const play = published
+        ? { ...state.play, published: { ...published, access: reactionAccess(published, state.account.user) } }
+        : state.play;
+      return playView(play, best, playActions);
     }
     case "new":
     case "edit": {

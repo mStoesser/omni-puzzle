@@ -22,6 +22,8 @@ export type GalleryItem = {
   level: Level | null;
   likeCount: number;
   playCount: number;
+  ratingSum: number;
+  ratingCount: number;
   publishedAt: string;
 };
 
@@ -44,13 +46,15 @@ type Row = {
   difficulty: number | null;
   like_count: number;
   play_count: number;
+  rating_sum: number;
+  rating_count: number;
   published_at: string;
   hardness: number;
   author: { username: string } | null;
 };
 
 const SELECT =
-  "id,type,title,content_key,min_moves,difficulty,like_count,play_count,published_at,hardness," +
+  "id,type,title,content_key,min_moves,difficulty,like_count,play_count,rating_sum,rating_count,published_at,hardness," +
   "author:profiles!puzzles_author_id_fkey(username)";
 
 /** PostgREST query parameters for one page; pure, so it is tested without a server. */
@@ -83,6 +87,8 @@ function toItem(row: Row): GalleryItem {
     level: isLevel(row.difficulty) ? row.difficulty : null,
     likeCount: row.like_count,
     playCount: row.play_count,
+    ratingSum: row.rating_sum,
+    ratingCount: row.rating_count,
     publishedAt: row.published_at,
   };
 }
