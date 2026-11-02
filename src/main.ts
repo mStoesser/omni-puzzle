@@ -2,16 +2,27 @@ import { html, nothing, render } from "lit-html";
 import { backend } from "./backend.ts";
 import { PASSWORD_MIN, accountErrorText, deleteAccount, fetchProfile, renameUser, usernameAvailable, usernameProblem } from "./core/account.ts";
 import type { UsernameProblem } from "./core/account.ts";
-import { ApiError, createApi } from "./core/api.ts";
+import { ApiError, apiErrorText, createApi } from "./core/api.ts";
 import { SESSION_KEY, createAuth } from "./core/auth.ts";
 import type { KeyValueStore, Session } from "./core/auth.ts";
 import { DocumentError, loadDocument } from "./core/document.ts";
 import * as editing from "./core/editor-session.ts";
 import type { EditorSession } from "./core/editor-session.ts";
+import {
+  fetchPublished,
+  findByContentKey,
+  listOwnPublications,
+  publishErrorText,
+  publishPuzzle,
+  registerPlay,
+  updatePublication,
+  withdrawPublication,
+} from "./core/published.ts";
 import { formatRoute, parseRoute, startRouter } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
 import type { AnyPlaySession } from "./core/session.ts";
+import { PUBLISH } from "./core/publish.ts";
 import { decodeDocument, encodeDocument } from "./core/share.ts";
 import { copyRecord, memoryStorage, newPuzzleId, openStorage, progressKey, recordSolve } from "./core/storage.ts";
 import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
@@ -20,6 +31,7 @@ import type { AnyPuzzleType, PuzzleDocument, SolveResult } from "./core/types.ts
 import { t } from "./i18n/t.ts";
 import type { MessageKey } from "./i18n/t.ts";
 import { examples, registry } from "./puzzles/index.ts";
+import type { PublishDialogModel } from "./ui/components/publish-dialog.ts";
 import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
 import { accountView } from "./ui/views/account.ts";
 import type { AccountMessage, AccountViewModel } from "./ui/views/account.ts";
@@ -52,6 +64,7 @@ type AppState = {
   play: PlayViewModel | null; // play route or test play from the editor
   editor: EditorState | null; // kept while navigating, so undo history survives test play and back/forward
   share: ShareDialogModel | null;
+  publish: PublishDialogModel | null;
   library: LibraryItem[] | null; // null = not loaded yet
   progress: ReadonlyMap<string, ProgressRecord>;
   exampleKeys: ReadonlyMap<string, string>; // example id → progress key
@@ -100,6 +113,7 @@ const store = createStore<AppState>({
   play: null,
   editor: null,
   share: null,
+  publish: null,
   library: null,
   progress: new Map(),
   exampleKeys: new Map(),
@@ -110,6 +124,9 @@ const store = createStore<AppState>({
     busy: false,
     message: null,
     confirmDelete: false,
+    publications: null,
+    editingPublication: null,
+    confirmWithdraw: null,
   },
 });
 
@@ -135,9 +152,15 @@ function now() {
 
 function enterRoute(route: Route) {
   flushSave();
-  patch({ route, pending: false, error: null, notice: null, play: null, share: null });
+  patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
+    case "account":
+      void loadPublications();
+      break;
+    case "published":
+      void openPublished(route);
+      break;
     case "library":
       void loadLibrary();
       break;
@@ -170,7 +193,7 @@ async function openPlay(route: Route & { name: "play" }) {
   const record = await (await storage).getPuzzle(route.id);
   if (!isCurrent(route)) return;
   if (!record) return fail(route, { text: "puzzleNotFound" });
-  startPlay(route, record.doc, "own", record.id);
+  startPlay(route, record.doc, "own", { localId: record.id });
 }
 
 async function openShared(route: Route & { name: "shared" }) {
@@ -198,27 +221,68 @@ function linkErrorText(error: unknown): MessageKey {
   }
 }
 
-function startPlay(route: Route, raw: unknown, origin: PlayOrigin, localId?: string) {
+function startPlay(
+  route: Route,
+  raw: unknown,
+  origin: PlayOrigin,
+  extra: Pick<PlayViewModel, "localId" | "published"> & { title?: string } = {},
+): boolean {
   let loaded: { type: AnyPuzzleType; doc: PuzzleDocument };
   try {
     loaded = loadDocument(raw, registry);
   } catch (error) {
     console.warn(error);
     if (origin === "own") {
-      return fail(route, { text: "notPlayable", action: { href: `#/edit/${localId}`, label: "edit" } });
+      fail(route, { text: "notPlayable", action: { href: `#/edit/${extra.localId}`, label: "edit" } });
+    } else {
+      fail(route, { text: linkErrorText(error) });
     }
-    return fail(route, { text: linkErrorText(error) });
+    return false;
   }
   const { type, doc } = loaded;
   const play: PlayViewModel = {
-    title: doc.meta.title,
+    title: extra.title ?? doc.meta.title,
     session: session.createSession(type, doc.data),
     showSolved: false,
     origin,
     progressKey: progressKey(doc),
   };
-  if (localId !== undefined) play.localId = localId;
+  if (extra.localId !== undefined) play.localId = extra.localId;
+  if (extra.published !== undefined) play.published = extra.published;
   patch({ pending: false, play });
+  return true;
+}
+
+async function openPublished(route: Route & { name: "published" }) {
+  if (!api) return fail(route, { text: "publishedUnavailable" });
+  patch({ pending: true });
+  try {
+    const puzzle = await fetchPublished(api, route.id);
+    if (!isCurrent(route)) return;
+    if (!puzzle) return fail(route, { text: "publishedNotFound" });
+    const published = { author: puzzle.author, description: puzzle.description, hidden: puzzle.hidden };
+    if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published })) countPlayOnce(puzzle.id);
+  } catch (error) {
+    console.warn(error);
+    fail(route, { text: apiErrorText(error) });
+  }
+}
+
+// Plays are counted once per device and puzzle; the ids are remembered in localStorage.
+const PLAYS_KEY = "raetsel-plays";
+const MAX_REMEMBERED_PLAYS = 500;
+
+function countPlayOnce(id: string) {
+  let ids: unknown;
+  try {
+    ids = JSON.parse(browserStore.get(PLAYS_KEY) ?? "[]");
+  } catch {
+    ids = [];
+  }
+  const played = Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [];
+  if (played.includes(id)) return;
+  browserStore.set(PLAYS_KEY, JSON.stringify([...played, id].slice(-MAX_REMEMBERED_PLAYS)));
+  registerPlay(api!, id).catch((error: unknown) => console.warn("play counter", error));
 }
 
 function updateSession(change: (s: AnyPlaySession) => AnyPlaySession) {
@@ -442,6 +506,52 @@ async function openShare() {
   store.set((state) => (state.share === share ? { ...state, share: { ...share, url } } : state));
 }
 
+// --- Publishing ---
+
+function publishing(state: AppState): "signed-in" | "signed-out" | null {
+  if (!api) return null;
+  return state.account.user && state.account.profile ? "signed-in" : "signed-out";
+}
+
+function openPublish() {
+  const state = store.get();
+  const { editor, account } = state;
+  if (!editor || !account.profile || publishing(state) !== "signed-in") return;
+  if (!editing.readiness(editorCheck(editor)).canShare) return;
+  patch({
+    publish: { title: editor.session.title, author: account.profile.username, state: "confirm", error: null, publishedId: null },
+  });
+}
+
+function setPublish(change: Partial<PublishDialogModel>) {
+  store.set((state) => (state.publish ? { ...state, publish: { ...state.publish, ...change } } : state));
+}
+
+async function publish(description: string) {
+  const { editor, publish: dialog } = store.get();
+  if (!api || !editor || !dialog || dialog.state !== "confirm") return;
+  setPublish({ state: "busy", error: null, publishedId: null });
+  const doc = editorDocument(editor);
+  try {
+    const id = await publishPuzzle(api, { doc, title: doc.meta.title, description });
+    setPublish({ state: "done", publishedId: id });
+    setAccount({ publications: null }); // reload on the account page
+  } catch (error) {
+    console.warn(error);
+    setPublish({ state: "confirm", error: publishErrorText(error) });
+    if (error instanceof ApiError && error.code === "duplicate") {
+      // Same key as the server computes: progressKey of the checked document.
+      const existing = await findByContentKey(api, progressKey(loadDocument(doc, registry).doc)).catch(() => null);
+      if (existing) setPublish({ publishedId: existing });
+    }
+  }
+}
+
+const publishActions = {
+  publish: (description: string) => void publish(description),
+  close: () => patch({ publish: null }),
+};
+
 const editorActions = {
   update: (data: unknown) => updateEditor((s) => editing.updateData(s, data)),
   undo: () => updateEditor(editing.undoEdit),
@@ -461,6 +571,8 @@ const editorActions = {
   },
   openShare: () => void openShare(),
   share: shareActions,
+  openPublish,
+  publish: publishActions,
 };
 
 // --- Library ---
@@ -518,8 +630,24 @@ function setAccount(change: Partial<AccountViewModel>) {
 
 function resetAccountForm() {
   const { account } = store.get();
-  if (account.message || account.confirmDelete || account.mode !== "signIn") {
-    setAccount({ message: null, confirmDelete: false, mode: "signIn" });
+  if (account.message || account.confirmDelete || account.mode !== "signIn" || account.editingPublication || account.confirmWithdraw) {
+    setAccount({ message: null, confirmDelete: false, mode: "signIn", editingPublication: null, confirmWithdraw: null });
+  }
+}
+
+async function loadPublications() {
+  const userId = store.get().account.user?.id;
+  if (!api || !userId) return;
+  try {
+    const list = await listOwnPublications(api, userId);
+    const publications = list.map((p) => {
+      const type = registry.get(p.type);
+      return { ...p, typeName: type ? t(type.name) : p.type };
+    });
+    if (store.get().account.user?.id === userId) setAccount({ publications });
+  } catch (error) {
+    console.warn("publications", error);
+    if (store.get().account.user?.id === userId) setAccount({ publications: [], message: { tone: "error", text: apiErrorText(error) } });
   }
 }
 
@@ -572,8 +700,9 @@ function onSession(session: Session | null) {
   const { account } = store.get();
   const user = session?.user ?? null;
   if (user?.id === account.user?.id) return;
-  setAccount({ user, profile: null, confirmDelete: false });
+  setAccount({ user, profile: null, confirmDelete: false, publications: null, editingPublication: null, confirmWithdraw: null });
   if (user) void loadProfile(user.id);
+  if (user && store.get().route.name === "account") void loadPublications();
 }
 
 async function loadProfile(userId: string) {
@@ -632,6 +761,25 @@ const accountActions = {
       return { tone: "ok", text: "accountSignedOut" };
     }),
   askDelete: (confirm: boolean) => setAccount({ confirmDelete: confirm, message: null }),
+  editPublication: (id: string | null) => setAccount({ editingPublication: id, confirmWithdraw: null, message: null }),
+  savePublication: (id: string, title: string, description: string) =>
+    accountTask(async () => {
+      const clean = title.trim();
+      if (clean === "" || clean.length > PUBLISH.maxTitle) throw new InputProblem("publishInvalidTitle");
+      if (description.trim().length > PUBLISH.maxDescription) throw new InputProblem("publishInvalidDescription");
+      await updatePublication(api!, id, { title: clean, description: description.trim() });
+      setAccount({ editingPublication: null });
+      await loadPublications();
+      return { tone: "ok", text: "myPublicationsSaved" };
+    }),
+  askWithdraw: (id: string | null) => setAccount({ confirmWithdraw: id, editingPublication: null, message: null }),
+  withdraw: (id: string) =>
+    void accountTask(async () => {
+      await withdrawPublication(api!, id);
+      setAccount({ confirmWithdraw: null });
+      await loadPublications();
+      return { tone: "ok", text: "myPublicationsWithdrawn" };
+    }),
   deleteAccount: () =>
     void accountTask(async () => {
       await deleteAccount(api!);
@@ -676,7 +824,8 @@ function view(state: AppState) {
     case "account":
       return auth ? accountView(state.account, accountActions) : messageView(t("accountUnavailable"));
     case "play":
-    case "shared": {
+    case "shared":
+    case "published": {
       if (!state.play) return messageView(t("puzzleNotFound"));
       const best = state.progress.get(state.play.progressKey ?? "")?.bestMoves ?? null;
       return playView(state.play, best, playActions);
@@ -686,7 +835,17 @@ function view(state: AppState) {
       if (state.play?.origin === "test") return playView(state.play, null, playActions);
       const editor = state.editor;
       if (!editor) return messageView(t("unknownType"));
-      return editorView({ type: editor.type, session: editor.session, share: state.share, ...editorCheck(editor) }, editorActions);
+      return editorView(
+        {
+          type: editor.type,
+          session: editor.session,
+          share: state.share,
+          publishing: publishing(state),
+          publish: state.publish,
+          ...editorCheck(editor),
+        },
+        editorActions,
+      );
     }
   }
 }

@@ -1,5 +1,5 @@
 import type { Registry } from "./registry.ts";
-import type { AnyPuzzleType, PuzzleDocument, PuzzleMeta } from "./types.ts";
+import type { AnyPuzzleRules, PuzzleDocument, PuzzleMeta } from "./types.ts";
 
 export type DocumentErrorCode =
   | "invalid" // malformed or failed validation
@@ -77,11 +77,11 @@ export function validateEnvelope(raw: unknown): PuzzleDocument {
  * envelope check → type lookup → migrate (if older) → type validation.
  * With `draft`, the data only needs a valid structure (parseDraft), for editor drafts.
  */
-export function loadDocument(
+export function loadDocument<T extends AnyPuzzleRules>(
   raw: unknown,
-  registry: Registry,
+  registry: Registry<T>,
   options: { draft?: boolean } = {},
-): { type: AnyPuzzleType; doc: PuzzleDocument } {
+): { type: T; doc: PuzzleDocument } {
   const doc = validateEnvelope(raw);
   const type = registry.get(doc.type);
   if (!type) throw new DocumentError("unknown-type", doc.type);

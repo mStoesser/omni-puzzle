@@ -39,15 +39,13 @@ export type EditorContext<D> = {
   update(next: D): void;
 };
 
-/** Plugin interface every puzzle type implements. D = data, S = play state, M = move. */
-export type PuzzleType<D, S, M> = {
+/**
+ * The DOM-free part of a puzzle type (its `rules.ts`). The publish function on the server uses only this,
+ * so it must not import lit-html, the DOM or UI texts.
+ */
+export type PuzzleRules<D, S, M> = {
   id: string;
   version: number; // current typeVersion
-  name: MessageKey;
-  description: MessageKey; // one sentence for the home page
-  icon: string;
-  /** Which core play controls make sense for this type (default: all). E.g. a quiz has no undo and no move count. */
-  controls?: { undo?: boolean; moves?: boolean };
 
   createDefault(): D;
   /** Throws on invalid data. Data from links is untrusted. */
@@ -58,15 +56,23 @@ export type PuzzleType<D, S, M> = {
    * Throws on malformed data. Without it, drafts must pass validate.
    */
   parseDraft?(data: unknown): D;
-  /** Localized, user-facing problems for live validation in the editor. Empty = playable. */
-  problems?(data: D): string[];
-
   initState(data: D): S;
   /** Returns null for an invalid move. Must not mutate `state`. */
   applyMove(data: D, state: S, move: M): S | null;
   isSolved(data: D, state: S): boolean;
 
   solve?(data: D, limits: SolveLimits): SolveResult<M>;
+};
+
+/** Plugin interface every puzzle type implements: its rules plus texts and UI. D = data, S = play state, M = move. */
+export type PuzzleType<D, S, M> = PuzzleRules<D, S, M> & {
+  name: MessageKey;
+  description: MessageKey; // one sentence for the home page
+  icon: string;
+  /** Which core play controls make sense for this type (default: all). E.g. a quiz has no undo and no move count. */
+  controls?: { undo?: boolean; moves?: boolean };
+  /** Localized, user-facing problems for live validation in the editor. Empty = playable. */
+  problems?(data: D): string[];
 
   renderPlay(ctx: PlayContext<D, S, M>): TemplateResult;
   renderEditor(ctx: EditorContext<D>): TemplateResult;
@@ -74,3 +80,4 @@ export type PuzzleType<D, S, M> = {
 
 /** A puzzle type of unknown concrete types, as stored in the registry. */
 export type AnyPuzzleType = PuzzleType<unknown, unknown, unknown>;
+export type AnyPuzzleRules = PuzzleRules<unknown, unknown, unknown>;

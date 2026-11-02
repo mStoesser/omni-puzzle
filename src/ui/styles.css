@@ -256,7 +256,8 @@ h2 {
 
 input[type="text"],
 input[type="email"],
-input[type="password"] {
+input[type="password"],
+.field textarea {
   min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--control-border);
@@ -269,7 +270,8 @@ input[type="password"] {
 
 input[type="text"]:focus-visible,
 input[type="email"]:focus-visible,
-input[type="password"]:focus-visible {
+input[type="password"]:focus-visible,
+.field textarea:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 1px;
 }
@@ -835,4 +837,45 @@ button.secondary.danger {
 button.danger-button {
   background: var(--danger);
   color: var(--accent-contrast);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.published-info {
+  margin-bottom: var(--space-3);
+}
+
+.published-info p {
+  margin: 0 0 var(--space-1);
+}
+
+.published-description {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.publication-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.publication {
+  padding: var(--space-3);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+}
+
+.publication h3 {
+  margin: 0 0 var(--space-1);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.publication p {
+  margin: 0 0 var(--space-2);
 }

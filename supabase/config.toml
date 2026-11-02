@@ -1,0 +1,7 @@
+# Supabase CLI configuration. Only used to deploy Edge Functions (.github/workflows/deploy-functions.yml);
+# the database is migrated by hand (see README).
+project_id = "omni-puzzle"
+
+[functions.publish]
+# The function checks the user's token itself (src/server/publish-handler.ts).
+verify_jwt = false

@@ -1,6 +1,8 @@
 import { html, nothing } from "lit-html";
 import { PASSWORD_MIN, USERNAME } from "../../core/account.ts";
 import type { Profile } from "../../core/account.ts";
+import { PUBLISH } from "../../core/publish.ts";
+import type { OwnPublication } from "../../core/published.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 
@@ -15,6 +17,9 @@ export type AccountViewModel = {
   busy: boolean;
   message: AccountMessage | null;
   confirmDelete: boolean;
+  publications: (OwnPublication & { typeName: string })[] | null; // null = not loaded yet
+  editingPublication: string | null; // id with the open edit form
+  confirmWithdraw: string | null; // id waiting for confirmation
 };
 
 /** Actions resolve to true on success, so the view can clear the form. */
@@ -28,6 +33,10 @@ export type AccountActions = {
   signOut(): void;
   askDelete(confirm: boolean): void;
   deleteAccount(): void;
+  editPublication(id: string | null): void;
+  savePublication(id: string, title: string, description: string): Promise<boolean>;
+  askWithdraw(id: string | null): void;
+  withdraw(id: string): void;
 };
 
 const TITLE: Record<AccountMode, MessageKey> = {
@@ -125,6 +134,9 @@ function profileSection(model: AccountViewModel, actions: AccountActions) {
     </dl>
     ${profile?.banned ? html`<p class="notice">${t("accountBanned")}</p>` : nothing}
 
+    <h2>${t("myPublications")}</h2>
+    ${publicationList(model, actions)}
+
     <h2>${t("accountRename")}</h2>
     <form class="account-form" @submit=${onSubmit((f) => actions.rename(field(f, "username")))}>
       ${usernameField(profile?.username ?? "")}
@@ -154,6 +166,58 @@ function profileSection(model: AccountViewModel, actions: AccountActions) {
         `
       : html`<button type="button" class="secondary danger" @click=${() => actions.askDelete(true)}>${t("accountDelete")}</button>`}
   `;
+}
+
+function publicationList(model: AccountViewModel, actions: AccountActions) {
+  const { publications, busy } = model;
+  if (publications === null) return html`<p>${t("loading")}</p>`;
+  if (publications.length === 0) return html`<p>${t("myPublicationsEmpty")}</p>`;
+  return html`<ul class="publication-list">
+    ${publications.map((p) => {
+      const date = new Date(p.publishedAt).toLocaleDateString("de-DE");
+      return html`<li class="publication">
+        <h3><a href="#/g/${p.id}">${p.title}</a></h3>
+        <p class="hint">
+          ${p.typeName} · ${t("myPublicationsStats", { date, plays: p.playCount, likes: p.likeCount })}
+          ${p.hidden ? html` · <strong>${t("myPublicationsHidden")}</strong>` : nothing}
+        </p>
+        ${model.editingPublication === p.id
+          ? html`<form
+              class="account-form"
+              @submit=${onSubmit((f) => actions.savePublication(p.id, field(f, "title"), field(f, "description")))}
+            >
+              <label class="field">
+                <span>${t("myPublicationsTitle")}</span>
+                <input type="text" name="title" required maxlength=${PUBLISH.maxTitle} .value=${p.title} />
+              </label>
+              <label class="field">
+                <span>${t("publishDescription")}</span>
+                <textarea name="description" rows="3" maxlength=${PUBLISH.maxDescription} .value=${p.description}></textarea>
+              </label>
+              <div class="account-actions">
+                <button type="submit" ?disabled=${busy}>${t("accountSave")}</button>
+                <button type="button" class="secondary" @click=${() => actions.editPublication(null)}>${t("cancel")}</button>
+              </div>
+            </form>`
+          : model.confirmWithdraw === p.id
+            ? html`<p class="notice" role="alert">${t("myPublicationsWithdrawConfirm", { title: p.title })}</p>
+                <div class="account-actions">
+                  <button type="button" class="danger-button" ?disabled=${busy} @click=${() => actions.withdraw(p.id)}>
+                    ${t("myPublicationsWithdraw")}
+                  </button>
+                  <button type="button" class="secondary" @click=${() => actions.askWithdraw(null)}>${t("cancel")}</button>
+                </div>`
+            : html`<div class="account-actions">
+                <button type="button" class="secondary" @click=${() => actions.editPublication(p.id)}>
+                  ${t("myPublicationsEdit")}
+                </button>
+                <button type="button" class="secondary danger" @click=${() => actions.askWithdraw(p.id)}>
+                  ${t("myPublicationsWithdraw")}
+                </button>
+              </div>`}
+      </li>`;
+    })}
+  </ul>`;
 }
 
 function emailField() {

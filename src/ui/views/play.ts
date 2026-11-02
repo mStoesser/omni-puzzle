@@ -5,8 +5,8 @@ import type { AnyPlaySession } from "../../core/session.ts";
 import { t } from "../../i18n/t.ts";
 import { showModal } from "../components/dialog.ts";
 
-/** Where the puzzle comes from: built-in example, share link, own library, or test play from the editor. */
-export type PlayOrigin = "example" | "shared" | "own" | "test";
+/** Where the puzzle comes from: built-in example, share link, published, own library, or test play from the editor. */
+export type PlayOrigin = "example" | "shared" | "published" | "own" | "test";
 
 export type PlayViewModel = {
   title: string;
@@ -14,6 +14,8 @@ export type PlayViewModel = {
   showSolved: boolean;
   origin: PlayOrigin;
   localId?: string; // library id for origin "own"
+  /** For origin "published": author (null = deleted account), description and visibility. */
+  published?: { author: string | null; description: string; hidden: boolean };
   progressKey: string | null; // null = test play (no progress)
 };
 
@@ -40,6 +42,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
         : html`<a class="button secondary" href=${model.origin === "own" ? "#/library" : "#/"} aria-label=${t("back")}>←</a>`}
       <h1 class="toolbar-title">${model.title || t("untitled")}</h1>
     </header>
+    ${model.published ? publishedInfo(model.published) : nothing}
     <div class="board">
       ${session.type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch })}
     </div>
@@ -64,6 +67,7 @@ function extras(model: PlayViewModel, actions: PlayViewActions) {
   switch (model.origin) {
     case "example":
     case "shared":
+    case "published":
       return html`<div class="play-extras">
         <button class="secondary" @click=${actions.copyToLibrary}>${t("copyToLibrary")}</button>
       </div>`;
@@ -74,6 +78,14 @@ function extras(model: PlayViewModel, actions: PlayViewActions) {
     case "test":
       return nothing;
   }
+}
+
+function publishedInfo(info: NonNullable<PlayViewModel["published"]>) {
+  return html`<div class="published-info">
+    <p class="hint">${info.author === null ? t("publishedByUnknown") : t("publishedBy", { author: info.author })}</p>
+    ${info.hidden ? html`<p class="notice">${t("publishedHidden")}</p>` : nothing}
+    ${info.description ? html`<p class="published-description">${info.description}</p>` : nothing}
+  </div>`;
 }
 
 /** `moves` null = the type does not count moves. */

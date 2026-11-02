@@ -35,4 +35,8 @@ Ohne Backend-Konfiguration läuft die App ohne Community-Funktionen.
      (SMTP & API → SMTP), Absender auf der bei Brevo bestätigten Domain. Emails → Templates: Vorlagen aus `supabase/templates/` übernehmen
      (Betreff steht jeweils im Kommentar).
 
+4. Edge Functions: Unter GitHub → Settings → Secrets and variables → Actions das Secret `SUPABASE_ACCESS_TOKEN` anlegen
+   (Token von supabase.com/dashboard/account/tokens). Der Workflow `deploy-functions.yml` deployt dann bei jedem Push
+   die Function `publish` in beide Projekte; von Hand über Actions → „Deploy functions“ → „Run workflow“.
+
 Dokumentation in [`docs/`](docs/): [Konzept](docs/KONZEPT.md) · [Architektur](docs/ARCHITEKTUR.md) · [Roadmap](docs/ROADMAP.md)

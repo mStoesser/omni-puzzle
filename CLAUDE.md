@@ -31,8 +31,8 @@ npm test           # node --test "src/**/*.test.ts"
 1. **Keine neuen npm-Pakete** ohne ausdrückliche Rückfrage. Erst prüfen, ob es nativ geht.
 2. Versionen in `package.json` **exakt pinnen** (kein `^`/`~`).
 3. **Nur „erasable“ TypeScript-Syntax** (`erasableSyntaxOnly`): keine `enum`s, keine `namespace`s, keine Parameter-Properties. Stattdessen Union-Typen und `as const`-Objekte. Typ-Importe immer mit `import type`. Relative Importe mit `.ts`-Endung.
-4. **Logik ist rein und DOM-frei.** `logic.ts` und `solver.ts` eines Rätseltyps importieren nichts aus `lit-html` oder dem DOM und sind vollständig mit `node --test` getestet. Zustände werden nicht mutiert (Züge liefern neuen Zustand).
-5. **Jeder Rätseltyp ist ein eigenständiges Modul** unter `src/puzzles/<typ>/`. Ein neuer Typ darf den Core nur über die Registrierung in `src/puzzles/index.ts` berühren. Wenn der Core erweitert werden muss, ist das eine bewusste, separate Änderung.
+4. **Logik ist rein und DOM-frei.** `logic.ts`, `solver.ts` und `rules.ts` eines Rätseltyps importieren nichts aus `lit-html` oder dem DOM und sind vollständig mit `node --test` getestet. Zustände werden nicht mutiert (Züge liefern neuen Zustand).
+5. **Jeder Rätseltyp ist ein eigenständiges Modul** unter `src/puzzles/<typ>/`. Ein neuer Typ darf den Core nur über die Registrierung in `src/puzzles/index.ts` und `src/puzzles/rules.ts` (Regeln für den Server) berühren. Wenn der Core erweitert werden muss, ist das eine bewusste, separate Änderung.
 6. **Mobile first:** Touch-Bedienung zuerst denken, Pointer Events statt Maus-/Touch-Events, Tap-Ziele ≥ 44 px, Spielfeld skaliert per SVG-`viewBox`.
 7. Jede Änderung am Rätsel-Datenformat erhöht die `typeVersion` und bekommt eine `migrate`-Funktion, damit alte geteilte Links weiter funktionieren.
 8. Kleine Schritte: einen Punkt aus `docs/ROADMAP.md` umsetzen, testen, abhaken.

@@ -75,15 +75,26 @@ src/
     grid.ts               # Richtungen, Koordinaten, Raster-Hilfen (rein)
     hash.ts               # synchrones SHA-256, Normalisierung von Freitext-Antworten
     test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
+    api.ts, auth.ts, account.ts  # Backend: fetch-Wrapper, Anmeldung, Konto (ab M8/M9)
+    publish.ts            # Veröffentlichen prüfen (rein, läuft auch in der Edge Function)
+    published.ts          # veröffentlichte Rätsel laden, ändern, zurückziehen, Spielzähler
+  server/
+    publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts
     components/           # dialog, share-dialog, grid-editor, tap …
     styles.css
   puzzles/
-    index.ts              # registriert alle Typen
-    rushhour/  { index.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
-    laser/     { index.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
-    quiz/      { index.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    index.ts              # registriert alle Typen (mit UI)
+    rules.ts              # registriert die Regeln aller Typen (ohne UI, für den Server)
+    rushhour/  { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    laser/     { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    quiz/      { index.ts, rules.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+supabase/
+  migrations/             # SQL, von Hand im Dashboard angewendet
+  templates/              # deutsche Mail-Vorlagen
+  functions/publish/      # Edge Function (Deno), importiert src/server/publish-handler.ts
+  config.toml             # nur für das Deployment der Functions
 docs/
 ```
 
@@ -154,6 +165,11 @@ type EditorContext<D> = {
   update(next: D): void;            // Core speichert Undo-History des Editors
 };
 ```
+
+Seit M10 ist die Schnittstelle zweigeteilt: `PuzzleRules<D, S, M>` enthält `id`, `version` und alle Daten-, Spiel- und
+Solver-Funktionen (also alles oben ohne Texte, `controls`, `problems` und Darstellung). Jeder Typ exportiert sie aus
+`rules.ts`, `index.ts` ergänzt UI und Texte (`{ ...rules, name, …, renderPlay }`). So kann die Edge Function die Regeln
+importieren, ohne lit-html oder das DOM zu laden. `src/puzzles/rules.test.ts` prüft, dass beide Registrierungen übereinstimmen.
 
 **Wichtig:** Undo/Redo, Zugzähler, Timer, „Gelöst!“-Dialog und Neustart gehören in den **Core**, nicht in die Plugins.
 Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
@@ -352,7 +368,7 @@ und Firebase (Zähler nur mit kostenpflichtigen Functions, umständlich ohne SDK
 GitHub Pages (statische App) ──fetch──▶ Supabase (Frankfurt)
                                           ├─ Auth: E-Mail + Passwort
                                           ├─ Postgres + Row Level Security: profiles, puzzles, likes, ratings, reports
-                                          ├─ Edge Functions (Deno): publish
+                                          ├─ Edge Function (Deno): publish
                                           └─ Storage: Quizbilder (M14)
 ```
 
@@ -385,6 +401,29 @@ GitHub Pages (statische App) ──fetch──▶ Supabase (Frankfurt)
   folgen per `on delete cascade`. So braucht es keinen Service-Role-Key.
 - Mails verschickt in `prod` Brevo per SMTP (`smtp-relay.brevo.com:587`, Absender-Domain `stits.dev`); in `dev` ist die
   Bestätigung aus. Microsoft 365 wurde verworfen: Die SMTP-Anmeldung per Passwort ist dort meist gesperrt und wird abgeschafft.
+
+### Veröffentlichen (M10)
+```
+Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token──▶ Edge Function „publish“
+  1. Token prüfen: GET /auth/v1/user
+  2. preparePublication (src/core/publish.ts): loadDocument, „vom Ersteller gelöst“, Solver (Limit 40 000 Knoten),
+     Titel/Beschreibung/Größe; minMoves und content_key (= progressKey) berechnet der Server selbst
+  3. rpc publish_puzzle mit dem Secret Key: Sperre, Tageslimit (10), Insert; doppelter content_key → 409
+```
+- Fehler kommen als `{ error: "<code>" }` zurück (`not-verified`, `unsolvable`, `daily-limit`, `duplicate`, …);
+  `publishErrorText` macht deutsche Texte daraus. Bei `duplicate` sucht die App das vorhandene Rätsel über den
+  Inhaltsschlüssel und verlinkt es.
+- `publish_puzzle` (Migration `0004_publish.sql`) ist nur für `service_role` ausführbar; die Tabelle selbst hat für Nutzer
+  kein Insert-Recht. Der Secret Key steht der Function als Umgebungsvariable zur Verfügung und verlässt sie nie.
+- Der Solver läuft serverseitig mit niedrigerem Limit als im Editor (2 s CPU pro Aufruf). Bricht er ab, wird
+  trotzdem veröffentlicht, nur ohne `minMoves`.
+- **Deployment:** `.github/workflows/deploy-functions.yml` deployt bei Änderungen an `src/core`, `src/puzzles`, `src/server`
+  oder `supabase/functions` mit der Supabase-CLI (`--use-api`, damit Importe außerhalb von `supabase/` funktionieren) in
+  alle konfigurierten Projekte. Nötig ist das GitHub-Secret `SUPABASE_ACCESS_TOKEN`.
+- `#/g/<id>` lädt das Rätsel per PostgREST (mit Autor), prüft es mit `loadDocument` und spielt es wie einen geteilten Link.
+  Der Spielzähler (`register_play`) wird einmal pro Gerät und Rätsel aufgerufen (`localStorage` `raetsel-plays`).
+- Auf der Kontoseite listet „Meine Veröffentlichungen“ die eigenen Rätsel; Titel und Beschreibung lassen sich ändern,
+  zurückziehen heißt löschen.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

@@ -15,6 +15,10 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute("#/new/rushhour"), { name: "new", type: "rushhour" });
   assert.deepEqual(parseRoute("#/edit/a1-b2"), { name: "edit", id: "a1-b2" });
   assert.deepEqual(parseRoute("#/play/a1_b2"), { name: "play", id: "a1_b2" });
+  assert.deepEqual(parseRoute("#/g/8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f"), {
+    name: "published",
+    id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f",
+  });
 });
 
 test("unknown or malformed routes lead to home", () => {
@@ -28,6 +32,8 @@ test("unknown or malformed routes lead to home", () => {
     "#/new/Rush Hour",
     "#/p/<script>",
     "#/edit/" + "x".repeat(65),
+    "#/g/abc",
+    "#/g/8C0F4F0E-1D2B-4C3A-9E8F-0A1B2C3D4E5F",
   ]) {
     assert.deepEqual(parseRoute(hash), { name: "home" }, hash);
   }
@@ -44,6 +50,7 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "new", type: "laser" },
     { name: "edit", id: "x1" },
     { name: "play", id: "x2" },
+    { name: "published", id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f" },
   ];
   for (const route of routes) assert.deepEqual(parseRoute(formatRoute(route)), route);
 });

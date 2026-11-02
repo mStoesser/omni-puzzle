@@ -7,11 +7,13 @@ export type Route =
   | { name: "shared"; code: string }
   | { name: "new"; type: string }
   | { name: "edit"; id: string }
-  | { name: "play"; id: string };
+  | { name: "play"; id: string }
+  | { name: "published"; id: string };
 
 const TYPE_ID = /^[a-z0-9-]{1,32}$/;
 const LOCAL_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const SHARE_CODE = /^[A-Za-z0-9._-]+$/;
+const PUBLISHED_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const HOME: Route = { name: "home" };
 
@@ -38,6 +40,8 @@ export function parseRoute(hash: string): Route {
       return LOCAL_ID.test(arg) ? { name: "edit", id: arg } : HOME;
     case "play":
       return LOCAL_ID.test(arg) ? { name: "play", id: arg } : HOME;
+    case "g":
+      return PUBLISHED_ID.test(arg) ? { name: "published", id: arg } : HOME;
     default:
       return HOME;
   }
@@ -63,6 +67,8 @@ export function formatRoute(route: Route): string {
       return `#/edit/${route.id}`;
     case "play":
       return `#/play/${route.id}`;
+    case "published":
+      return `#/g/${route.id}`;
   }
 }
 

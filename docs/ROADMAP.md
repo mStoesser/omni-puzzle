@@ -124,24 +124,28 @@ Strategie wie in Phase 1: erst ein dünner Durchstich (veröffentlichen und per 
   (Statt einer Edge Function eine Datenbankfunktion `delete_account()` mit `on delete cascade`, Migration `0002_accounts.sql`;
   so braucht es keinen Service-Role-Key.)
 - [x] Anmeldestatus in der Kopfzeile; die Anmelde-Dialoge sind per Tastatur bedienbar und haben Labels.
-- [ ] Auf dem Handy testen: Ein Bestätigungslink aus der Mail öffnet die Seite, auch wenn die PWA installiert ist.
+- [x] Auf dem Handy testen: Ein Bestätigungslink aus der Mail öffnet die Seite, auch wenn die PWA installiert ist.
+  (Getestet: Registrieren, Bestätigungslink und Passwort zurücksetzen auf der Live-Seite.)
 
 (Live gegen `dev` geprüft: Registrieren, Anmelden, Erneuern, Umbenennen inkl. vergebener Namen, fremde Profile und
 Moderator-Flag nicht änderbar, Passwort ändern, Abmelden, Konto löschen. Die Regeln für Likes, Bewertungen und Meldungen
 folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
 
 ### M10 – Veröffentlichen (Durchstich)
-- [ ] Edge Function `publish`: Sie nutzt denselben TypeScript-Code wie die App (`loadDocument`, `validate`, Solver)
+- [x] Edge Function `publish`: Sie nutzt denselben TypeScript-Code wie die App (`loadDocument`, `validate`, Solver)
   und prüft damit Format, Größenlimits und, wo ein Solver existiert, Lösbarkeit und `minMoves` selbst.
   Ein Quiz kann nicht serverseitig geprüft werden (die Lösungen sind gehasht); dort zählt „vom Ersteller gelöst“.
-- [ ] Doppelte Rätsel verhindern: eindeutiger Inhaltsschlüssel (der gleiche Hash wie `progressKey`).
-- [ ] Limit: höchstens N Veröffentlichungen pro Nutzer und Tag.
-- [ ] Im Editor: „Veröffentlichen“ neben „Teilen“. Der Knopf ist nur aktiv, wenn man angemeldet und das Rätsel verifiziert ist.
+  (Logik in `src/core/publish.ts` und `src/server/publish-handler.ts`, getestet mit `node --test`. Dafür hat jeder Typ jetzt
+  eine DOM-freie `rules.ts`. Serverseitiges Solver-Limit 40 000 Knoten wegen 2 s CPU; Deployment per GitHub Action.)
+- [x] Doppelte Rätsel verhindern: eindeutiger Inhaltsschlüssel (der gleiche Hash wie `progressKey`).
+- [x] Limit: höchstens N Veröffentlichungen pro Nutzer und Tag. (N = 10, in `publish_puzzle`, Migration `0004_publish.sql`.)
+- [x] Im Editor: „Veröffentlichen“ neben „Teilen“. Der Knopf ist nur aktiv, wenn man angemeldet und das Rätsel verifiziert ist.
   Vorher kommt ein Bestätigungsdialog („Veröffentlicht = unveränderlich“).
-- [ ] Neue Route `#/g/<id>`: ein veröffentlichtes Rätsel spielen. Das gibt auch einen kurzen Teilen-Link.
+- [x] Neue Route `#/g/<id>`: ein veröffentlichtes Rätsel spielen. Das gibt auch einen kurzen Teilen-Link.
   Fortschritt und Bestwert funktionieren automatisch über `progressKey`. „In Bibliothek kopieren“ geht wie bei geteilten Links.
-- [ ] „Meine Veröffentlichungen“ auf der Kontoseite: Titel und Beschreibung ändern, zurückziehen (löschen).
-- [ ] Spielzähler: eine Datenbankfunktion zählt einen Aufruf pro Gerät und Rätsel (im Browser gemerkt). Bewusst einfach und nicht fälschungssicher.
+- [x] „Meine Veröffentlichungen“ auf der Kontoseite: Titel und Beschreibung ändern, zurückziehen (löschen).
+- [x] Spielzähler: eine Datenbankfunktion zählt einen Aufruf pro Gerät und Rätsel (im Browser gemerkt). Bewusst einfach und nicht fälschungssicher.
+- [ ] Live testen: veröffentlichen, doppelt veröffentlichen, Tageslimit, `#/g/<id>` auf dem Handy, ändern und zurückziehen.
 
 ### M11 – Galerie
 - [ ] Route `#/gallery`, verlinkt von der Startseite und von jeder Typ-Kachel.
