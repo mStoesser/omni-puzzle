@@ -202,7 +202,10 @@ folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
 - [x] Alternativtext pro Bild ist Pflicht (Barrierefreiheit).
 - [x] Moderation: Bilder erscheinen in der Moderationsansicht; beim Löschen eines Rätsels werden seine Bilder mitgelöscht.
   (Täglicher Aufräumjob `cleanup-images`, weil Storage-Dateien nicht per SQL gelöscht werden können.)
-- [ ] Live testen: Quiz mit Bildern veröffentlichen, spielen, kopieren, zurückziehen und Aufräumjob; Handy-Test.
+- [x] Live testen: Quiz mit Bildern veröffentlichen, spielen, kopieren, zurückziehen und Aufräumjob; Handy-Test.
+  (Gegen `dev` geprüft: fehlende und falsche Bilder abgelehnt, Bild öffentlich als WebP abrufbar, Anzeige auf `#/g/<id>`,
+  Kopie in die Bibliothek mit Bild, Aufräumjob löscht Bilder zurückgezogener Rätsel und lässt vorhandene stehen.
+  Handy-Test erfolgreich. Die App meldet jetzt, wenn ein altes App-Fenster den Gerätespeicher beim Update blockiert.)
 
 ## Phase 3: Ausbau
 - [ ] Geräteübergreifende Synchronisierung von Bibliothek und Fortschritt mit dem Account.

@@ -150,10 +150,18 @@ const store = createStore<AppState>({
   moderation: null,
 });
 
-const storage: Promise<Storage> = openStorage().catch((error: unknown) => {
-  console.warn("IndexedDB unavailable, nothing will be saved", error);
-  return memoryStorage();
-});
+const storage: Promise<Storage> = openStorage({
+  blocked: () => patch({ notice: "storageBlocked" }),
+  versionChange: () => patch({ notice: "storageOutdated" }),
+})
+  .then((opened) => {
+    if (store.get().notice === "storageBlocked") patch({ notice: null });
+    return opened;
+  })
+  .catch((error: unknown) => {
+    console.warn("IndexedDB unavailable, nothing will be saved", error);
+    return memoryStorage();
+  });
 
 function patch(change: Partial<AppState>) {
   store.set((state) => ({ ...state, ...change }));
@@ -882,10 +890,16 @@ const editorImages = {
     } catch (error) {
       console.warn("image", error);
       patch({ notice: typeof error === "string" && error in ENCODE_TEXT ? ENCODE_TEXT[error as EncodeError] : "imageStoreFailed" });
+      showNotice();
       throw error;
     }
   },
 };
+
+/** The notice sits at the top of the page; bring it into view when it concerns something further down. */
+function showNotice() {
+  setTimeout(() => document.querySelector(".page-notice")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+}
 
 function publishedImages(puzzleId: string): ImageSource {
   return { url: (key) => (backend ? publishedImageUrl(backend.url, puzzleId, key) : null) };
@@ -1237,7 +1251,7 @@ function view(state: AppState) {
 
 function page(state: AppState) {
   return html`
-    ${state.notice ? html`<p class="notice" role="alert">${t(state.notice)}</p>` : nothing}
+    ${state.notice ? html`<p class="notice page-notice" role="alert">${t(state.notice)}</p>` : nothing}
     ${view(state)}
   `;
 }

@@ -28,17 +28,33 @@ export type Storage = {
 const DB_NAME = "raetsel";
 const DB_VERSION = 2; // 2: images
 
+export type StorageEvents = {
+  /** An older app instance (other tab or installed app) keeps the previous version open; opening waits for it. */
+  blocked?(): void;
+  /** A newer app instance upgraded the database; this connection was closed and the page must be reloaded. */
+  versionChange?(): void;
+};
+
 /** Opens the IndexedDB database. Rejects where IndexedDB is unavailable (e.g. some private modes). */
-export function openStorage(): Promise<Storage> {
+export function openStorage(events: StorageEvents = {}): Promise<Storage> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onblocked = () => events.blocked?.();
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains("puzzles")) db.createObjectStore("puzzles", { keyPath: "id" });
       if (!db.objectStoreNames.contains("progress")) db.createObjectStore("progress", { keyPath: "key" });
       if (!db.objectStoreNames.contains("images")) db.createObjectStore("images", { keyPath: "key" });
     };
-    request.onsuccess = () => resolve(idbStorage(request.result));
+    request.onsuccess = () => {
+      const db = request.result;
+      // Let a newer version upgrade instead of blocking it like described above.
+      db.onversionchange = () => {
+        db.close();
+        events.versionChange?.();
+      };
+      resolve(idbStorage(db));
+    };
     request.onerror = () => reject(request.error);
   });
 }

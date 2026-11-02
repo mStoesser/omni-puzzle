@@ -407,4 +407,6 @@ export const de = {
   imageUnreadable: "Diese Datei lässt sich nicht als Bild lesen.",
   imageTooLarge: "Das Bild lässt sich nicht klein genug speichern (höchstens 200 KB).",
   imageStoreFailed: "Das Bild konnte nicht gespeichert werden.",
+  storageBlocked: "Die App ist noch in einem anderen Fenster oder Tab geöffnet (ältere Version). Bitte schließe es, sonst kann hier nichts gespeichert werden – auch keine Bilder.",
+  storageOutdated: "Die App wurde in einem anderen Fenster aktualisiert. Bitte lade diese Seite neu, damit deine Änderungen gespeichert werden.",
 } as const;
