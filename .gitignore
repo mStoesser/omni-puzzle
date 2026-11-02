@@ -5,3 +5,4 @@ dist/
 .vite/
 databases.txt
 .env*.local
+.scratch/

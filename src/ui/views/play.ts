@@ -6,6 +6,8 @@ import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
 import { t } from "../../i18n/t.ts";
 import { showModal } from "../components/dialog.ts";
+import { reportDialog } from "../components/report-dialog.ts";
+import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
 
 /** Where the puzzle comes from: built-in example, share link, published, own library, or test play from the editor. */
 export type PlayOrigin = "example" | "shared" | "published" | "own" | "test";
@@ -35,6 +37,7 @@ export type PublishedInfo = {
   /** Whether the player may like and rate; computed from the session when rendering. */
   access?: "yes" | "loading" | "signed-out" | "own" | "hidden";
   busy: boolean;
+  report: ReportDialogModel | null; // open report dialog
 };
 
 export type PlayViewActions = {
@@ -47,6 +50,8 @@ export type PlayViewActions = {
   copyToLibrary(): void;
   toggleLike(): void;
   rate(value: number): void;
+  openReport(): void;
+  report: ReportDialogActions;
 };
 
 /** `best` = best result so far for this puzzle, if solved before. */
@@ -80,7 +85,9 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
     </footer>
     ${model.published ? reactions(model.published, best !== null || session.solved, actions) : nothing}
     ${extras(model, actions)}
+    ${model.published ? reportLink(model.published, actions) : nothing}
     ${model.showSolved ? solvedDialog(showMoves ? moves : null, model, best, actions) : nothing}
+    ${model.published?.report ? reportDialog(model.published.report, actions.report) : nothing}
   `;
 }
 
@@ -152,6 +159,14 @@ function reactions(info: PublishedInfo, solved: boolean, actions: PlayViewAction
           </fieldset>`
         : html`<p class="hint">${t("ratingAfterSolve")}</p>`}
   </section>`;
+}
+
+/** Below the puzzle only, not in the solved dialog. */
+function reportLink(info: PublishedInfo, actions: PlayViewActions) {
+  if (info.access !== "yes") return nothing;
+  return info.me?.reported
+    ? html`<p class="hint">${t("reportAlready")}</p>`
+    : html`<button class="link-button report-link" @click=${actions.openReport}>${t("report")}</button>`;
 }
 
 function publishedInfo(info: PublishedInfo) {

@@ -133,6 +133,7 @@ function profileSection(model: AccountViewModel, actions: AccountActions) {
       <dd>${model.user?.email}</dd>
     </dl>
     ${profile?.banned ? html`<p class="notice">${t("accountBanned")}</p>` : nothing}
+    ${profile?.isModerator ? html`<p><a class="button secondary" href="#/moderation">${t("moderationLink")}</a></p>` : nothing}
 
     <h2>${t("myPublications")}</h2>
     ${publicationList(model, actions)}

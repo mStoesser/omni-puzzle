@@ -20,6 +20,8 @@ import {
   updatePublication,
   withdrawPublication,
 } from "./core/published.ts";
+import { fetchModerationQueue, hidePuzzle, releasePuzzle, reportPuzzle, resetUsername, setBanned } from "./core/moderation.ts";
+import type { ReportReason } from "./core/moderation.ts";
 import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
 import { formatRoute, parseRoute, startRouter } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
@@ -40,6 +42,8 @@ import { accountView } from "./ui/views/account.ts";
 import type { AccountMessage, AccountViewModel } from "./ui/views/account.ts";
 import { editorView } from "./ui/views/editor.ts";
 import { galleryView } from "./ui/views/gallery.ts";
+import { moderationView } from "./ui/views/moderation.ts";
+import type { ModerationViewModel } from "./ui/views/moderation.ts";
 import type { GalleryViewModel } from "./ui/views/gallery.ts";
 import { homeView, siteFooter } from "./ui/views/home.ts";
 import { imprintView } from "./ui/views/imprint.ts";
@@ -78,6 +82,7 @@ type AppState = {
   account: AccountViewModel;
   gallery: GalleryState | null; // gallery route
   newest: GalleryItem[]; // "new in the gallery" on the home page
+  moderation: ModerationViewModel | null; // moderation route
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -139,6 +144,7 @@ const store = createStore<AppState>({
   },
   gallery: null,
   newest: [],
+  moderation: null,
 });
 
 const storage: Promise<Storage> = openStorage().catch((error: unknown) => {
@@ -171,6 +177,9 @@ function enterRoute(route: Route) {
       break;
     case "gallery":
       void openGallery(route);
+      break;
+    case "moderation":
+      void openModeration(route);
       break;
     case "account":
       void loadPublications();
@@ -289,6 +298,7 @@ async function openPublished(route: Route & { name: "published" }) {
       ratingCount: puzzle.ratingCount,
       me: null,
       busy: false,
+      report: null,
     };
     // Back to the gallery with the filter the player came from.
     const gallery = store.get().gallery;
@@ -362,6 +372,83 @@ function rate(value: number) {
   );
 }
 
+// --- Reports ---
+
+function openReport() {
+  const published = store.get().play?.published;
+  if (published && !published.me?.reported) setPublished({ report: { state: "form", error: null } }, published.id);
+}
+
+async function sendReport(reason: ReportReason, comment: string) {
+  const { play, account } = store.get();
+  const published = play?.published;
+  if (!api || !published?.report || !published.me || !account.user || published.report.state !== "form") return;
+  setPublished({ report: { state: "busy", error: null } }, published.id);
+  try {
+    await reportPuzzle(api, account.user.id, published.id, reason, comment);
+    setPublished({ report: { state: "done", error: null }, me: { ...published.me, reported: true } }, published.id);
+  } catch (error) {
+    console.warn("report", error);
+    const already = error instanceof ApiError && error.kind === "conflict";
+    setPublished({ report: { state: "form", error: already ? "reportAlready" : apiErrorText(error) } }, published.id);
+  }
+}
+
+const reportActions = {
+  send: (reason: ReportReason, comment: string) => void sendReport(reason, comment),
+  close: () => {
+    const published = store.get().play?.published;
+    if (published) setPublished({ report: null }, published.id);
+  },
+};
+
+// --- Moderation ---
+
+function setModeration(change: Partial<ModerationViewModel>) {
+  store.set((state) => (state.moderation ? { ...state, moderation: { ...state.moderation, ...change } } : state));
+}
+
+async function openModeration(route: Route & { name: "moderation" }) {
+  if (!api) return fail(route, { text: "accountUnavailable" });
+  patch({ moderation: { status: "loading", items: [], message: null, busy: false, confirmDelete: null } });
+  const { account } = store.get();
+  if (account.user && !account.profile) await loadProfile(account.user.id);
+  if (!isCurrent(route) || !store.get().account.profile?.isModerator) return;
+  await loadModerationQueue();
+}
+
+async function loadModerationQueue() {
+  try {
+    setModeration({ status: "idle", items: await fetchModerationQueue(api!) });
+  } catch (error) {
+    console.warn("moderation", error);
+    setModeration({ status: "error", message: { tone: "error", text: apiErrorText(error) } });
+  }
+}
+
+/** Runs one moderator action, then reloads the queue. */
+async function moderate(action: () => Promise<void>) {
+  if (!api || store.get().moderation?.busy) return;
+  setModeration({ busy: true, message: null, confirmDelete: null });
+  try {
+    await action();
+    await loadModerationQueue();
+    setModeration({ busy: false, message: { tone: "ok", text: "moderationDone" } });
+  } catch (error) {
+    console.warn("moderation", error);
+    setModeration({ busy: false, message: { tone: "error", text: apiErrorText(error) } });
+  }
+}
+
+const moderationActions = {
+  release: (id: string) => void moderate(() => releasePuzzle(api!, id)),
+  hide: (id: string) => void moderate(() => hidePuzzle(api!, id)),
+  askDelete: (id: string | null) => setModeration({ confirmDelete: id, message: null }),
+  remove: (id: string) => void moderate(() => withdrawPublication(api!, id)),
+  setBanned: (userId: string, ban: boolean) => void moderate(() => setBanned(api!, userId, ban)),
+  resetName: (userId: string) => void moderate(() => resetUsername(api!, userId)),
+};
+
 // Plays are counted once per device and puzzle; the ids are remembered in localStorage.
 const PLAYS_KEY = "raetsel-plays";
 const MAX_REMEMBERED_PLAYS = 500;
@@ -417,6 +504,8 @@ const playActions = {
   backToEditor: () => patch({ play: null }),
   toggleLike,
   rate,
+  openReport,
+  report: reportActions,
   // Remixing: the copy is a new, unverified draft of the creator.
   copyToLibrary: async () => {
     const play = store.get().play;
@@ -991,6 +1080,11 @@ function view(state: AppState) {
     }
     case "gallery":
       return state.gallery ? galleryView(state.gallery, registry, isSolved, galleryActions) : nothing;
+    case "moderation":
+      if (!state.account.profile?.isModerator) {
+        return state.account.user && !state.account.profile ? html`<p>${t("loading")}</p>` : messageView(t("moderationOnly"));
+      }
+      return state.moderation ? moderationView(state.moderation, registry, moderationActions) : nothing;
     case "library":
       return html`${libraryView(state.library, registry.all(), libraryActions)} ${siteFooter()}`;
     case "imprint":
@@ -1043,6 +1137,7 @@ function pageTitle(state: AppState): string {
     state.play?.title ||
     (route.name === "library" ? t("library")
     : route.name === "gallery" ? t("gallery")
+    : route.name === "moderation" ? t("moderation")
     : route.name === "imprint" ? t("imprint")
     : route.name === "privacy" ? t("privacy")
     : route.name === "account" ? t("account")

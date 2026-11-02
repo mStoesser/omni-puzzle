@@ -11,6 +11,7 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute("#/impressum"), { name: "imprint" });
   assert.deepEqual(parseRoute("#/datenschutz"), { name: "privacy" });
   assert.deepEqual(parseRoute("#/account"), { name: "account" });
+  assert.deepEqual(parseRoute("#/moderation"), { name: "moderation" });
   assert.deepEqual(parseRoute("#/gallery"), { name: "gallery", filter: { type: null, level: null, sort: "new" } });
   assert.deepEqual(parseRoute("#/gallery?type=laser&sort=likes"), {
     name: "gallery",
@@ -52,6 +53,7 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "imprint" },
     { name: "privacy" },
     { name: "account" },
+    { name: "moderation" },
     { name: "gallery", filter: { type: null, level: null, sort: "new" } },
     { name: "gallery", filter: { type: "quiz", level: 2, sort: "plays" } },
     { name: "shared", code: "1.abc" },

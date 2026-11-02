@@ -170,18 +170,24 @@ folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
 - [x] Durchschnitt und Anzahl der Bewertungen auf Karte und Spielseite, erst ab einer Mindestzahl an Stimmen.
   (Ab 3 Bewertungen. Für Rätsel ohne Zugzahl, also das Quiz, setzt ein Trigger daraus die Stufe; Migration `0006_ratings.sql`.)
 - [x] Eigene Rätsel kann man nicht liken oder bewerten (über RLS geprüft).
-- [ ] Live testen: Stufe aus Bewertungen nach Migration 0006, Handy-Test.
+- [x] Live testen: Stufe aus Bewertungen nach Migration 0006, Handy-Test.
   (Gegen `dev` geprüft: eigene/fremde/anonyme Likes und Bewertungen, doppelte Likes, Zähler, Bewertung ändern,
   Stufe aus Bewertungen (ab 3, folgt Änderungen, gemessene Stufen bleiben); in der Oberfläche Liken, Entliken und
-  Bewerten als angemeldeter Nutzer. Offen: Handy-Test.)
+  Bewerten als angemeldeter Nutzer. Handy-Test erfolgreich.)
 
 ### M13 – Melden und Moderation
-- [ ] Melden-Knopf mit Grund (unangemessen, Spam, nicht lösbar, Sonstiges) und optionalem Kommentar; eine Meldung pro Nutzer und Rätsel.
-- [ ] Ab der Schwelle (z. B. 3 Meldungen verschiedener Nutzer) wird ein Rätsel automatisch ausgeblendet (per Trigger).
-- [ ] Moderatoren-Rolle (`profiles.is_moderator`, nur direkt in der Datenbank setzbar).
-- [ ] Moderationsansicht `#/moderation`: gemeldete und ausgeblendete Rätsel, Rätsel wieder freigeben, löschen, Meldungen schließen,
+- [x] Melden-Knopf mit Grund (unangemessen, Spam, nicht lösbar, Sonstiges) und optionalem Kommentar; eine Meldung pro Nutzer und Rätsel.
+- [x] Ab der Schwelle (z. B. 3 Meldungen verschiedener Nutzer) wird ein Rätsel automatisch ausgeblendet (per Trigger).
+  (`report_count` zählt jetzt offene Meldungen: Freigeben oder Ausblenden schließt sie und setzt den Zähler zurück.)
+- [x] Moderatoren-Rolle (`profiles.is_moderator`, nur direkt in der Datenbank setzbar).
+- [x] Moderationsansicht `#/moderation`: gemeldete und ausgeblendete Rätsel, Rätsel wieder freigeben, löschen, Meldungen schließen,
   Nutzer sperren und anstößige Anzeigenamen zurücksetzen.
-- [ ] Gesperrte Nutzer können nichts mehr veröffentlichen, liken oder melden.
+  (Aktionen als Datenbankfunktionen `mod_…`, die selbst `is_moderator()` prüfen; Migration `0007_moderation.sql`.
+  Moderatoren können so nicht gesperrt werden. Link von der Kontoseite, nur für Moderatoren sichtbar.)
+- [x] Gesperrte Nutzer können nichts mehr veröffentlichen, liken oder melden.
+- [ ] Live testen (Skript mit einem Test-Moderator auf `dev`) und auf dem Handy.
+  (Gegen `dev` geprüft: 26 Fälle zu Melden, Ausblenden, Freigeben, Sperren, Namen zurücksetzen, Löschen und den Rechten;
+  Meldedialog und Moderationsseite im Browser. Offen: Handy-Test.)
 
 ### M14 – Bilder für Quizfragen
 - [ ] **Entscheidung im Meilenstein:** wie Quizze mit Bildern per Link geteilt werden.

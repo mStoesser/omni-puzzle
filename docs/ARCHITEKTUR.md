@@ -450,6 +450,18 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 - Durchschnitt ab 3 Bewertungen (`MIN_RATINGS`). Für Rätsel ohne `min_moves` setzt `count_rating` (Migration 0006)
   daraus `difficulty`: Ø < 2,5 leicht, < 3,5 mittel, sonst schwer.
 
+### Melden und Moderation (M13)
+- Melden: Insert in `reports` (Grund, Kommentar ≤ 500 Zeichen), eine Meldung pro Nutzer und Rätsel (eindeutiger Schlüssel,
+  auch nach dem Schließen). Ob man schon gemeldet hat, lädt `fetchMyReaction` mit.
+- `report_count` = offene Meldungen. Der Trigger `count_report` blendet ab 3 aus. `mod_release_puzzle` (sichtbar,
+  Meldungen schließen) und `mod_hide_puzzle` (ausgeblendet, Meldungen schließen) setzen den Zähler auf 0.
+- Moderatoren (`is_moderator`, nur per SQL) sehen über RLS alle Meldungen und ausgeblendete Rätsel und dürfen löschen.
+  Sperren und Namen zurücksetzen laufen über `mod_set_banned` und `mod_reset_username`; jede `mod_…`-Funktion prüft
+  `is_moderator()` selbst. Moderatoren lassen sich nicht sperren.
+- `#/moderation` lädt ausgeblendete Rätsel und solche mit offenen Meldungen (höchstens 100), mit eingebetteten offenen
+  Meldungen und Autor. Kommentare sind nicht vertrauenswürdig und werden nur als Text gerendert.
+- Live-Tests mit einem Test-Moderator auf `dev`: Zugangsdaten nur lokal in `.env.development.local`.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.

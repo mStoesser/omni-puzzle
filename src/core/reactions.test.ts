@@ -16,11 +16,12 @@ function fakeApi(replies: unknown[], calls: Call[]) {
 
 test("fetchMyReaction reads the own like and rating", async () => {
   const calls: Call[] = [];
-  const api = fakeApi([[{ puzzle_id: "p" }], [{ value: 4 }]], calls);
-  assert.deepEqual(await fetchMyReaction(api, "u", "p"), { liked: true, rating: 4 });
+  const api = fakeApi([[{ puzzle_id: "p" }], [{ value: 4 }], []], calls);
+  assert.deepEqual(await fetchMyReaction(api, "u", "p"), { liked: true, rating: 4, reported: false });
   assert.match(calls[0]!.url, /\/likes\?user_id=eq\.u&puzzle_id=eq\.p/);
   assert.match(calls[1]!.url, /\/ratings\?user_id=eq\.u&puzzle_id=eq\.p&select=value/);
-  assert.deepEqual(await fetchMyReaction(fakeApi([[], []], []), "u", "p"), { liked: false, rating: null });
+  assert.match(calls[2]!.url, /\/reports\?reporter_id=eq\.u&puzzle_id=eq\.p/);
+  assert.deepEqual(await fetchMyReaction(fakeApi([[], [], [{ id: "r" }]], []), "u", "p"), { liked: false, rating: null, reported: true });
 });
 
 test("setLike inserts or deletes the own row", async () => {

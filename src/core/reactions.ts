@@ -3,16 +3,17 @@ import type { Api } from "./api.ts";
 /** Averages are shown from this many ratings on (also the threshold in supabase/migrations/0006_ratings.sql). */
 export const MIN_RATINGS = 3;
 
-/** The signed-in user's like and difficulty rating (1–5) of a published puzzle. */
-export type MyReaction = { liked: boolean; rating: number | null };
+/** The signed-in user's like, difficulty rating (1–5) and report of a published puzzle. */
+export type MyReaction = { liked: boolean; rating: number | null; reported: boolean };
 
 export async function fetchMyReaction(api: Api, userId: string, puzzleId: string): Promise<MyReaction> {
   const mine = { user_id: `eq.${userId}`, puzzle_id: `eq.${puzzleId}` };
-  const [likes, ratings] = await Promise.all([
+  const [likes, ratings, reports] = await Promise.all([
     api.rest<unknown[]>("likes", { query: { ...mine, select: "puzzle_id" } }),
     api.rest<{ value: number }[]>("ratings", { query: { ...mine, select: "value" } }),
+    api.rest<unknown[]>("reports", { query: { reporter_id: `eq.${userId}`, puzzle_id: `eq.${puzzleId}`, select: "id" } }),
   ]);
-  return { liked: likes.length > 0, rating: ratings[0]?.value ?? null };
+  return { liked: likes.length > 0, rating: ratings[0]?.value ?? null, reported: reports.length > 0 };
 }
 
 export async function setLike(api: Api, userId: string, puzzleId: string, liked: boolean): Promise<void> {
