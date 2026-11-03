@@ -270,15 +270,28 @@ Sie gilt für M17–M22 zusätzlich zu den dort genannten Punkten:
 
 ### M16 – Core-Vorbereitung für neue Typen
 Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), bevor die Typen kommen.
-- [ ] `core/search.ts`: generische Breitensuche (Zustandsschlüssel, Nachfolger, Ziel, `maxNodes`) mit Tests; der
+- [x] `core/search.ts`: generische Breitensuche (Zustandsschlüssel, Nachfolger, Ziel, `maxNodes`) mit Tests; der
   Rush-Hour-Solver nutzt sie ohne Verhaltensänderung (bestehende Solver-Tests bleiben grün).
-- [ ] Richtungs-Eingabe für Spielfiguren (`ui/components/swipe.ts`): Wischen per Pointer Events mit Mindestweg,
+- [x] Richtungs-Eingabe für Spielfiguren (`ui/components/swipe.ts`): Wischen per Pointer Events mit Mindestweg,
   Pfeiltasten und WASD; vier Schaltflächen als Alternative für Bedienhilfen.
-- [ ] Grid-Editor: Malen durch Ziehen (ein Zug malt mehrere Felder, ergibt einen Undo-Schritt), z. B. für Wände und Nonogramm-Pixel.
-- [ ] Bei 9 Typen müssen die Typ-Kacheln auf der Startseite, die Typ-Chips der Galerie und das Typ-Auswahl-Sheet „Neu bauen“
+  (Reine Logik `swipeDir`/`keyDir` in `core/grid.ts`. Im Browser mit einem vorübergehenden Platzhalter-Typ geprüft;
+  der erste echte Nutzer ist M17.)
+- [x] Grid-Editor: Malen durch Ziehen (ein Zug malt mehrere Felder, ergibt einen Undo-Schritt), z. B. für Wände und Nonogramm-Pixel.
+  (Palette `paint: true`, `onPaint`, `ctx.update(data, group)`. Schon genutzt: Wand und Radierer im Laser-Editor,
+  Radierer bei Rush Hour.)
+- [x] Bei 9 Typen müssen die Typ-Kacheln auf der Startseite, die Typ-Chips der Galerie und das Typ-Auswahl-Sheet „Neu bauen“
   mitwachsen (Raster bzw. waagrecht scrollbar, mobil und Desktop prüfen).
-- [ ] Prüfen, ob die alte, gecachte PWA bei einem unbekannten Typ (Link auf einen neuen Typ) sauber die Fehlerseite
+  (Mit 6 Platzhalter-Typen bei 390 px und 1280 px geprüft: kein waagrechter Überlauf, Chips scrollen mobil, das Sheet
+  scrollt. Es war keine Änderung nötig. Der Text „Weitere Typen folgen: Sokoban, Nonogramm …“ muss angepasst werden,
+  sobald diese Typen da sind.)
+- [x] Prüfen, ob die alte, gecachte PWA bei einem unbekannten Typ (Link auf einen neuen Typ) sauber die Fehlerseite
   „unbekannter Typ“ zeigt und auf ein Update hinweist.
+  (Die Fehlerseite bietet bei „unbekannter Typ“ und „neuere Version“ jetzt „Neu laden“ an, offline mit Hinweis; das gilt auch
+  für eigene Rätsel.)
+- [x] Handy-Test: im Laser-Editor Wände ziehen und mit einmal Rückgängig entfernen, Radierer ziehen; Seite beim Ziehen
+  scrollt nicht.
+  (Erfolgreich, auch Radierer bei Ausparken und die Fehlerseite „unbekannter Typ“ mit „Neu laden“. Dabei gefunden und behoben: Über den Dev-Server im LAN (http, kein sicherer Kontext) fehlt `crypto.randomUUID`, neue
+  Rätsel ließen sich dort nicht anlegen („Diesen Rätseltyp gibt es nicht“). `newPuzzleId` nutzt jetzt `getRandomValues`.)
 
 ### M17 – Eis-Rutschen (`ice`)
 Der einfachste Typ mit Spielfigur. Er testet die Richtungs-Eingabe aus M16.

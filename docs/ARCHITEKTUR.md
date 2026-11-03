@@ -72,7 +72,8 @@ src/
     document.ts           # Hülle prüfen, loadDocument: Hülle → Typ → migrate → validate
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
     storage.ts            # IndexedDB-Wrapper (+ In-Memory-Variante für Tests/Fallback), Fortschritt
-    grid.ts               # Richtungen, Koordinaten, Raster-Hilfen (rein)
+    grid.ts               # Richtungen, Koordinaten, Raster-Hilfen, Wisch-/Tastenrichtung, Linien (rein)
+    search.ts             # generische Breitensuche für Solver (Rush Hour, ab M17 Eis-Rutschen, Sokoban …)
     hash.ts               # synchrones SHA-256, Normalisierung von Freitext-Antworten
     test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
     api.ts, auth.ts, account.ts  # Backend: fetch-Wrapper, Anmeldung, Konto (ab M8/M9)
@@ -88,7 +89,7 @@ src/
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts
-    components/           # dialog, share-dialog, grid-editor, tap …
+    components/           # dialog, share-dialog, grid-editor, tap, swipe …
     styles.css
   puzzles/
     index.ts              # registriert alle Typen (mit UI)
@@ -171,7 +172,7 @@ type PlayContext<D, S, M> = {
 
 type EditorContext<D> = {
   data: D;
-  update(next: D): void;            // Core speichert Undo-History des Editors
+  update(next: D, group?: number): void;  // Core speichert Undo-History; gleiche group (ein Mal-Strich) = ein Undo-Schritt
   images: ImageSource & { add(file: Blob): Promise<string> };  // ab M14: Bild verkleinern, speichern, Schlüssel liefern
 };
 ```
@@ -191,11 +192,24 @@ Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
   Plugins liefern nur ihre Palette und eine Funktion `applyTool(data, tool, x, y) → D`.
 - Optional ein Randring aus Zellen um das Spielfeld (x/y = −1 bzw. Breite/Höhe), z. B. für Ausgänge.
 - Das gewählte Werkzeug steckt in nativen Radio-Buttons (kein App-Zustand nötig).
+- **Malen durch Ziehen** (seit M16): Werkzeuge mit `paint: true` in der Palette (z. B. Wand, Radierer) wirken schon beim
+  Drücken und dann auf jedes Feld, über das der Finger zieht. Lücken zwischen zwei Pointer-Events füllt `lineCells`,
+  jedes Feld zählt einmal pro Strich, der Rand nimmt keine Farbe an. Das Plugin bekommt die Felder über `onPaint(tool,
+  cells, group)` und gibt `group` an `ctx.update` weiter: Der Core ersetzt dann den neuesten Verlaufseintrag, statt einen
+  neuen anzulegen (`updateData` in `editor-session.ts`), sodass ein Strich ein Undo-Schritt ist. Undo/Redo beendet eine Gruppe.
+  Per Tastatur (Enter) wirken auch Mal-Werkzeuge über `onTap` auf ein einzelnes Feld.
 - Antippen = `pointerdown` + `pointerup` auf demselben Element (`ui/components/tap.ts`, auch beim Spielen genutzt);
   kein `click`, weil Touch-Browser Klicks verzögern oder verschlucken.
 - `applyTool`/`resize` liegen rein und getestet in `edit.ts`; `editor.ts` enthält nur die Darstellung.
 - Tastatur: Nur ein Feld ist in der Tab-Reihenfolge („roving tabindex“), Pfeiltasten bewegen den Fokus, Enter/Leertaste
   wendet das Werkzeug an. Über `describe(x, y)` sagt das Plugin Screenreadern, was auf einem Feld liegt.
+
+### Spielfiguren steuern (`ui/components/swipe.ts`, seit M16)
+
+Für Typen mit einer Figur (Eis-Rutschen, Sokoban): `swipeStart`/`swipeEnd`/`swipeCancel` auf dem Spielfeld liefern die
+Wischrichtung (dominante Achse, mindestens 24 px, sonst ist es ein Tippen), `directionKey` übersetzt Pfeiltasten und WASD
+(Tastenkombinationen wie Strg+Z bleiben frei) und `directionPad` zeigt vier 44-px-Knöpfe als Alternative. Die reine
+Logik dazu (`swipeDir`, `keyDir`) liegt getestet in `core/grid.ts`.
 
 ### Editor-Ablauf
 
@@ -311,6 +325,9 @@ URL: https://<host>/#/p/1.<code>      ("1." = Codec-Version)
   (`navigator.clipboard.writeText()`, Fallback `execCommand("copy")` für unsichere Kontexte wie den Dev-Server im LAN)
   und „Teilen“ per `navigator.share()`, wenn vorhanden (nur in sicheren Kontexten, also https).
 - Kaputte Links führen zu einer Fehlerseite mit verständlicher Meldung je Fehlerart (beschädigt, zu groß, neuere Version, unbekannter Typ).
+  Bei „neuere Version“ und „unbekannter Typ“ hilft eine neuere App, deshalb bietet die Seite „Neu laden“ an (offline mit dem
+  Hinweis, dass dafür Internet nötig ist). Weil der Service Worker zuerst das Netz fragt, holt ein Neuladen die neueste
+  Version. Das betrifft vor allem PWAs, die schon vor einem Deployment im Hintergrund offen waren.
 
 ## Routen
 

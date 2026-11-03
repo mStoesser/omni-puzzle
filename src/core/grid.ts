@@ -48,3 +48,59 @@ export function inBounds(p: Point, width: number, height: number): boolean {
 export function pointKey(p: Point): string {
   return `${p.x},${p.y}`;
 }
+
+/**
+ * Direction of a swipe from its displacement (screen pixels, y downwards): the dominant axis wins.
+ * Null if the swipe is shorter than `minDistance` or exactly diagonal.
+ */
+export function swipeDir(dx: number, dy: number, minDistance: number): Dir | null {
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  if (Math.max(ax, ay) < minDistance || ax === ay) return null;
+  if (ax > ay) return dx > 0 ? "E" : "W";
+  return dy > 0 ? "S" : "N";
+}
+
+const KEY_DIRS: Readonly<Record<string, Dir>> = {
+  arrowup: "N",
+  arrowright: "E",
+  arrowdown: "S",
+  arrowleft: "W",
+  w: "N",
+  d: "E",
+  s: "S",
+  a: "W",
+};
+
+/** Direction for a keyboard key (`KeyboardEvent.key`): arrow keys and WASD, any case. */
+export function keyDir(key: string): Dir | null {
+  return KEY_DIRS[key.toLowerCase()] ?? null;
+}
+
+/**
+ * The cells from `from` (exclusive) to `to` (inclusive) along a straight line, each orthogonally adjacent
+ * to the previous one, e.g. to fill the gaps between two pointer positions of a paint stroke.
+ */
+export function lineCells(from: Point, to: Point): Point[] {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const sx = Math.sign(dx);
+  const sy = Math.sign(dy);
+  const nx = Math.abs(dx);
+  const ny = Math.abs(dy);
+  const cells: Point[] = [];
+  let x = from.x;
+  let y = from.y;
+  // Walk one step at a time; take the axis whose next crossing of the ideal line comes first.
+  for (let ix = 0, iy = 0; ix < nx || iy < ny; ) {
+    if ((0.5 + ix) * ny < (0.5 + iy) * nx || iy === ny) {
+      x += sx;
+      ix++;
+    } else {
+      y += sy;
+      iy++;
+    }
+    cells.push({ x, y });
+  }
+  return cells;
+}

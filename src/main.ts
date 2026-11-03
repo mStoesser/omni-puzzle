@@ -72,7 +72,8 @@ type EditorState = {
 
 type GalleryState = GalleryViewModel & { next: GalleryCursor | null };
 
-type ErrorInfo = { text: MessageKey; action?: { href: string; label: MessageKey } };
+/** `reload`: the content needs a newer app version, so the page offers to reload. */
+type ErrorInfo = { text: MessageKey; action?: { href: string; label: MessageKey }; reload?: boolean };
 
 type AppState = {
   route: Route;
@@ -252,8 +253,14 @@ async function openShared(route: Route & { name: "shared" }) {
     if (isCurrent(route)) startPlay(route, doc, "shared");
   } catch (error) {
     console.warn(error);
-    fail(route, { text: linkErrorText(error) });
+    fail(route, linkError(error));
   }
+}
+
+/** Errors that a newer app version fixes (an unknown type, a newer format) offer a reload. */
+function linkError(error: unknown): ErrorInfo {
+  const text = linkErrorText(error);
+  return text === "linkUnknownType" || text === "linkUnsupported" ? { text, reload: true } : { text };
 }
 
 function linkErrorText(error: unknown): MessageKey {
@@ -309,10 +316,11 @@ function startPlay(
     loaded = loadDocument(raw, registry);
   } catch (error) {
     console.warn(error);
-    if (origin === "own") {
+    const info = linkError(error);
+    if (origin === "own" && !info.reload) {
       fail(route, { text: "notPlayable", action: { href: `#/edit/${extra.localId}`, label: "edit" } });
     } else {
-      fail(route, { text: linkErrorText(error) });
+      fail(route, info);
     }
     return false;
   }
@@ -874,7 +882,7 @@ const publishActions = {
 };
 
 const editorActions = {
-  update: (data: unknown) => updateEditor((s) => editing.updateData(s, data)),
+  update: (data: unknown, group?: number) => updateEditor((s) => editing.updateData(s, data, group)),
   undo: () => updateEditor(editing.undoEdit),
   redo: () => updateEditor(editing.redoEdit),
   setTitle: (title: string) => updateEditor((s) => editing.setTitle(s, title)),
@@ -1244,7 +1252,7 @@ function handleAuthCallback(): boolean {
 
 function view(state: AppState) {
   if (state.pending) return html`<p>${t("loading")}</p>`;
-  if (state.error) return messageView(t(state.error.text), state.error.action);
+  if (state.error) return messageView(t(state.error.text), state.error.action, state.error.reload);
   switch (state.route.name) {
     case "home": {
       const solved = examples.filter((e) => state.progress.get(state.exampleKeys.get(e.id) ?? "")?.solved);

@@ -28,7 +28,7 @@ export type EditorViewModel = {
 };
 
 export type EditorViewActions = {
-  update(data: unknown): void;
+  update(data: unknown, group?: number): void;
   undo(): void;
   redo(): void;
   setTitle(title: string): void;

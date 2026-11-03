@@ -979,6 +979,38 @@ a.icon-button {
   text-decoration: none;
 }
 
+/* Error and info pages (ui/views/message.ts) */
+.message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kk-space-3);
+}
+
+/* Direction pad (ui/components/swipe.ts): four buttons in a cross. */
+.direction-pad {
+  display: grid;
+  grid-template-columns: repeat(3, var(--kk-tap-min));
+  grid-template-areas: ". n ." "w . e" ". s .";
+  gap: var(--kk-space-1);
+  justify-content: center;
+}
+
+.direction-pad .pad-N {
+  grid-area: n;
+}
+
+.direction-pad .pad-E {
+  grid-area: e;
+}
+
+.direction-pad .pad-S {
+  grid-area: s;
+}
+
+.direction-pad .pad-W {
+  grid-area: w;
+}
+
 .segment {
   display: flex;
   gap: var(--kk-space-1);

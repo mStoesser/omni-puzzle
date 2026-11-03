@@ -14,7 +14,7 @@ const PALETTE: readonly PaletteItem[] = [
   { id: "block3", label: t("rhToolBlock3"), icon: "▬" },
   { id: "target", label: t("rhToolTarget"), icon: "🟥" },
   { id: "exit", label: t("rhToolExit"), icon: "⇥" },
-  { id: "erase", label: t("rhToolErase"), icon: "⌫" },
+  { id: "erase", label: t("rhToolErase"), icon: "⌫", paint: true },
 ];
 
 const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {
@@ -55,6 +55,9 @@ export function renderEditor(ctx: EditorContext<RushHourData>) {
       label: t("rhEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));
+      },
+      onPaint: (tool, cells, group) => {
+        if (isTool(tool)) ctx.update(cells.reduce((d, c) => applyTool(d, tool, c.x, c.y), data), group);
       },
       describe: (x, y) => describeCell(data, x, y),
     })}

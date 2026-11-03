@@ -42,8 +42,11 @@ export type PlayContext<D, S, M> = {
 
 export type EditorContext<D> = {
   data: D;
-  /** The core records the editor's undo history. */
-  update(next: D): void;
+  /**
+   * The core records the editor's undo history. Changes with the same `group` (one paint stroke,
+   * see GridEditorOptions.onPaint) become a single undo step.
+   */
+  update(next: D, group?: number): void;
   /** Local images plus `add`: scales, encodes and stores a picture, resolves to its key or rejects with a reason. */
   images: ImageSource & { add(file: Blob): Promise<string> };
 };

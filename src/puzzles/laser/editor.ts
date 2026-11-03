@@ -15,8 +15,8 @@ const PALETTE: readonly PaletteItem[] = [
   { id: "target", label: t("lsToolTarget"), icon: "◎" },
   { id: "rotatable", label: t("lsToolRotatable"), icon: "↻" },
   { id: "mirror", label: t("lsToolMirror"), icon: "⟋" },
-  { id: "wall", label: t("lsToolWall"), icon: "■" },
-  { id: "erase", label: t("lsToolErase"), icon: "⌫" },
+  { id: "wall", label: t("lsToolWall"), icon: "■", paint: true },
+  { id: "erase", label: t("lsToolErase"), icon: "⌫", paint: true },
 ];
 
 const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {
@@ -53,6 +53,9 @@ export function renderEditor(ctx: EditorContext<LaserData>) {
       label: t("lsEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));
+      },
+      onPaint: (tool, cells, group) => {
+        if (isTool(tool)) ctx.update(cells.reduce((d, c) => applyTool(d, tool, c.x, c.y), data), group);
       },
       describe: (x, y) => describeCell(data, x, y),
     })}

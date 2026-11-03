@@ -5,6 +5,8 @@ export type EditorSession<D> = {
   readonly title: string;
   readonly history: readonly D[];
   readonly index: number;
+  /** Group of the newest history entry (e.g. a paint stroke), see updateData. */
+  readonly group?: number;
 };
 
 export const MAX_EDITOR_HISTORY = 200;
@@ -17,11 +19,21 @@ export function currentData<D>(session: EditorSession<D>): D {
   return session.history[session.index]!;
 }
 
-/** Records a new version. Passing the current data (same reference) is a no-op. */
-export function updateData<D>(session: EditorSession<D>, data: D): EditorSession<D> {
+/**
+ * Records a new version. Passing the current data (same reference) is a no-op.
+ * Changes with the same `group` (e.g. all cells of one paint stroke) form a single undo step:
+ * while the newest entry belongs to that group, it is replaced instead of adding a new one.
+ */
+export function updateData<D>(session: EditorSession<D>, data: D, group?: number): EditorSession<D> {
   if (Object.is(data, currentData(session))) return session;
+  const isNewest = session.index === session.history.length - 1;
+  if (group !== undefined && group === session.group && isNewest) {
+    const history = [...session.history.slice(0, -1), data];
+    return { ...session, history };
+  }
   const history = [...session.history.slice(0, session.index + 1), data].slice(-MAX_EDITOR_HISTORY);
-  return { ...session, history, index: history.length - 1 };
+  const next: EditorSession<D> = { title: session.title, history, index: history.length - 1 };
+  return group === undefined ? next : { ...next, group };
 }
 
 export function setTitle<D>(session: EditorSession<D>, title: string): EditorSession<D> {
@@ -36,12 +48,13 @@ export function canRedoEdit(session: EditorSession<unknown>): boolean {
   return session.index < session.history.length - 1;
 }
 
+// Undo and redo end a running group: later changes start a new undo step.
 export function undoEdit<D>(session: EditorSession<D>): EditorSession<D> {
-  return canUndoEdit(session) ? { ...session, index: session.index - 1 } : session;
+  return canUndoEdit(session) ? { title: session.title, history: session.history, index: session.index - 1 } : session;
 }
 
 export function redoEdit<D>(session: EditorSession<D>): EditorSession<D> {
-  return canRedoEdit(session) ? { ...session, index: session.index + 1 } : session;
+  return canRedoEdit(session) ? { title: session.title, history: session.history, index: session.index + 1 } : session;
 }
 
 export type EditorCheck = {

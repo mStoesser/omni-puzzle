@@ -54,6 +54,41 @@ test("history is capped", () => {
   assert.equal(currentData(s), MAX_EDITOR_HISTORY + 10);
 });
 
+test("changes of one group form a single undo step", () => {
+  const [a, b, c, d] = [{ n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }];
+  let s = createEditorSession(a, "T");
+  s = updateData(s, b, 1); // first cell of a stroke: new entry
+  s = updateData(s, c, 1); // further cells replace it
+  s = updateData(s, d, 1);
+  assert.equal(s.history.length, 2);
+  assert.equal(currentData(s), d);
+  assert.equal(currentData(undoEdit(s)), a);
+});
+
+test("a new group or an ungrouped change starts a new undo step", () => {
+  const [a, b, c, d] = [{ n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }];
+  let s = updateData(createEditorSession(a, "T"), b, 1);
+  s = updateData(s, c, 2);
+  s = updateData(s, d);
+  assert.deepEqual(s.history, [a, b, c, d]);
+});
+
+test("a stroke whose first cell changes nothing does not merge into the previous step", () => {
+  const [a, b, c] = [{ n: 1 }, { n: 2 }, { n: 3 }];
+  let s = updateData(createEditorSession(a, "T"), b); // an earlier tap
+  s = updateData(s, b, 7); // stroke starts on a cell that stays the same: no-op
+  s = updateData(s, c, 7); // first real change of the stroke: new entry
+  assert.deepEqual(s.history, [a, b, c]);
+});
+
+test("undo ends a group", () => {
+  const [a, b, c, d] = [{ n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }];
+  let s = updateData(updateData(createEditorSession(a, "T"), b), c, 1);
+  s = redoEdit(undoEdit(s));
+  s = updateData(s, d, 1);
+  assert.deepEqual(s.history, [a, b, c, d]);
+});
+
 test("setTitle does not touch the history", () => {
   const s = setTitle(updateData(createEditorSession(1, "A"), 2), "B");
   assert.equal(s.title, "B");

@@ -14,6 +14,7 @@ export const ICONS = {
   chevronLeft: svg`<path d="m15 18-6-6 6-6"/>`,
   chevronRight: svg`<path d="m9 18 6-6-6-6"/>`,
   chevronDown: svg`<path d="m6 9 6 6 6-6"/>`,
+  chevronUp: svg`<path d="m18 15-6-6-6 6"/>`,
   close: svg`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`,
   more: svg`<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`,
   undo: svg`<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>`,

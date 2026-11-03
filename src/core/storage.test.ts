@@ -59,6 +59,15 @@ test("newPuzzleId is unique and a valid route id", () => {
   assert.deepEqual(parseRoute(`#/edit/${a}`), { name: "edit", id: a });
 });
 
+test("newPuzzleId is a version 4 UUID and works without crypto.randomUUID (insecure contexts)", (t) => {
+  t.mock.method(crypto, "randomUUID", () => {
+    throw new TypeError("crypto.randomUUID is not a function");
+  });
+  for (let i = 0; i < 50; i++) {
+    assert.match(newPuzzleId(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  }
+});
+
 test("copyRecord changes id, title and dates but keeps the puzzle", () => {
   const source: PuzzleRecord = {
     id: "a",

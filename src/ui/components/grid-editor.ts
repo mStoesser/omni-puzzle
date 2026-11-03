@@ -1,12 +1,15 @@
 import { html, svg } from "lit-html";
 import type { TemplateResult } from "lit-html";
+import { lineCells } from "../../core/grid.ts";
+import type { Point } from "../../core/grid.ts";
 import { t } from "../../i18n/t.ts";
 import { tapCancel, tapEnd, tapStart } from "./tap.ts";
 
 /** Board units per cell. Plugins draw their board content in this coordinate system. */
 export const CELL = 100;
 
-export type PaletteItem = { id: string; label: string; icon: string };
+/** `paint`: the tool paints while dragging over the board (walls, pixels …) instead of acting on a tap. */
+export type PaletteItem = { id: string; label: string; icon: string; paint?: boolean };
 
 export type GridEditorOptions = {
   width: number;
@@ -19,6 +22,12 @@ export type GridEditorOptions = {
   board: unknown;
   label: string;
   onTap(tool: string, x: number, y: number): void;
+  /**
+   * For paint tools: apply the tool to these board cells, in order. All calls of one stroke share `group`,
+   * so the plugin passes it to `EditorContext.update` and the stroke becomes one undo step.
+   * Keyboard use (Enter) still goes through onTap.
+   */
+  onPaint?(tool: string, cells: readonly Point[], group: number): void;
   /** Content of a cell for screen readers, e.g. "Spiegel, drehbar". Empty = nothing there. */
   describe?(x: number, y: number): string;
 };
@@ -75,6 +84,11 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
       <svg
         class="ge-board"
         viewBox="${-margin} ${-margin} ${w * CELL + 2 * margin} ${h * CELL + 2 * margin}"
+        @pointerdown=${(e: PointerEvent) => paintStart(e, options)}
+        @pointermove=${(e: PointerEvent) => paintMove(e, options)}
+        @pointerup=${paintEnd}
+        @pointercancel=${paintEnd}
+        @lostpointercapture=${paintEnd}
         role="group"
         aria-label="${options.label}. ${t("geKeyboardHint")}"
       >
@@ -115,11 +129,64 @@ function stepper(label: string, value: number, size: GridEditorOptions["size"], 
   `;
 }
 
-function tapped(e: Event, options: GridEditorOptions, x: number, y: number) {
+function selectedTool(e: Event): string | null {
   const form = (e.currentTarget as Element).closest("form");
-  if (!form) return;
-  const tool = new FormData(form).get("tool");
-  if (typeof tool === "string") options.onTap(tool, x, y);
+  const tool = form ? new FormData(form).get("tool") : null;
+  return typeof tool === "string" ? tool : null;
+}
+
+function tapped(e: Event, options: GridEditorOptions, x: number, y: number) {
+  const tool = selectedTool(e);
+  if (tool !== null) options.onTap(tool, x, y);
+}
+
+// Painting: with a paint tool, pressing applies it at once and dragging applies it to every cell the
+// pointer crosses (gaps between pointer events are filled along a line). Each cell counts once per stroke.
+let stroke: { pointerId: number; tool: string; group: number; last: Point; visited: Set<string> } | null = null;
+let strokes = 0;
+
+/** The cell under the pointer in board coordinates, also outside the board. */
+function pointerCell(e: PointerEvent): Point | null {
+  const matrix = (e.currentTarget as SVGSVGElement).getScreenCTM();
+  if (!matrix) return null;
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse());
+  return { x: Math.floor(p.x / CELL), y: Math.floor(p.y / CELL) };
+}
+
+/** Only board cells take paint, not the ring. */
+function onBoard(cell: Point, options: GridEditorOptions): boolean {
+  return cell.x >= 0 && cell.y >= 0 && cell.x < options.width && cell.y < options.height;
+}
+
+function paintStart(e: PointerEvent, options: GridEditorOptions) {
+  if (!e.isPrimary || e.button !== 0 || !options.onPaint) return;
+  const tool = selectedTool(e);
+  if (!options.palette.some((item) => item.id === tool && item.paint)) return;
+  const cell = pointerCell(e);
+  if (!cell || tool === null || !onBoard(cell, options)) return;
+  tapCancel(); // the cell's tap handlers saw this press first; painting replaces the tap
+  (e.currentTarget as Element).setPointerCapture(e.pointerId);
+  stroke = { pointerId: e.pointerId, tool, group: ++strokes, last: cell, visited: new Set([`${cell.x},${cell.y}`]) };
+  options.onPaint(tool, [cell], stroke.group);
+}
+
+function paintMove(e: PointerEvent, options: GridEditorOptions) {
+  if (!stroke || stroke.pointerId !== e.pointerId || !options.onPaint) return;
+  const to = pointerCell(e);
+  if (!to || (to.x === stroke.last.x && to.y === stroke.last.y)) return;
+  const { visited } = stroke;
+  const cells = lineCells(stroke.last, to).filter((c) => {
+    const key = `${c.x},${c.y}`;
+    if (!onBoard(c, options) || visited.has(key)) return false;
+    visited.add(key);
+    return true;
+  });
+  stroke.last = to;
+  if (cells.length > 0) options.onPaint(stroke.tool, cells, stroke.group);
+}
+
+function paintEnd(e: PointerEvent) {
+  if (stroke?.pointerId === e.pointerId) stroke = null;
 }
 
 // Keyboard: one cell is in the tab order ("roving tabindex"); arrow keys move the focus,
