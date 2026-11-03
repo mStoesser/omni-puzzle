@@ -12,12 +12,15 @@ type Ctx = PlayContext<LaserData, LaserState, LaserMove>;
 
 const PAD = 12;
 
-// Scoped to the SVG via class names; light and dark variants.
+// Scoped to the SVG via class names; light and dark variants (dark per app theme).
 const STYLE = svg`<style>
   .ls { --ls-board: #e4e1d8; --ls-line: #cfcbc0; --ls-wall: #6b6a66; --ls-beam: #e3342f; --ls-target: #6e6b65;
         --ls-lit: #a66f00; --ls-mirror: #3c6e9e; --ls-fixed: #4b4a47; --ls-base: #c9d6e4; --ls-emitter: #2b2a28; }
+  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
+  :root[data-theme="dark"] .ls { --ls-board: #2a2c31; --ls-line: #3a3d44; --ls-wall: #8a8d94; --ls-beam: #ff5a50; --ls-target: #8f939b;
+          --ls-lit: #ffd23f; --ls-mirror: #8fbaf0; --ls-fixed: #c7c9ce; --ls-base: #34465c; --ls-emitter: #e7e7ea; }
   @media (prefers-color-scheme: dark) {
-    .ls { --ls-board: #2a2c31; --ls-line: #3a3d44; --ls-wall: #8a8d94; --ls-beam: #ff5a50; --ls-target: #8f939b;
+    :root:not([data-theme]) .ls { --ls-board: #2a2c31; --ls-line: #3a3d44; --ls-wall: #8a8d94; --ls-beam: #ff5a50; --ls-target: #8f939b;
           --ls-lit: #ffd23f; --ls-mirror: #8fbaf0; --ls-fixed: #c7c9ce; --ls-base: #34465c; --ls-emitter: #e7e7ea; }
   }
   .ls-board { fill: var(--ls-board); }

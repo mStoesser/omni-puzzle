@@ -10,11 +10,13 @@ type Ctx = PlayContext<RushHourData, RushHourState, RushHourMove>;
 const PAD = 24; // margin around the board for the exit marker
 const INSET = 6; // gap between blocks and cell borders
 
-// Scoped to the SVG via class names; light and dark variants.
+// Scoped to the SVG via class names; light and dark variants (dark per app theme).
 const STYLE = svg`<style>
   .rh { --rh-board: #e4e1d8; --rh-line: #cfcbc0; --rh-block: #62758c; --rh-block-alt: #866a4c; --rh-target: #d6453d; }
+  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
+  :root[data-theme="dark"] .rh { --rh-board: #2a2c31; --rh-line: #3a3d44; --rh-block: #6a7d93; --rh-block-alt: #8f7659; --rh-target: #ef5b52; }
   @media (prefers-color-scheme: dark) {
-    .rh { --rh-board: #2a2c31; --rh-line: #3a3d44; --rh-block: #6a7d93; --rh-block-alt: #8f7659; --rh-target: #ef5b52; }
+    :root:not([data-theme]) .rh { --rh-board: #2a2c31; --rh-line: #3a3d44; --rh-block: #6a7d93; --rh-block-alt: #8f7659; --rh-target: #ef5b52; }
   }
   .rh-board { fill: var(--rh-board); }
   .rh-line { stroke: var(--rh-line); stroke-width: 2; }
