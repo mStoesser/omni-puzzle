@@ -1008,6 +1008,7 @@ async function loadLibrary() {
 }
 
 const libraryActions = {
+  openBuild: () => patch({ buildSheet: true }),
   duplicate: async (id: string) => {
     const record = store.get().library?.find((item) => item.record.id === id)?.record;
     if (!record) return;
@@ -1246,7 +1247,7 @@ function view(state: AppState) {
       }
       return state.moderation ? moderationView(state.moderation, registry, moderationActions) : nothing;
     case "library":
-      return html`${libraryView(state.library, registry.all(), libraryActions)} ${siteFooter()}`;
+      return html`${libraryView(state.library, libraryActions)} ${siteFooter()}`;
     case "imprint":
       return imprintView();
     case "privacy":

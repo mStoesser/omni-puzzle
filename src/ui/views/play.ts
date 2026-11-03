@@ -7,7 +7,8 @@ import type { ImageSource } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { reportDialog } from "../components/report-dialog.ts";
 import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
-import { iconButton, sheet, stat, typeVars } from "../components/ui.ts";
+import { iconButton, popoverMenu, sheet, stat, typeVars } from "../components/ui.ts";
+import type { MenuItem } from "../components/ui.ts";
 import { icon } from "../icons.ts";
 import type { IconName } from "../icons.ts";
 
@@ -84,12 +85,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
         <h1>${model.title || t("untitled")}</h1>
       </div>
       ${menu.length > 0
-        ? html`<button class="icon-button" popovertarget=${MENU_ID} aria-label=${t("playMenu")} title=${t("playMenu")}>
-              ${icon("more", 20)}
-            </button>
-            <div class="menu" id=${MENU_ID} popover role="menu" aria-label=${t("playMenu")}>
-              ${menu.map((item) => menuItem(item))}
-            </div>`
+        ? popoverMenu(MENU_ID, t("playMenu"), menu)
         : html`<span class="play-head-spacer"></span>`}
     </header>`}
 
@@ -126,7 +122,6 @@ function control(name: IconName, text: string, onClick: () => void, disabled: bo
   return html`<button class="play-control" ?disabled=${disabled} @click=${onClick}>${icon(name, 22)}<span>${text}</span></button>`;
 }
 
-type MenuItem = { icon: IconName; text: string; href?: string; onClick?: () => void };
 
 /** Remix (copy into the library), edit for own puzzles, report for published ones. */
 function menuItems(model: PlayViewModel, actions: PlayViewActions): MenuItem[] {
@@ -140,23 +135,6 @@ function menuItems(model: PlayViewModel, actions: PlayViewActions): MenuItem[] {
   return items;
 }
 
-function menuItem(item: MenuItem) {
-  const close = (e: Event) => (e.currentTarget as Element).closest<HTMLElement>("[popover]")?.hidePopover();
-  return item.href
-    ? html`<a class="menu-item" role="menuitem" href=${item.href} @click=${close}>${icon(item.icon, 18)}${item.text}</a>`
-    : html`<button
-        class="menu-item"
-        role="menuitem"
-        @click=${(e: Event) => {
-          close(e);
-          item.onClick?.();
-        }}
-      >
-        ${icon(item.icon, 18)}${item.text}
-      </button>`;
-}
-
-/** `solved` = solved now or before: then the player may rate here too. */
 function publishedInfo(info: PublishedInfo, solved: boolean, actions: PlayViewActions) {
   return html`<section class="published-info">
     ${info.hidden ? html`<p class="notice">${t("publishedHidden")}</p>` : nothing}

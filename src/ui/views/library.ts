@@ -2,7 +2,11 @@ import { html, nothing } from "lit-html";
 import type { PuzzleRecord } from "../../core/storage.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
-import { typeTile } from "../components/ui.ts";
+import { thumb } from "../components/gallery-card.ts";
+import { popoverMenu, statusBadge, typeVars } from "../components/ui.ts";
+import type { MenuItem } from "../components/ui.ts";
+import { icon } from "../icons.ts";
+import { timeAgo } from "../time.ts";
 
 export type LibraryItem = {
   record: PuzzleRecord;
@@ -13,64 +17,48 @@ export type LibraryItem = {
 export type LibraryViewActions = {
   duplicate(id: string): void;
   remove(id: string): void;
+  openBuild(): void;
 };
 
-const DATE_FORMAT = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
-
 /** `items` null = still loading. */
-export function libraryView(items: readonly LibraryItem[] | null, types: readonly AnyPuzzleType[], actions: LibraryViewActions) {
+export function libraryView(items: readonly LibraryItem[] | null, actions: LibraryViewActions) {
   return html`
-    <header class="toolbar">
-      <a class="button secondary" href="#/" aria-label=${t("back")}>←</a>
-      <h1 class="toolbar-title">${t("library")}</h1>
+    <header class="page-head with-action">
+      <h1>${t("library")}</h1>
+      <button class="compact" @click=${actions.openBuild}>${icon("plus", 18)}${t("libraryNewShort")}</button>
     </header>
     ${items === null
-      ? html`<p>${t("loading")}</p>`
+      ? html`<p role="status">${t("loading")}</p>`
       : items.length === 0
-        ? html`<p>${t("libraryEmpty")}</p>`
+        ? html`<p class="empty">${t("libraryEmpty")}</p>`
         : html`<ul class="card-list">${items.map((item) => libraryEntry(item, actions))}</ul>`}
-    <h2>${t("libraryNew")}</h2>
-    <ul class="card-list">
-      ${types.map(
-        (type) => html`
-          <li>
-            <a class="card" href="#/new/${type.id}">
-              ${typeTile(type, "sm")}
-              <span class="card-title">${t(type.name)}</span>
-              <span class="card-detail" aria-hidden="true">＋</span>
-            </a>
-          </li>
-        `,
-      )}
-    </ul>
+    <p class="info-box">${icon("info", 18)}<span>${t("libraryLocalHint")}</span></p>
   `;
 }
 
 function libraryEntry({ record, type, playable }: LibraryItem, actions: LibraryViewActions) {
   const { meta } = record.doc;
   const title = meta.title || t("untitled");
-  const updated = new Date(record.updatedAt);
+  const updated = timeAgo(record.updatedAt, Date.now());
+  const menu: MenuItem[] = [
+    { icon: "pencil", text: t("edit"), href: `#/edit/${record.id}` },
+    ...(playable ? [{ icon: "play", text: t("play"), href: `#/play/${record.id}` } as const] : []),
+    { icon: "copy", text: t("duplicate"), onClick: () => actions.duplicate(record.id) },
+    { icon: "trash", text: t("delete"), danger: true, onClick: () => confirm(t("confirmDelete", { title })) && actions.remove(record.id) },
+  ];
   return html`
-    <li class="library-item">
-      <div class="library-head">
-        ${typeTile(type, "sm")}
-        <span>
-          <span class="card-title">${title}</span>
-          <span class="card-detail">
-            ${meta.verified ? html`<span class="badge-ok">${t("libraryVerified")}</span>` : t("libraryDraft")}
-            ${meta.minMoves === undefined ? nothing : html` · ${t("minMovesHint", { moves: meta.minMoves })}`}
-            ${Number.isNaN(updated.getTime()) ? nothing : html` · ${t("libraryUpdated", { date: DATE_FORMAT.format(updated) })}`}
-          </span>
+    <li class="library-card">
+      ${thumb(type, "list")}
+      <div class="library-card-body">
+        <a class="library-card-link" href="#/edit/${record.id}">${title}</a>
+        <span class="library-card-sub">
+          <span class="type-name typed" style=${typeVars(type)}>${t(type.name)}</span>
+          ${updated ? html` · ${t("libraryEdited", { when: updated })}` : nothing}
+          ${meta.minMoves === undefined ? nothing : html` · ${(meta.minMoves === 1 ? t("galleryMinMovesOne") : t("galleryMinMoves", { moves: meta.minMoves }))}`}
         </span>
+        <span>${statusBadge(meta.verified ? "ready" : "draft")}</span>
       </div>
-      <div class="library-actions">
-        <a class="button" href="#/edit/${record.id}">${t("edit")}</a>
-        ${playable ? html`<a class="button secondary" href="#/play/${record.id}">${t("play")}</a>` : nothing}
-        <button class="secondary" @click=${() => actions.duplicate(record.id)}>${t("duplicate")}</button>
-        <button class="secondary danger" @click=${() => confirm(t("confirmDelete", { title })) && actions.remove(record.id)}>
-          ${t("delete")}
-        </button>
-      </div>
+      ${popoverMenu(`menu-${record.id}`, t("libraryMenu", { title }), menu, "icon-button quiet-icon")}
     </li>
   `;
 }

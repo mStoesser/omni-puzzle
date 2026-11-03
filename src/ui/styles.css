@@ -459,37 +459,6 @@ input[type="password"]:focus-visible,
 }
 
 /* Library */
-.library-item {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.library-head {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.library-head .card-detail {
-  display: block;
-}
-
-.library-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.library-actions .danger {
-  margin-left: auto;
-  color: var(--danger);
-}
-
 .badge-ok {
   color: var(--success);
   font-weight: 600;
@@ -2043,7 +2012,7 @@ a.icon-button {
 /* Menu popover (native popover attribute: light dismiss, Escape) */
 .menu {
   position: fixed;
-  inset: calc(max(var(--kk-space-4), env(safe-area-inset-top)) + 52px) max(var(--kk-space-4), env(safe-area-inset-right)) auto auto;
+  inset: 64px var(--kk-space-4) auto auto; /* fallback; placed below its button when opened */
   min-width: 200px;
   margin: 0;
   padding: 6px;
@@ -2557,4 +2526,99 @@ a.icon-button {
   height: 16px;
   border: 2px solid var(--kk-muted);
   border-radius: 50%;
+}
+
+/* ===== My puzzles ===== */
+.page-head.with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-3);
+}
+
+button.compact,
+a.button.compact {
+  min-height: var(--kk-tap-min);
+  padding-inline: var(--kk-space-4);
+}
+
+.library-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-4);
+  padding: var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-xl);
+  background: var(--kk-surface);
+}
+
+.library-card .thumb.list {
+  width: 76px;
+  height: 76px;
+}
+
+.library-card-body {
+  display: grid;
+  flex: 1;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.library-card-link {
+  color: var(--kk-text);
+  font-family: var(--kk-font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+/* The whole card opens the editor; the menu button stays above the link area. */
+.library-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.library-card-sub {
+  color: var(--kk-muted);
+  font-size: 0.8125rem;
+}
+
+.type-name {
+  color: var(--type);
+}
+
+.library-card .badge {
+  margin-top: var(--kk-space-1);
+}
+
+.icon-button.quiet-icon {
+  position: relative;
+  z-index: 1;
+  border-color: transparent;
+  background: transparent;
+}
+
+.menu-item.danger-item {
+  color: var(--kk-danger);
+}
+
+.info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--kk-space-3);
+  margin: var(--kk-space-5) 0 0;
+  padding: var(--kk-space-4);
+  border-radius: var(--kk-radius-lg);
+  background: var(--kk-surface-2);
+  font-size: 0.875rem;
+}
+
+.info-box .icon {
+  margin-top: 2px;
 }

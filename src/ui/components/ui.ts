@@ -135,3 +135,45 @@ export function sheet(labelledBy: string, onClose: () => void, content: Template
     </div>
   </dialog>`;
 }
+
+export type MenuItem = { icon: IconName; text: string; href?: string; onClick?: () => void; danger?: boolean };
+
+/**
+ * "More" button with a menu on the native popover API (light dismiss, Escape, top layer).
+ * The menu opens below the button, right-aligned; the position is set when it opens.
+ */
+export function popoverMenu(id: string, label: string, items: readonly MenuItem[], buttonClass = "icon-button") {
+  return html`<button class=${buttonClass} popovertarget=${id} aria-label=${label} title=${label}>${icon("more", 20)}</button>
+    <div class="menu" id=${id} popover role="menu" aria-label=${label} @toggle=${placeMenu}>
+      ${items.map((item) => menuEntry(item))}
+    </div>`;
+}
+
+function placeMenu(e: Event) {
+  const menu = e.currentTarget as HTMLElement;
+  if ((e as ToggleEvent).newState !== "open") return;
+  const button = document.querySelector(`[popovertarget="${CSS.escape(menu.id)}"]`);
+  if (!button) return;
+  const rect = button.getBoundingClientRect();
+  const below = rect.bottom + 6;
+  const fitsBelow = below + menu.offsetHeight <= window.innerHeight - 8;
+  menu.style.top = `${fitsBelow ? below : Math.max(8, rect.top - 6 - menu.offsetHeight)}px`;
+  menu.style.right = `${Math.max(8, document.documentElement.clientWidth - rect.right)}px`;
+}
+
+function menuEntry(item: MenuItem) {
+  const close = (e: Event) => (e.currentTarget as Element).closest<HTMLElement>("[popover]")?.hidePopover();
+  const cls = `menu-item ${item.danger ? "danger-item" : ""}`;
+  return item.href
+    ? html`<a class=${cls} role="menuitem" href=${item.href} @click=${close}>${icon(item.icon, 18)}${item.text}</a>`
+    : html`<button
+        class=${cls}
+        role="menuitem"
+        @click=${(e: Event) => {
+          close(e);
+          item.onClick?.();
+        }}
+      >
+        ${icon(item.icon, 18)}${item.text}
+      </button>`;
+}

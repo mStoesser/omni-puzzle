@@ -445,6 +445,7 @@ export const de = {
   galleryCount: "{count} Rätsel",
   galleryCountMore: "{count}+ Rätsel",
   galleryMinMoves: "min. {moves} Züge",
+  galleryMinMovesOne: "min. 1 Zug",
   editorClose: "Editor schließen",
   editorReady: "Bereit",
   editorMode: "Modus",
@@ -467,4 +468,8 @@ export const de = {
   checkSignedInAs: "Angemeldet als {name}",
   checkDone: "erfüllt",
   checkOpen: "offen",
+  libraryNewShort: "Neu",
+  libraryLocalHint: "Deine Rätsel liegen nur auf diesem Gerät. Teile sie per Link oder veröffentliche sie, damit andere sie spielen können.",
+  libraryEdited: "bearbeitet {when}",
+  libraryMenu: "Aktionen für „{title}“",
 } as const;
