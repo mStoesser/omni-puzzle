@@ -265,6 +265,20 @@ function linkErrorText(error: unknown): MessageKey {
   }
 }
 
+/** Level position and the following example of the same type. */
+function exampleNeighbours(route: Route): Pick<PlayViewModel, "level" | "next"> {
+  if (route.name !== "play") return {};
+  const current = examples.find((e) => e.id === route.id);
+  if (!current) return {};
+  const own = examples.filter((e) => e.doc.type === current.doc.type);
+  const index = own.indexOf(current);
+  const next = own[index + 1];
+  return {
+    level: { index: index + 1, total: own.length },
+    ...(next ? { next: { href: formatRoute({ name: "play", id: next.id }), title: next.doc.meta.title } } : {}),
+  };
+}
+
 function startPlay(
   route: Route,
   raw: unknown,
@@ -291,7 +305,9 @@ function startPlay(
     origin,
     progressKey: progressKey(doc),
     images: extra.images ?? localImages,
+    minMoves: doc.meta.minMoves ?? null,
   };
+  if (origin === "example") Object.assign(play, exampleNeighbours(route));
   if (extra.localId !== undefined) play.localId = extra.localId;
   if (extra.published !== undefined) play.published = extra.published;
   if (extra.backHref !== undefined) play.backHref = extra.backHref;
@@ -698,6 +714,10 @@ function editorCheck(editor: EditorState) {
   };
 }
 
+function minMovesOf(solve: SolveResult<unknown> | null): number | null {
+  return solve?.status === "solved" ? solve.moves.length : null;
+}
+
 // Solver results per data object; undo/redo hits the cache.
 const solveCache = new WeakMap<object, SolveResult<unknown>>();
 let solveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -848,6 +868,7 @@ const editorActions = {
       origin: "test",
       progressKey: null,
       images: localImages,
+      minMoves: minMovesOf(cachedSolve(editing.currentData(editor.session))),
     };
     patch({ play });
   },
@@ -1305,7 +1326,7 @@ function page(state: AppState) {
     ${state.notice ? html`<p class="notice page-notice" role="alert">${t(state.notice)}</p>` : nothing}
     ${view(state)}
   `;
-  if (section === "focus") return html`<div class="page">${content}</div>`;
+  if (section === "focus") return html`<div class="page focus">${content}</div>`;
   const account = navAccount(state);
   const wide = state.route.name === "home" || state.route.name === "gallery";
   return html`<div class="with-tabbar">
