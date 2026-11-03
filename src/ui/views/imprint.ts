@@ -1,13 +1,11 @@
 import { html } from "lit-html";
 import { t } from "../../i18n/t.ts";
+import { backHeader } from "../components/ui.ts";
 import { imprint, imprintComplete } from "../../imprint.ts";
 
 export function imprintView() {
   return html`
-    <header class="toolbar">
-      <a class="button secondary" href="#/" aria-label=${t("back")}>←</a>
-      <h1 class="toolbar-title">${t("imprint")}</h1>
-    </header>
+    ${backHeader("#/", t("imprint"))}
     ${imprintComplete()
       ? html`
           <h2>${t("imprintLaw")}</h2>

@@ -213,21 +213,6 @@ button:disabled {
 }
 
 /* Play view */
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin-block: var(--space-3);
-}
-
-.toolbar-title {
-  margin: 0;
-  font-size: 1.25rem;
-  overflow-wrap: anywhere;
-}
-
-
 .dialog {
   width: min(24rem, calc(100vw - 2 * var(--space-3)));
   padding: var(--space-4);
@@ -3125,4 +3110,21 @@ a.button.compact {
   .page.focus > .editor-check {
     display: none;
   }
+}
+
+.back-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-3);
+  margin-bottom: var(--kk-space-5);
+}
+
+.back-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.page.focus > .button {
+  align-self: flex-start;
 }

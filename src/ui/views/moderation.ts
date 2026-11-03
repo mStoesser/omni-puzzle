@@ -4,6 +4,7 @@ import type { ModerationItem } from "../../core/moderation.ts";
 import { loadDocument } from "../../core/document.ts";
 import type { Registry } from "../../core/registry.ts";
 import { t } from "../../i18n/t.ts";
+import { backHeader } from "../components/ui.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { REASON_TEXT } from "../components/report-dialog.ts";
 
@@ -30,10 +31,7 @@ const date = (iso: string) => new Date(iso).toLocaleDateString("de-DE");
 
 export function moderationView(model: ModerationViewModel, registry: Registry, actions: ModerationViewActions) {
   return html`
-    <header class="toolbar">
-      <a class="button secondary" href="#/account" aria-label=${t("back")}>←</a>
-      <h1 class="toolbar-title">${t("moderation")}</h1>
-    </header>
+    ${backHeader("#/account", t("moderation"))}
     <p>${t("moderationIntro")}</p>
     ${model.message
       ? html`<p class=${model.message.tone === "ok" ? "account-ok" : "notice"} role=${model.message.tone === "ok" ? "status" : "alert"}>

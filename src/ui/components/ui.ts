@@ -177,3 +177,11 @@ function menuEntry(item: MenuItem) {
         ${icon(item.icon, 18)}${item.text}
       </button>`;
 }
+
+/** Page header with a back link (pages outside the main navigation, e.g. imprint). */
+export function backHeader(href: string, title: string) {
+  return html`<header class="back-head">
+    ${iconButton({ label: t("back"), icon: "chevronLeft", href })}
+    <h1>${title}</h1>
+  </header>`;
+}
