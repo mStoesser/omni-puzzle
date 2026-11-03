@@ -235,19 +235,214 @@ Vorlage: `docs/design-handoff/` (Spezifikation, Tokens, Entwürfe). Die Darstell
   Bildschirm und die Tab-Leiste verrutschte. Danach Handy-Test erfolgreich.)
 
 ## Phase 3: Ausbau
-- [ ] Geräteübergreifende Synchronisierung von Bibliothek und Fortschritt mit dem Account.
-- [ ] Lokalisation: mehrere Sprachen unterstützen.
-- [ ] Weitere Typen: Sokoban, Rohre, Lights Out, Nonogramm, Klotski (als Rush-Hour-Variante), Eis-Rutschen …
-- [ ] Laser-Erweiterungen (Inventar, Strahlteiler, Farben).
-- [ ] Rätsel-Ketten bzw. Escape-Modus.
-- [ ] Ranglisten (wenigste Züge, schnellste Zeit), tägliches Rätsel.
-- [ ] Optional: App-Store-Versionen via Capacitor.
+
+Entschieden (11/2026):
+- **Reihenfolge:** erst Inhalte (neue Typen, Laser-Erweiterungen), dann Community-Funktionen (Ketten, Ranglisten,
+  tägliches Rätsel), zuletzt Infrastruktur (Synchronisierung, Englisch).
+- **Neue Typen:** Eis-Rutschen, Sokoban, Klotski, Lights Out, Rohre, Nonogramm. Die übrigen Typen aus dem Katalog bleiben „später“.
+- **Rätsel-Ketten** bestehen aus veröffentlichten Galerie-Rätseln. Eine Kette ist ein eigener Datensatz im Backend, der auf
+  `#/g/<id>` verweist; ohne Backend gibt es keine Ketten.
+- **Ranglisten:** Die Zugfolge wird mitgeschickt, und der Server spielt sie mit `rules.ts` nach. So sind „gelöst“ und die
+  Zugzahl geprüft. Die Zeit kommt ungeprüft vom Client. Für das Quiz gibt es keine Rangliste.
+- **Tägliches Rätsel:** wird automatisch aus der Galerie gewählt; Moderatoren können Tage vorausplanen und überschreiben.
+- **Synchronisierung:** Einträge werden einzeln zusammengeführt. Beim Fortschritt zählt „irgendwo gelöst“ und der beste Wert,
+  bei Rätseln gewinnt die neuere Änderung. Löschungen werden als Grabstein gespeichert. Bilder werden mitsynchronisiert.
+- **Sprachen:** Englisch als zweite Oberflächensprache. Rätsel bekommen zusätzlich eine optionale Sprache (`meta.lang`),
+  nach der die Galerie filtern kann.
+- **Capacitor** ist aus Phase 3 herausgenommen (siehe „Irgendwann“ unten).
+
+Strategie wie bisher: kleine Meilensteine, jeder endet mit Tests, Typecheck und Handy-Test. Vor jedem Meilenstein, der das
+Backend ändert: Migration erst auf `dev`, live prüfen, dann `prod`.
+
+#### Checkliste für jeden neuen Rätseltyp
+Sie gilt für M17–M22 zusätzlich zu den dort genannten Punkten:
+- Eigenes Modul `src/puzzles/<typ>/` mit `rules.ts`, `logic.ts`, `solver.ts` (falls sinnvoll), `edit.ts`, `render.ts`,
+  `editor.ts`, `examples.ts`; Logik, Solver und Editor-Funktionen vollständig mit `node --test` getestet.
+- Registrierung in `src/puzzles/index.ts` und `src/puzzles/rules.ts`; `levels` (Zuggrenzen leicht/mittel) an den Beispielen kalibriert.
+- Linien-Symbol, Typfarbe (dunkel/hell, Kontrast geprüft), Name und Beschreibung in `i18n/de.ts`.
+- Tastaturbedienung, ARIA-Labels, `describe(x, y)` im Editor, `prefers-reduced-motion`.
+- Größenlimits in `validate`; Solver-Laufzeit gegen das Server-Limit (40 000 Knoten, 2 s CPU) gemessen.
+- 3–5 Beispielrätsel mit bekannter minimaler Zugzahl.
+- Linklänge typischer Rätsel unter 2 000 Zeichen.
+- Live testen: bauen, probespielen, per Link teilen, veröffentlichen (Edge Function nach dem Deployment), in der Galerie
+  filtern; Handy-Test.
+- ARCHITEKTUR.md: Abschnitt zum Typ (Datenformat, Regeln, Solver, Bedienung).
+
+### M16 – Core-Vorbereitung für neue Typen
+Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), bevor die Typen kommen.
+- [ ] `core/search.ts`: generische Breitensuche (Zustandsschlüssel, Nachfolger, Ziel, `maxNodes`) mit Tests; der
+  Rush-Hour-Solver nutzt sie ohne Verhaltensänderung (bestehende Solver-Tests bleiben grün).
+- [ ] Richtungs-Eingabe für Spielfiguren (`ui/components/swipe.ts`): Wischen per Pointer Events mit Mindestweg,
+  Pfeiltasten und WASD; vier Schaltflächen als Alternative für Bedienhilfen.
+- [ ] Grid-Editor: Malen durch Ziehen (ein Zug malt mehrere Felder, ergibt einen Undo-Schritt), z. B. für Wände und Nonogramm-Pixel.
+- [ ] Bei 9 Typen müssen die Typ-Kacheln auf der Startseite, die Typ-Chips der Galerie und das Typ-Auswahl-Sheet „Neu bauen“
+  mitwachsen (Raster bzw. waagrecht scrollbar, mobil und Desktop prüfen).
+- [ ] Prüfen, ob die alte, gecachte PWA bei einem unbekannten Typ (Link auf einen neuen Typ) sauber die Fehlerseite
+  „unbekannter Typ“ zeigt und auf ein Update hinweist.
+
+### M17 – Eis-Rutschen (`ice`)
+Der einfachste Typ mit Spielfigur. Er testet die Richtungs-Eingabe aus M16.
+- [ ] Datenformat: Raster mit Wand, Ziel und Start, dazu optional **Sandfeld**, auf dem die Figur anhält.
+  Ein Zug ist eine Richtung; die Figur rutscht, bis eine Wand oder der Rand sie stoppt.
+- [ ] Gelöst, wenn die Figur **auf** dem Ziel stehen bleibt. Wer nur darüber hinwegrutscht, hat nicht gelöst.
+- [ ] Solver: Breitensuche über die Position (`core/search.ts`), liefert `minMoves`.
+- [ ] Darstellung: Rutschen animiert; Wischen oder Pfeiltasten; Tippen auf ein Feld in gerader Linie rutscht dorthin.
+- [ ] Editor: Wand (ziehend malen), Sand, Start, Ziel, Radierer; Validierung: genau ein Start und mindestens ein Ziel.
+
+### M18 – Sokoban (`sokoban`)
+- [ ] Datenformat: Raster mit Wand, Boden, Ziel, Kiste, Kiste auf Ziel und Spielfigur; höchstens z. B. 20×20.
+  Ein Zug ist ein Schritt; ein Schritt, der eine Kiste schiebt, zählt ebenfalls als ein Zug.
+- [ ] Validierung: genau eine Figur, gleich viele Kisten wie Ziele (mindestens eine).
+- [ ] Solver: Breitensuche nach Schritten über (Figur, Kisten), Kisten sortiert im Zustandsschlüssel; Pruning über tote
+  Felder (Ecken ohne Ziel). Bricht er ab (auch serverseitig), wird ohne `minMoves` veröffentlicht, und die Stufe kommt aus
+  Bewertungen wie beim Quiz.
+- [ ] Bedienung: Wischen, Pfeiltasten, Tippen auf ein erreichbares Feld läuft dorthin (Wegsuche ohne Schieben,
+  zählt als mehrere Schritte); Undo pro Schritt.
+- [ ] Editor: Wände ziehend malen, Kiste, Ziel, Figur, Radierer.
+- [ ] Entscheidung im Meilenstein: Sollen in der Rangliste Schritte oder Schiebe-Züge zählen? (Standard: Schritte, wie der Zugzähler.)
+
+### M19 – Klotski (`klotski`)
+Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt in den Core oder wird bewusst kopiert.
+- [ ] Datenformat: rechteckige Blöcke 1×1, 1×2, 2×1, 2×2 (größere später), genau ein Zielblock, Ausgang an einer Kante
+  in Breite des Zielblocks.
+- [ ] Ein Zug verschiebt einen Block beliebig weit über freie Felder, auch um Ecken (klassische Zählweise).
+  Gelöst, wenn der Zielblock am Ausgang steht.
+- [ ] Solver: Breitensuche; im Zustandsschlüssel sind gleich große Blöcke austauschbar (Kanonisierung), sonst explodiert
+  der Suchraum. Test mit dem klassischen „Huarong Dao“-Aufbau, bekannte Lösung 81 Züge.
+- [ ] Darstellung: Ziehen mit Einrasten in alle Richtungen (Pointer Capture), Tastatur wie bei Rush Hour.
+- [ ] Editor: Blockgrößen als Werkzeuge, Zielblock, Ausgang am Randring.
+
+### M20 – Lights Out (`lightsout`)
+- [ ] Datenformat: Raster (höchstens z. B. 10×10) mit aktiven Feldern (Löcher für unregelmäßige Formen) und Startmuster der Lichter.
+  Tippen schaltet das Feld und seine vier Nachbarn um; gelöst, wenn alle Lichter aus sind.
+- [ ] Solver: Gauß-Elimination über GF(2), danach den Nullraum durchprobieren (mit Limit) für die minimale Zahl an Tipps.
+  Erkennt unlösbare Muster sofort.
+- [ ] Editor mit zwei Modi: „Lichter setzen“ (direkt, der Solver prüft) und „Rückwärts tippen“ (Züge auf dem leeren Feld,
+  ergibt immer ein lösbares Rätsel).
+- [ ] Darstellung: Umschalten animiert, Zugzähler, Tastatur per roving tabindex.
+
+### M21 – Rohre (`pipes`)
+- [ ] Datenformat: Kacheln Ende, Gerade, Kurve, T, Kreuz, Quelle; je Kachel eine Drehung und „drehbar/fest“.
+  Tippen dreht drehbare Kacheln um 90° im Uhrzeigersinn.
+- [ ] Gelöst, wenn alle Rohre mit der Quelle verbunden sind und kein Rohrende offen ist. Schleifen sind erlaubt,
+  damit Bauen einfach bleibt.
+- [ ] Solver: Backtracking mit Constraint-Propagation über die Drehungen; Kosten = nötige Drehungen im Uhrzeigersinn
+  (0–3 pro Kachel), Branch & Bound für `minMoves`.
+- [ ] Editor: Rohre durch Ziehen von Feld zu Feld verlegen (die Kachelformen ergeben sich daraus), Quelle setzen,
+  Knopf „Verdrehen“ dreht zufällig; Kacheln als fest markieren.
+- [ ] Darstellung: verbundene Rohre füllen sich farbig vom Ziel aus (Animation nur ohne `prefers-reduced-motion`).
+
+### M22 – Nonogramm (`nonogram`)
+- [ ] Datenformat: Breite, Höhe und **nur die Hinweiszahlen** je Zeile und Spalte, nicht das Lösungsbild. So lässt sich
+  im Link nicht spicken, und gelöst heißt: Alle Zeilen und Spalten erfüllen ihre Hinweise.
+- [ ] Solver: Zeilenlöser (dynamische Programmierung) mit Propagation, bei Bedarf Backtracking; prüft auch die
+  **Eindeutigkeit**. Ein mehrdeutiges Rätsel ist ein Problem im Editor und kann nicht geteilt werden.
+- [ ] Bedienung: Modus Füllen/Kreuzen, Ziehen füllt eine Reihe (ein Undo-Schritt), erledigte Hinweiszahlen ausgegraut,
+  kein Zugzähler (`controls.moves: false`). Nach dem Lösen wird das Bild gezeigt.
+- [ ] Editor: Pixel malen (ziehen), Größe einstellen, die Hinweise werden beim Speichern berechnet.
+- [ ] Entscheidung im Meilenstein: maximale Größe auf dem Handy (Tap-Ziele ≥ 44 px gegen 15×15 und mehr; eventuell Zoom).
+- [ ] Entscheidung im Meilenstein: Schwierigkeit messen, z. B. „nur Zeilenlogik“ gegen „braucht Raten“, oder wie beim Quiz
+  aus Bewertungen.
+
+### M23 – Laser-Erweiterungen
+Jede Erweiterung erhöht `typeVersion` des Lasers und bekommt ein `migrate` (CLAUDE.md, Regel 7), auch wenn das alte
+Format unverändert gültig bleibt.
+- [ ] **Inventar** (`typeVersion` 2): Das Rätsel gibt eine Zahl Spiegel vor, die man auf freie Felder setzt. Tippen auf ein
+  freies Feld setzt einen Spiegel, erneutes Tippen klappt ihn um und dann wieder weg. Solver: Platzierungen nur auf Feldern,
+  die ein Strahl erreicht, höchstens z. B. 3 Inventar-Spiegel.
+- [ ] **Strahlteiler** (`typeVersion` 3): ein halbdurchlässiger Spiegel, der Strahl verzweigt sich. Die Schleifenerkennung
+  wird damit wirklich gebraucht; die Darstellung zeichnet mehrere Polylinien.
+- [ ] **Farben** (`typeVersion` 4): Laser in Rot, Grün und Blau, Ziele verlangen eine Farbe, Farbfilter lassen nur ihre
+  Farbe durch (ohne Farbmischung). Farben sind zusätzlich mit Symbolen unterscheidbar (Farbsehschwäche).
+- [ ] Editor-Palette in Gruppen (Grundlagen, Inventar, Teiler, Farben), damit das Werkzeug-Raster auf dem Handy übersichtlich bleibt.
+- [ ] Je Erweiterung Beispielrätsel (Generator-Skript erweitern); alte Links und veröffentlichte Version-1-Rätsel spielen weiter.
+
+### M24 – Rätsel-Ketten
+- [ ] **Entscheidung im Meilenstein:** Dürfen Ketten fremde Galerie-Rätsel enthalten? (Vorschlag: ja, als kuratierte
+  Sammlung.) Wie lang darf eine Kette sein (Vorschlag: 2–20)? Gibt es Likes für Ketten?
+- [ ] Migration: Tabelle `chains` (Autor, Titel, Beschreibung, Schritte als geordnete Liste aus `puzzle_id` und optionalem
+  Text vor dem Rätsel, Abschlusstext, `hidden`, Zähler, `published_at`), RLS wie bei `puzzles`.
+  Angelegt wird nur über die Funktion `publish_chain`: Alle Rätsel müssen existieren und sichtbar sein, Tageslimit, gesperrte Nutzer nicht.
+- [ ] Ketten sind wie Rätsel unveränderlich (nur Titel und Beschreibung lassen sich ändern) und lassen sich zurückziehen.
+- [ ] Ketten-Editor (`#/chain/new`): Rätsel aus „Meine Veröffentlichungen“ wählen oder einen `#/g/<id>`-Link einfügen,
+  sortieren, Texte pro Schritt (für den Escape-Charakter).
+- [ ] Route `#/c/<id>`: Übersicht mit Schritten und Schlössern. Ein Schritt gilt als gelöst, wenn der lokale Fortschritt
+  (`content_key`) gelöst ist; das schaltet den nächsten frei. Am Ende kommt ein Abschluss-Bildschirm.
+- [ ] Zurückgezogene oder ausgeblendete Rätsel werden in der Kette als „nicht mehr verfügbar“ angezeigt und gelten als übersprungen.
+- [ ] Galerie: Umschalter „Rätsel | Ketten“ (Filter in der Route); Karten mit Schrittzahl und eigenem Fortschritt.
+- [ ] Melden und Moderation auch für Ketten (gleiche Schwelle, Moderationsansicht, Löschen); beim Löschen des Kontos
+  verschwinden auch die Ketten.
+- [ ] Live testen gegen `dev` (Rechte, ungültige Rätsel-IDs, Zurückziehen eines enthaltenen Rätsels), Handy-Test.
+
+### M25 – Zeitmessung und Ranglisten
+- [ ] Zeitmessung im Core (vorgezogen aus Phase 4): Sie startet mit dem ersten Zug, pausiert bei verdeckter Seite und
+  endet beim Lösen. Stat-Kachel „Zeit“, die Bestzeit steht im Fortschritt (`bestTimeMs`, IndexedDB-Version anheben).
+- [ ] `rules.ts` je Typ: `ranking?: "moves" | "time"` (Rush Hour, Laser, Sokoban …: Züge, bei Gleichstand die Zeit;
+  Nonogramm: nur Zeit; Quiz: keine).
+- [ ] Migration: Tabelle `scores` (Nutzer, Rätsel, Züge, Zeit, Datum), pro Nutzer und Rätsel nur der beste Wert;
+  Funktion `leaderboard(puzzle_id)` liefert die Top 10 und den eigenen Platz.
+- [ ] Edge Function `submit-score` (laufzeitneutraler Handler in `src/server/`, mit `node --test` getestet): Token prüfen,
+  Rätsel laden, `loadDocument`, Zugfolge mit `applyMove` nachspielen (höchstens z. B. 5 000 Züge), `isSolved` prüfen und
+  Züge selbst zählen; die Zeit nur auf Plausibilität prüfen (> 0, ≤ 24 h). Gesperrte Nutzer und der Autor kommen nicht in die Rangliste.
+- [ ] Gelöst-Sheet und `#/g/<id>`: Platz und Top 10; ohne Anmeldung ein Hinweis. Ist man offline, wird das Ergebnis
+  später gesendet (Warteschlange im `localStorage`).
+- [ ] Moderation: Einträge eines Nutzers aus allen Ranglisten entfernen (z. B. beim Sperren).
+- [ ] Datenschutzerklärung ergänzen: Ranglisten zeigen den Anzeigenamen öffentlich.
+- [ ] Live testen: gefälschte Zugfolgen, zu kurze Zugfolgen, nicht gelöste Endstellung, Handy-Test.
+
+### M26 – Tägliches Rätsel
+- [ ] Migration: Tabelle `daily` (Tag als Schlüssel, `puzzle_id`, geplant von). Die Funktion `daily_puzzle()`
+  (security definer) liefert das Rätsel des heutigen Tags (Zeitzone Europe/Berlin). Gibt es noch keins, wählt sie eins,
+  ohne Cron-Job: sichtbar, noch nie täglich, gut bewertet bzw. beliebt, nicht derselbe Typ wie gestern.
+  Gleichzeitige Aufrufe sind über den Schlüssel abgesichert.
+- [ ] Wird das heutige Rätsel ausgeblendet oder zurückgezogen, wählt die Funktion neu.
+- [ ] Tagesrangliste: Tabelle `daily_scores`; nur der **erste** Lösungsversuch des Tages zählt. Geprüft wird über
+  `submit-score` aus M25.
+- [ ] Startseite: Karte „Rätsel des Tages“ (Typ, Stufe, gelöst?); Route `#/daily` führt zum heutigen Rätsel.
+- [ ] Serie (Tage am Stück gelöst): angemeldet aus `daily_scores`, sonst lokal gespeichert.
+- [ ] Moderationsansicht: die nächsten 14 Tage planen, das heutige Rätsel ersetzen.
+- [ ] Live testen (Tageswechsel simulieren, leere Galerie, ausgeblendetes Tagesrätsel), Handy-Test.
+
+### M27 – Synchronisierung von Bibliothek und Fortschritt
+- [ ] **Entscheidung im Meilenstein:** Was passiert beim Abmelden mit den lokalen Daten (behalten oder vom Gerät löschen)?
+  Und wenn sich danach ein anderes Konto anmeldet? (Vorschlag: behalten, bei einem Kontowechsel nachfragen.)
+- [ ] Migration: `sync_puzzles` (Nutzer, ID, Dokument, `updated_at` vom Client, `deleted`, `changed_at` vom Server) und
+  `sync_progress` (Nutzer, Schlüssel, gelöst, beste Züge, beste Zeit, `changed_at`); RLS nur eigene Zeilen;
+  Grenzen pro Nutzer (z. B. 500 Rätsel, 64 KB pro Dokument). Privater Storage-Bucket `user-images/<uid>/<key>`.
+- [ ] IndexedDB-Version anheben: Grabsteine für gelöschte Rätsel, „geändert seit dem letzten Sync“, Sync-Cursor pro Konto.
+- [ ] `core/sync.ts` (rein, getestet): Zusammenführen wie oben entschieden; holen seit Cursor (`changed_at`, Keyset),
+  dann eigene Änderungen per `sync_push` senden. Die Funktion setzt nur neuere Stände (`updated_at`) durch.
+  Der Cursor nutzt die Server-Zeit, damit falsch gehende Uhren nicht schaden.
+- [ ] Wann synchronisiert wird: nach der Anmeldung, beim Start, beim Sichtbarwerden der Seite, bei `online` und kurz nach
+  dem Speichern. Bilder werden hochgeladen und erst beim Öffnen geladen.
+- [ ] Alles vom Server geht durch `loadDocument(…, { draft: true })`.
+- [ ] Profil: Sync-Status („zuletzt synchronisiert …“, Fehler, „Jetzt synchronisieren“).
+- [ ] Konto löschen entfernt die Sync-Daten; der Aufräumjob löscht dann auch die `user-images`. Die Datenschutzerklärung
+  wird ergänzt (gespeicherte Entwürfe und Fortschritt).
+- [ ] Free-Tier abschätzen (500 MB Datenbank, 1 GB Storage) und Grenzen danach festlegen.
+- [ ] Live testen mit zwei Geräten: gleichzeitige Änderungen, offline ändern, löschen auf einem Gerät, erstes Anmelden
+  mit vorhandenen lokalen Daten.
+
+### M28 – Englisch und Sprache pro Rätsel
+- [ ] `i18n/en.ts` mit Typ `Record<MessageKey, string>`; ein Test prüft, dass beide Sprachen dieselben Schlüssel und
+  Platzhalter haben. Mehrzahl über `Intl.PluralRules`, wo nötig.
+- [ ] Aktive Sprache: aus `navigator.languages`, änderbar unter Profil › Darstellung, gespeichert im `localStorage`;
+  `<html lang>` und `document.title` folgen. Ein Wechsel rendert neu, ohne die Seite neu zu laden.
+- [ ] Alle fest verdrahteten `de-DE`-Formate (`ui/time.ts`, Quiz-Zahlen, Datenschutz-Datum) nutzen die aktive Sprache.
+- [ ] Beispielrätsel: Titel übersetzen; ein englisches Beispiel-Quiz zusätzlich zum deutschen.
+- [ ] `meta.lang` (`de` | `en`, optional) in der Hülle. Alte App-Versionen verwerfen unbekannte Meta-Felder, also bleibt
+  `format: 1`. Der Inhaltsschlüssel ändert sich nicht. Im Editor ist die Oberflächensprache voreingestellt.
+- [ ] Migration: Spalte `puzzles.lang`, `publish` übernimmt sie; Galerie-Filter `lang` in der Route (Standard: alle),
+  Sprach-Badge auf der Karte.
+- [ ] **Entscheidung im Meilenstein:** Mail-Vorlagen zweisprachig in einer Mail oder je nach `user_metadata.lang`;
+  Impressum und Datenschutz nur auf Deutsch mit englischem Hinweis oder übersetzt.
+- [ ] Englische Texte gegenlesen (die Texte schreibe ich, du prüfst sie), Handy-Test in beiden Sprachen.
 
 ## Phase 4: Ideen aus dem Redesign
 Funktionen aus dem Entwurf (`docs/design-handoff/`), die in M15 bewusst weggelassen wurden.
 Vor dem Umsetzen jeweils entscheiden, ob sie kommen sollen.
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche).
-- [ ] Zeitmessung beim Spielen (Stat-Kachel „Zeit“, im Gelöst-Sheet statt „Bestwert“).
+- [ ] Zeitmessung beim Spielen (Stat-Kachel „Zeit“, im Gelöst-Sheet statt „Bestwert“). → vorgezogen nach M25.
 - [ ] Schwierigkeitsstufe im Editor anzeigen (Live-Prüfung und Prüf-Panel).
 - [ ] „Lösung abspielen“ im Prüf-Panel des Editors.
 - [ ] Teilen per QR-Code im Teilen-Sheet.
@@ -263,6 +458,12 @@ Vor dem Umsetzen jeweils entscheiden, ob sie kommen sollen.
 - [ ] Echte Vorschaubilder der Rätsel auf den Karten statt des Platzhalter-Rasters.
 - [ ] Linien-Symbole statt Emojis auch in den Rätsel-Editoren (Werkzeug-Raster, „Bild hinzufügen“ im Quiz).
 
+## Irgendwann
+- [ ] App-Store-Versionen per Capacitor. Vorher prüfen: neue Pakete (Regel 1), Entwicklerkonten und Kosten, Store-Regeln
+  für nutzergenerierte Inhalte.
+- [ ] Escape-Modus mit Codes: Rätsel geben einen Code aus, der ein Schloss in der Kette öffnet (baut auf M24 auf).
+- [ ] Weitere Typen aus dem Katalog (Flow, Logikgatter, Sudoku, Schiebepuzzle, Water-Sort …).
+
 ---
 
 ## Offene Entscheidungen
@@ -270,4 +471,4 @@ Vor dem Umsetzen jeweils entscheiden, ob sie kommen sollen.
 - [x] Visueller Stil: Design-Übergabe in `docs/design-handoff/`, umgesetzt in M15.
 - [x] Backend für Phase 2: Supabase (EU-Region).
 - [x] SMTP-Anbieter für Account-Mails: Brevo (Absender-Domain `stits.dev`).
-- [ ] Wird Englisch als zweite Sprache schon in Phase 1 benötigt?
+- [x] Wird Englisch als zweite Sprache schon in Phase 1 benötigt? Nein, Englisch kommt mit M28.

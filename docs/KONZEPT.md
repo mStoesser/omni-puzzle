@@ -27,15 +27,15 @@ Drei Säulen:
 
 ## Rätseltypen-Katalog
 
-Status: **MVP** = Phase 1, **später** = Kandidat für spätere Phasen.
+Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **später** = Kandidat für spätere Phasen.
 
 ### Bewegung / Schieben
 | Typ | Beschreibung | Status |
 |---|---|---|
 | Rush Hour | Blöcke gleiten in ihrer Achse; der Ziel-Block muss zum Ausgang | **MVP** |
-| Klotski | Wie Rush Hour, aber Blöcke bewegen sich in alle Richtungen und haben verschiedene Formen | später (Variante von Rush Hour) |
-| Sokoban | Kisten auf Zielfelder schieben | später |
-| Eis-Rutschen | Spielfigur rutscht, bis sie anstößt | später |
+| Klotski | Wie Rush Hour, aber Blöcke bewegen sich in alle Richtungen und haben verschiedene Formen | **Phase 3** (M19) |
+| Sokoban | Kisten auf Zielfelder schieben | **Phase 3** (M18) |
+| Eis-Rutschen | Spielfigur rutscht, bis sie anstößt | **Phase 3** (M17) |
 | Schiebepuzzle (15er) | Kacheln in die richtige Reihenfolge bringen | später |
 | Water-Sort | Farben in Gläsern sortieren | später |
 | Türme von Hanoi | Scheiben umstapeln | später |
@@ -44,18 +44,18 @@ Status: **MVP** = Phase 1, **später** = Kandidat für spätere Phasen.
 | Typ | Beschreibung | Status |
 |---|---|---|
 | Laser & Spiegel | Spiegel drehen, damit der Laser alle Ziele trifft | **MVP** |
-| Laser-Erweiterungen | Strahlteiler, Farbfilter, Portale, Spiegel aus einem Inventar platzieren | später |
-| Lights Out | Klick schaltet Feld und Nachbarn um; alles soll aus sein | später |
+| Laser-Erweiterungen | Strahlteiler, Farbfilter, Portale, Spiegel aus einem Inventar platzieren | **Phase 3** (M23: Inventar, Strahlteiler, Farben) |
+| Lights Out | Klick schaltet Feld und Nachbarn um; alles soll aus sein | **Phase 3** (M20) |
 
 ### Verbinden
 | Typ | Beschreibung | Status |
 |---|---|---|
-| Rohre / Leitungen | Rohrstücke drehen, bis alles verbunden ist | später |
+| Rohre / Leitungen | Rohrstücke drehen, bis alles verbunden ist | **Phase 3** (M21) |
 | Flow | Gleiche Farben verbinden, ohne Kreuzungen | später |
 | Logikgatter | Schaltung bauen, damit der Ausgang leuchtet | später |
 
 ### Logik-Gitter
-Sudoku, Nonogramm/Picross, Kakuro, KenKen, Minesweeper-artig, Einstein-Rätsel: alle **später**.
+Nonogramm/Picross: **Phase 3** (M22). Sudoku, Kakuro, KenKen, Minesweeper-artig, Einstein-Rätsel: **später**.
 
 ### Wort, Wissen, Text
 | Typ | Beschreibung | Status |
@@ -66,9 +66,11 @@ Sudoku, Nonogramm/Picross, Kakuro, KenKen, Minesweeper-artig, Einstein-Rätsel: 
 ### Bild
 Fehlersuche, Wimmelbild, langsam aufgedecktes Bild: **später** (Bilder brauchen das Backend aus Phase 2).
 
-### Meta: Rätsel-Ketten / Escape-Modus (später)
+### Meta: Rätsel-Ketten / Escape-Modus (Phase 3, M24)
 Mehrere Rätsel werden zu einer Kette verknüpft. Die Lösung eines Rätsels (z. B. ein Code) schaltet das nächste frei.
 Das ist das langfristige Alleinstellungsmerkmal.
+In Phase 3 besteht eine Kette aus veröffentlichten Galerie-Rätseln; Lösen schaltet das nächste frei, Texte pro Schritt
+erzählen die Geschichte. Codes, die ein Schloss öffnen, kommen später.
 
 ### Warum genau diese drei für das MVP?
 Quiz (textbasiert, ohne Raster), Laser (Strahlberechnung, Drehen) und Rush Hour (Ziehen, Zustandssuche)
