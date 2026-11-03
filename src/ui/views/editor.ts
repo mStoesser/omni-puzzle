@@ -45,11 +45,24 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
   const hasSolver = type.solve !== undefined;
   const { canTest, canShare } = readiness({ ...model, hasSolver });
   const mode = model.testPlay ? "test" : "build";
+  const undoRedo = html`${iconButton({ label: t("undo"), icon: "undo", onClick: actions.undo, disabled: !canUndoEdit(session) || mode === "test" })}
+  ${iconButton({ label: t("redo"), icon: "redo", onClick: actions.redo, disabled: !canRedoEdit(session) || mode === "test" })}`;
+  const check = html`<section class="editor-check" aria-labelledby="editor-check-title">
+    <h2 id="editor-check-title" class="desktop-only">${t("editorCheck")}</h2>
+    ${checkLine(model, hasSolver)}
+    ${model.solve?.status === "solved"
+      ? html`<p class="check-fact desktop-only"><span>${t("editorShortest")}</span><strong>${(model.solve.moves.length === 1 ? t("oneMove") : t("homeLevelMoves", { moves: model.solve.moves.length }))}</strong></p>`
+      : nothing}
+    ${!canTest || model.verified || model.testPlay ? nothing : html`<p class="editor-hint">${t("statusNotVerified")}</p>`}
+  </section>`;
   return html`
     <header class="editor-head">
       ${iconButton({ label: t("editorClose"), icon: "close", href: "#/library" })}
       <div class="editor-title typed" style=${typeVars(type)}>
-        <span class="play-kicker">${t(type.name)} · ${model.verified ? t("editorReady") : t("libraryDraft")}</span>
+        <span class="play-kicker"
+          >${t(type.name)} · <span class="kicker-status">${model.verified ? t("editorReady") : t("libraryDraft")}</span
+          ><span class="level-long"> · ${t("editorAutosaved")}</span></span
+        >
         <label class="title-input">
           <span class="visually-hidden">${t("editorTitleLabel")}</span>
           <input
@@ -61,30 +74,31 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
           ${icon("pencil", 14)}
         </label>
       </div>
+      <div class="editor-mode">
+        ${segment(
+          t("editorMode"),
+          [
+            { value: "build", label: t("editorBuild"), icon: "pencil" },
+            { value: "test", label: t("testPlay"), icon: "play" },
+          ],
+          mode,
+          (value) => (value === "test" ? canTest && actions.testPlay() : actions.backToEditor()),
+        )}
+      </div>
+      <div class="editor-head-undo desktop-flex">${undoRedo}</div>
       <button class="editor-share" ?disabled=${!canShare} @click=${actions.openShare}>${t("share")}</button>
     </header>
 
-    ${segment(
-      t("editorMode"),
-      [
-        { value: "build", label: t("editorBuild"), icon: "pencil" },
-        { value: "test", label: t("testPlay"), icon: "play" },
-      ],
-      mode,
-      (value) => (value === "test" ? canTest && actions.testPlay() : actions.backToEditor()),
-    )}
-
-    ${checkLine(model, hasSolver)}
-    ${!canTest || model.verified || model.testPlay ? nothing : html`<p class="editor-hint">${t("statusNotVerified")}</p>`}
-
     ${model.testPlay
-      ? html`<div class="editor-test">${model.testPlay}</div>`
+      ? html`${check}<div class="editor-test">${model.testPlay}</div>`
       : html`<div class="editor-body">
+          ${check}
           ${type.renderEditor({ data: currentData(session), update: actions.update, images: model.images })}
           <div class="editor-tools-bar">
-            ${iconButton({ label: t("undo"), icon: "undo", onClick: actions.undo, disabled: !canUndoEdit(session) })}
-            ${iconButton({ label: t("redo"), icon: "redo", onClick: actions.redo, disabled: !canRedoEdit(session) })}
+            <p class="label editor-tools-label">${t("tools")}</p>
+            <span class="editor-tools-undo">${undoRedo}</span>
           </div>
+          <h2 class="editor-settings-title desktop-only">${t("editorSettings")}</h2>
         </div>`}
     ${model.share
       ? shareDialog(model.share, actions.share, {

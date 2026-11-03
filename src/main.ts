@@ -52,7 +52,7 @@ import { libraryView } from "./ui/views/library.ts";
 import type { LibraryItem } from "./ui/views/library.ts";
 import { messageView } from "./ui/views/message.ts";
 import { playView } from "./ui/views/play.ts";
-import type { PlayOrigin, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
+import type { PlayLevel, PlayOrigin, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
 import { privacyView } from "./ui/views/privacy.ts";
 import { encodeImage } from "./ui/image-encode.ts";
 import { buildSheet, tabBar, topNav } from "./ui/components/nav.ts";
@@ -268,6 +268,20 @@ function linkErrorText(error: unknown): MessageKey {
     case "invalid":
       return "linkInvalid";
   }
+}
+
+/** All examples of the same type with their progress, for the level list beside the board. */
+function exampleLevels(state: AppState, id: string): PlayLevel[] {
+  const current = examples.find((e) => e.id === id);
+  return examples
+    .filter((e) => e.doc.type === current?.doc.type)
+    .map((e) => ({
+      href: formatRoute({ name: "play", id: e.id }),
+      title: e.doc.meta.title,
+      current: e.id === id,
+      solved: state.progress.get(state.exampleKeys.get(e.id) ?? "")?.solved === true,
+      minMoves: e.doc.meta.minMoves ?? null,
+    }));
 }
 
 /** Level position and the following example of the same type. */
@@ -1271,9 +1285,10 @@ function view(state: AppState) {
       if (!state.play) return messageView(t("puzzleNotFound"));
       const best = state.progress.get(state.play.progressKey ?? "")?.bestMoves ?? null;
       const { published } = state.play;
-      const play = published
+      let play = published
         ? { ...state.play, published: { ...published, access: reactionAccess(published, state.account.user) } }
         : state.play;
+      if (play.origin === "example" && state.route.name === "play") play = { ...play, levels: exampleLevels(state, state.route.id) };
       return playView(play, best, playActions);
     }
     case "new":

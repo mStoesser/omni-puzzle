@@ -28,7 +28,10 @@ export type PlayViewModel = {
   minMoves: number | null; // shortest solution, if known
   level?: { index: number; total: number }; // position among the examples of its type (1-based)
   next?: { href: string; title: string }; // the following example
+  levels?: readonly PlayLevel[]; // all examples of the type, shown beside the board on desktop
 };
+
+export type PlayLevel = { href: string; title: string; current: boolean; solved: boolean; minMoves: number | null };
 
 /** A published puzzle's details and the player's reactions. */
 export type PublishedInfo = {
@@ -74,14 +77,20 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
   const showUndo = type.controls?.undo !== false;
   const showMoves = type.controls?.moves !== false;
   const menu = menuItems(model, actions);
-  const kicker = model.level ? `${t(type.name)} · ${model.level.index} / ${model.level.total}` : t(type.name);
+  const level = model.level;
+  const remixable = model.origin === "example" || model.origin === "shared" || model.origin === "published";
   return html`
     ${options.embedded ? nothing : html`<header class="play-head">
       ${model.origin === "test"
         ? iconButton({ label: t("backToEditor"), icon: "chevronLeft", onClick: actions.backToEditor })
         : iconButton({ label: t("back"), icon: "chevronLeft", href: model.backHref ?? (model.origin === "own" ? "#/library" : "#/") })}
       <div class="play-title typed" style=${typeVars(type)}>
-        <span class="play-kicker">${kicker}</span>
+        <span class="play-kicker"
+          >${t(type.name)}${level
+            ? html` · <span class="level-short">${level.index} / ${level.total}</span
+                ><span class="level-long">${t("playLevelOf", { index: level.index, total: level.total })}</span>`
+            : nothing}</span
+        >
         <h1>${model.title || t("untitled")}</h1>
       </div>
       ${menu.length > 0
@@ -89,33 +98,68 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
         : html`<span class="play-head-spacer"></span>`}
     </header>`}
 
-    ${showMoves
-      ? html`<div class="stats play-stats" aria-live="polite">
-          ${stat(t("moves"), moves)} ${stat(t("playGoal"), model.minMoves ?? "–")} ${stat(t("playBest"), best ?? "–")}
-        </div>`
-      : nothing}
-
-    <div class="play-main">
-      <div class="board">
-        ${type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch, images: model.images })}
+    <div class="play-layout">
+      <div class="play-stage">
+        <div class="play-main">
+          <div class="board">
+            ${type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch, images: model.images })}
+          </div>
+        </div>
+        <nav class="play-controls ${showUndo ? "" : "single"}" aria-label=${t("playControls")}>
+          ${showUndo
+            ? html`
+                ${control("undo", t("undo"), actions.undo, !canUndo(session))}
+                ${control("redo", t("redo"), actions.redo, !canRedo(session))}
+              `
+            : nothing}
+          ${control("restart", t("restart"), actions.restart, session.history.length === 1)}
+        </nav>
       </div>
-      <p class="play-hint">${t(type.description)}</p>
-      ${model.published ? publishedInfo(model.published, best !== null || session.solved, actions) : nothing}
+      <aside class="play-side" aria-label=${t("playInfo")}>
+        ${showMoves
+          ? html`<div class="stats play-stats" aria-live="polite">
+              ${stat(t("moves"), moves)} ${stat(t("playGoal"), model.minMoves ?? "–")} ${stat(t("playBest"), best ?? "–")}
+            </div>`
+          : nothing}
+        <section class="play-how">
+          <h2 class="desktop-only">${t("playHow")}</h2>
+          <p class="play-hint">${t(type.description)}</p>
+        </section>
+        ${model.published ? publishedInfo(model.published, best !== null || session.solved, actions) : nothing}
+        ${model.levels ? levelBox(model.levels) : nothing}
+        ${remixable
+          ? html`<button class="secondary block play-remix desktop-only" @click=${actions.copyToLibrary}>
+              ${icon("pencil", 18)}${t("playRemixTemplate")}
+            </button>`
+          : nothing}
+      </aside>
     </div>
-
-    <nav class="play-controls ${showUndo ? "" : "single"}" aria-label=${t("playControls")}>
-      ${showUndo
-        ? html`
-            ${control("undo", t("undo"), actions.undo, !canUndo(session))}
-            ${control("redo", t("redo"), actions.redo, !canRedo(session))}
-          `
-        : nothing}
-      ${control("restart", t("restart"), actions.restart, session.history.length === 1)}
-    </nav>
 
     ${model.showSolved ? solvedSheet(showMoves ? moves : null, model, best, actions) : nothing}
     ${model.published?.report ? reportDialog(model.published.report, actions.report) : nothing}
   `;
+}
+
+function levelBox(levels: readonly PlayLevel[]) {
+  return html`<section class="box play-levels desktop-only" aria-labelledby="play-levels">
+    <h2 id="play-levels">${t("playMoreLevels")}</h2>
+    <ul class="level-list">
+      ${levels.map(
+        (l) => html`<li>
+          <a href=${l.href} class=${l.current ? "current" : ""} aria-current=${l.current ? "page" : nothing}>
+            <span class="level-title">${l.title}</span>
+            ${l.current
+              ? html`<span class="level-status now">${t("playLevelNow")}</span>`
+              : l.solved
+                ? html`<span class="level-status ok">${t("solvedMark")}</span>`
+                : l.minMoves !== null
+                  ? html`<span class="level-status">${t("homeLevelMoves", { moves: l.minMoves })}</span>`
+                  : nothing}
+          </a>
+        </li>`,
+      )}
+    </ul>
+  </section>`;
 }
 
 function control(name: IconName, text: string, onClick: () => void, disabled: boolean) {

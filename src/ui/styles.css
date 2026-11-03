@@ -67,6 +67,7 @@ html {
 
 body {
   margin: 0;
+  overflow-x: clip; /* full-width header rules must not cause sideways scrolling */
   min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
@@ -2280,10 +2281,34 @@ a.icon-button {
 
 /* ===== Editor ===== */
 .editor-head {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "close title share"
+    "mode mode mode";
   align-items: center;
-  gap: var(--kk-space-2);
-  padding-bottom: var(--kk-space-3);
+  gap: var(--kk-space-3) var(--kk-space-2);
+}
+
+.editor-head > .icon-button {
+  grid-area: close;
+}
+
+.editor-title {
+  grid-area: title;
+}
+
+.editor-mode {
+  grid-area: mode;
+}
+
+.editor-head .editor-share {
+  grid-area: share;
+}
+
+.desktop-flex {
+  display: none;
 }
 
 .editor-title {
@@ -2395,9 +2420,28 @@ a.icon-button {
 
 .editor-tools-bar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: var(--kk-space-2);
   order: 2;
+}
+
+.editor-tools-label {
+  flex: 1;
+}
+
+.editor-tools-undo {
+  display: flex;
+  gap: var(--kk-space-1);
+}
+
+/* Without a tool palette (e.g. quiz) the label has nothing to name. */
+.editor-body:not(:has(.palette)) .editor-tools-label,
+.editor-body:not(:has(.size-controls)) .editor-settings-title {
+  display: none !important;
+}
+
+.editor-check .check-line {
+  margin-top: var(--kk-space-3);
 }
 
 .editor-tools-bar .icon-button {
@@ -2698,4 +2742,387 @@ a.button.compact {
 
 .sheet .publication-list {
   margin: 0;
+}
+
+/* Play layout: on phones one column (stats, board, hint, info, controls at the bottom);
+   from 900 px board and controls left, sidebar right. */
+.play-layout {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.play-stage,
+.play-side {
+  display: contents;
+}
+
+.play-side .play-stats {
+  order: 1;
+}
+
+/* Board and hint stay together, centered in the free space. */
+.play-main {
+  order: 2;
+  flex: none;
+  margin-top: auto;
+}
+
+.play-how {
+  order: 3;
+  display: grid;
+  justify-items: center;
+  margin-bottom: auto;
+}
+
+.play-side .published-info {
+  order: 4;
+  justify-self: center;
+  margin: var(--kk-space-3) auto 0;
+}
+
+.play-controls {
+  order: 10;
+  margin-top: var(--kk-space-4);
+}
+
+@media (max-width: 899.98px) {
+  .desktop-only,
+  .level-long {
+    display: none !important;
+  }
+}
+
+.level-long {
+  color: var(--kk-muted);
+  font-weight: 400;
+}
+
+.play-levels .current {
+  color: var(--kk-brand-ink);
+  font-weight: 600;
+}
+
+.level-status.now {
+  color: var(--kk-brand-ink);
+  font-weight: 600;
+}
+
+@media (min-width: 900px) {
+  .page.focus {
+    max-width: calc(1200px + 2 * var(--kk-space-6));
+    padding-inline: var(--kk-space-6);
+  }
+
+  .play-side > *,
+  .play-side > .play-stats,
+  .play-side > .published-info,
+  .play-stage > * {
+    order: 0;
+    margin: 0;
+  }
+
+  .play-head {
+    position: relative;
+    padding-bottom: var(--kk-space-4);
+  }
+
+  /* Full-width rule under the header */
+  .play-head::after,
+  .editor-head::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 100vw;
+    height: 1px;
+    background: var(--kk-line);
+    translate: -50% 0;
+  }
+
+  .play-title {
+    text-align: left;
+  }
+
+  .play-kicker {
+    font-size: 0.8125rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .level-short {
+    display: none;
+  }
+
+  .play-title h1 {
+    font-size: 1.375rem;
+  }
+
+  .play-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 300px);
+    align-items: start;
+    gap: var(--kk-space-8) clamp(var(--kk-space-6), 6vw, 160px);
+    padding-top: var(--kk-space-7);
+    flex: none;
+  }
+
+  .play-stage {
+    display: grid;
+    justify-items: center;
+    gap: var(--kk-space-5);
+  }
+
+  .play-side {
+    display: grid;
+    gap: var(--kk-space-4);
+  }
+
+  .play-main {
+    width: 100%;
+    padding: 0;
+  }
+
+  .board:has(> svg) {
+    width: min(100%, 560px, 70dvh);
+  }
+
+  .play-controls {
+    display: flex;
+    gap: var(--kk-space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .play-control {
+    flex-direction: row;
+    gap: var(--kk-space-2);
+    height: var(--kk-btn-h);
+    padding: 0 var(--kk-space-5);
+    border: 1px solid var(--kk-line);
+    background: var(--kk-surface);
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+
+  .play-control .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .play-side .stat {
+    padding: var(--kk-space-3) var(--kk-space-2);
+    border: 1px solid var(--kk-line);
+  }
+
+  .play-side .stat-value {
+    font-size: 1.625rem;
+  }
+
+  .play-how {
+    justify-items: start;
+    padding: var(--kk-space-4);
+    border: 1px solid var(--kk-line);
+    border-radius: var(--kk-radius-xl);
+    background: var(--kk-surface);
+  }
+
+  .play-how h2,
+  .play-levels h2 {
+    margin: 0 0 var(--kk-space-2);
+    font-size: 1.0625rem;
+  }
+
+  .play-how .play-hint {
+    max-width: none;
+    text-align: left;
+    line-height: 1.6;
+  }
+
+  .play-side .published-info {
+    margin: 0;
+  }
+
+  .play-levels .level-list a {
+    min-height: 40px;
+    font-size: 0.9375rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .desktop-flex {
+    display: flex;
+  }
+
+  .editor-head {
+    display: flex;
+    gap: var(--kk-space-3);
+    padding-bottom: var(--kk-space-3);
+  }
+
+  .editor-title {
+    flex: 1;
+    text-align: left;
+  }
+
+  .editor-title .title-input {
+    justify-content: flex-start;
+  }
+
+  .title-input input {
+    padding: 0;
+    font-size: 1.375rem;
+    text-align: left;
+  }
+
+  .editor-mode {
+    width: 300px;
+  }
+
+  .editor-head-undo {
+    gap: var(--kk-space-2);
+  }
+
+  .editor-tools-undo {
+    display: none;
+  }
+
+  /* Grid editors: tools | board | check and settings */
+  .editor-body:has(> .grid-editor) {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 280px;
+    /* min-content rows are not stretched; the board spans them all, the last row takes the rest */
+    grid-template-rows: repeat(6, min-content) 1fr;
+    align-items: start;
+    gap: var(--kk-space-4) var(--kk-space-6);
+    padding-top: var(--kk-space-6);
+  }
+
+  .editor-body:has(> .grid-editor) > * {
+    order: 0;
+  }
+
+  .editor-body:has(> .grid-editor) .editor-tools-bar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .editor-body:has(> .grid-editor) .palette {
+    grid-column: 1;
+    grid-row: 2 / 6;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--kk-space-2);
+  }
+
+  .editor-body:has(> .grid-editor) .palette .tool > span {
+    display: flex;
+    justify-content: flex-start;
+    gap: var(--kk-space-3);
+    min-height: 50px;
+    padding: 0 var(--kk-space-4);
+    font-size: 0.9375rem;
+  }
+
+  .editor-body:has(> .grid-editor) > p {
+    grid-column: 1;
+    grid-row: 6;
+    margin: 0;
+    font-size: 0.8125rem;
+  }
+
+  .editor-body .ge-board {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    justify-self: center;
+    width: min(100%, 600px, 74dvh);
+  }
+
+  .editor-body:has(> .grid-editor) .editor-check {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .editor-check {
+    display: grid;
+    gap: var(--kk-space-3);
+    padding: var(--kk-space-4);
+    border: 1px solid var(--kk-line);
+    border-radius: var(--kk-radius-xl);
+    background: var(--kk-surface);
+  }
+
+  .editor-check h2,
+  .editor-settings-title {
+    margin: 0;
+    font-size: 1.0625rem;
+  }
+
+  .editor-check .check-line {
+    margin: 0;
+  }
+
+  .editor-check .editor-hint {
+    margin: 0;
+  }
+
+  .check-fact {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  .check-fact strong {
+    color: var(--kk-text);
+  }
+
+  .editor-body:has(> .grid-editor) .editor-settings-title {
+    grid-column: 3;
+    grid-row: 3;
+    margin-bottom: calc(-1 * var(--kk-space-4));
+    padding: var(--kk-space-4) var(--kk-space-4) var(--kk-space-3);
+    border: 1px solid var(--kk-line);
+    border-bottom: 0;
+    border-radius: var(--kk-radius-xl) var(--kk-radius-xl) 0 0;
+    background: var(--kk-surface);
+  }
+
+  .editor-body:has(> .grid-editor) .size-controls {
+    grid-column: 3;
+    grid-row: 4;
+    display: grid;
+    gap: var(--kk-space-2);
+    padding: 0 var(--kk-space-4) var(--kk-space-4);
+    border: 1px solid var(--kk-line);
+    border-top: 0;
+    border-radius: 0 0 var(--kk-radius-xl) var(--kk-radius-xl);
+    background: var(--kk-surface);
+  }
+
+  .editor-body:has(> .grid-editor) .stepper {
+    justify-content: space-between;
+  }
+
+  /* Other editors (quiz): check panel above, content in a readable column. */
+  .editor-body:not(:has(> .grid-editor)) {
+    display: grid;
+    width: min(100%, 720px);
+    margin-inline: auto;
+    padding-top: var(--kk-space-6);
+  }
+
+  .editor-test {
+    padding-top: 0;
+  }
+
+  .editor-test {
+    width: 100%;
+  }
+
+  /* Test play: the sidebar shows moves and goal; the check panel would push the board down. */
+  .page.focus > .editor-check {
+    display: none;
+  }
 }
