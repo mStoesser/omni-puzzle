@@ -819,6 +819,7 @@ function openPublish() {
   if (!editor || !account.profile || publishing(state) !== "signed-in") return;
   if (!editing.readiness(editorCheck(editor)).canShare) return;
   patch({
+    share: null,
     publish: { title: editor.session.title, author: account.profile.username, state: "confirm", error: null, publishedId: null },
   });
 }
@@ -872,6 +873,7 @@ const editorActions = {
     };
     patch({ play });
   },
+  backToEditor: () => patch({ play: null }),
   openShare: () => void openShare(),
   share: shareActions,
   openPublish,
@@ -1264,7 +1266,6 @@ function view(state: AppState) {
     }
     case "new":
     case "edit": {
-      if (state.play?.origin === "test") return playView(state.play, null, playActions);
       const editor = state.editor;
       if (!editor) return messageView(t("unknownType"));
       return editorView(
@@ -1273,8 +1274,10 @@ function view(state: AppState) {
           session: editor.session,
           share: state.share,
           publishing: publishing(state),
+          username: state.account.profile?.username ?? null,
           publish: state.publish,
           images: editorImages,
+          testPlay: state.play?.origin === "test" ? playView(state.play, null, playActions, { embedded: true }) : null,
           ...editorCheck(editor),
         },
         editorActions,

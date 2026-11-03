@@ -1,9 +1,8 @@
 import { html, nothing } from "lit-html";
-import { ref } from "lit-html/directives/ref.js";
 import { PUBLISH } from "../../core/publish.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
-import { showModal } from "./dialog.ts";
+import { sheet } from "./ui.ts";
 
 export type PublishDialogModel = {
   title: string;
@@ -22,9 +21,11 @@ export type PublishDialogActions = {
 export function publishDialog(model: PublishDialogModel, actions: PublishDialogActions) {
   const href = model.publishedId ? `#/g/${model.publishedId}` : null;
   const url = href ? `${location.origin}${location.pathname}${href}` : "";
-  return html`
-    <dialog class="dialog" ${ref(showModal)} @close=${actions.close} aria-labelledby="publish-title">
-      <h2 id="publish-title">${t("publishTitle")}</h2>
+  return sheet(
+    "publish-title",
+    actions.close,
+    html`
+      <h2 id="publish-title" class="sheet-title">${t("publishTitle")}</h2>
       ${model.state === "done"
         ? html`
             <p class="status-ok" role="status">${t("publishDone")}</p>
@@ -69,6 +70,6 @@ export function publishDialog(model: PublishDialogModel, actions: PublishDialogA
               </div>
             </form>
           `}
-    </dialog>
-  `;
+    `,
+  );
 }

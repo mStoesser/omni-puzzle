@@ -116,6 +116,10 @@ p {
   color: var(--text-muted);
 }
 
+a {
+  color: var(--kk-brand-ink);
+}
+
 /* Buttons: primary (brand), .secondary, .quiet, .danger (spec section 3). */
 button,
 a.button,
@@ -200,6 +204,13 @@ button:disabled {
   cursor: default;
 }
 
+/* Puzzle components keep their compact button metrics (44 px, as before the redesign). */
+:is(.board, .editor-body) :is(button, a.button, label.button):not(.icon-button) {
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+}
+
 /* Play view */
 .toolbar {
   display: flex;
@@ -220,13 +231,13 @@ button:disabled {
   width: min(24rem, calc(100vw - 2 * var(--space-3)));
   padding: var(--space-4);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--kk-radius-2xl);
   background: var(--surface);
   color: var(--text);
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 0.5);
+  background: var(--kk-scrim);
 }
 
 .dialog h2 {
@@ -326,17 +337,6 @@ input[type="password"]:focus-visible,
   outline-offset: 1px;
 }
 
-.editor-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.editor-toolbar .spacer {
-  flex: 1;
-}
-
 .hint {
   font-size: 0.875rem;
 }
@@ -351,8 +351,8 @@ input[type="password"]:focus-visible,
 }
 
 .palette {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: var(--space-2);
   margin: 0;
   padding: 0;
@@ -365,24 +365,36 @@ input[type="password"]:focus-visible,
   pointer-events: none;
 }
 
+/* Tools: tiles in a 5-column grid; the selected one gets a 2 px brand frame. */
 .tool > span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: var(--tap-min);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--kk-space-1);
+  min-height: 64px;
+  height: 100%;
+  padding: var(--kk-space-2) var(--kk-space-1);
+  border: 2px solid transparent;
+  border-radius: var(--kk-radius-lg);
+  outline: 1px solid var(--kk-line);
+  outline-offset: -1px;
+  background: var(--kk-surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
   user-select: none;
+  overflow-wrap: anywhere;
+}
+
+.tool > span > span[aria-hidden="true"] {
+  font-size: 1.25rem;
 }
 
 .tool input:checked + span {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 600;
+  border-color: var(--kk-brand);
+  outline-color: transparent;
 }
 
 .tool input:focus-visible + span {
@@ -423,22 +435,6 @@ input[type="password"]:focus-visible,
   text-align: center;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-}
-
-.editor-status {
-  margin-top: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.editor-status p {
-  margin: 0 0 var(--space-1);
-}
-
-.editor-status p:last-child {
-  margin-bottom: 0;
 }
 
 .problem-list {
@@ -2316,4 +2312,249 @@ a.icon-button {
   .page.wide .card-list {
     grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   }
+}
+
+/* ===== Editor ===== */
+.editor-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  padding-bottom: var(--kk-space-3);
+}
+
+.editor-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.title-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kk-space-1);
+  color: var(--kk-muted);
+}
+
+.title-input input {
+  min-width: 4ch;
+  min-height: 32px;
+  padding: 0 var(--kk-space-1);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--kk-text);
+  font-family: var(--kk-font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: center;
+  field-sizing: content;
+  max-width: calc(100% - 20px);
+}
+
+.title-input input:hover {
+  background: var(--kk-surface);
+}
+
+.editor-share {
+  flex: none;
+  min-height: var(--kk-tap-min);
+  padding-inline: var(--kk-space-4);
+}
+
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  margin-top: var(--kk-space-3);
+  padding: var(--kk-space-3) var(--kk-space-4);
+  border-radius: var(--kk-radius-lg);
+  background: var(--kk-surface);
+  color: var(--kk-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.check-line.ok {
+  background: var(--kk-ok-tint);
+  color: var(--kk-ok);
+}
+
+.check-line.problem {
+  background: color-mix(in srgb, var(--kk-danger) 12%, transparent);
+  color: var(--kk-danger);
+}
+
+.check-line > span:first-of-type {
+  flex: 1;
+}
+
+.check-more {
+  flex: none;
+}
+
+.check-line + .problem-list {
+  margin: var(--kk-space-2) 0 0;
+  color: var(--kk-danger);
+  font-size: 0.875rem;
+}
+
+.editor-hint {
+  margin: var(--kk-space-2) 0 0;
+  font-size: 0.8125rem;
+}
+
+/* Editor body: the type's editor renders here. A grid editor's parts are reordered:
+   board first, then undo/redo, tools and size (the form box itself is dissolved). */
+.editor-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--kk-space-4);
+  padding: var(--kk-space-4) 0 max(var(--kk-space-3), env(safe-area-inset-bottom));
+}
+
+.editor-body > .grid-editor {
+  display: contents;
+}
+
+.editor-body .ge-board {
+  order: 1;
+  width: min(100%, 600px, 56dvh);
+  padding: var(--kk-space-2);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-2xl);
+  background: var(--kk-surface);
+  align-self: center;
+}
+
+.editor-tools-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--kk-space-2);
+  order: 2;
+}
+
+.editor-tools-bar .icon-button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.editor-body .palette {
+  order: 3;
+}
+
+.editor-body .size-controls {
+  order: 4;
+}
+
+.editor-test {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding-top: var(--kk-space-3);
+}
+
+/* Share sheet */
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-3);
+}
+
+.share-way {
+  display: grid;
+  gap: var(--kk-space-3);
+  padding: var(--kk-space-4);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-xl);
+}
+
+.share-way.primary-way {
+  border: 2px solid var(--kk-brand);
+  background: var(--kk-brand-tint);
+}
+
+.share-way-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--kk-space-3);
+}
+
+.share-way-head h3 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.share-way-head p {
+  font-size: 0.8125rem;
+}
+
+.share-way-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--kk-radius-md);
+  background: var(--kk-surface-2);
+}
+
+.share-way-icon.brand {
+  background: var(--kk-brand);
+  color: var(--kk-on-brand);
+}
+
+.share-link-row {
+  display: flex;
+  gap: var(--kk-space-2);
+}
+
+.share-link-row .share-link {
+  flex: 1;
+  min-width: 0;
+  border-color: var(--kk-line);
+  background: var(--kk-bg);
+}
+
+.share-link-row button {
+  flex: none;
+  padding-inline: var(--kk-space-4);
+}
+
+.share-way .hint {
+  margin: 0;
+}
+
+.checklist {
+  display: grid;
+  gap: var(--kk-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  color: var(--kk-muted);
+}
+
+.checklist li.done {
+  color: var(--kk-text);
+}
+
+.checklist li.done .icon {
+  color: var(--kk-ok);
+}
+
+.todo-dot {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--kk-muted);
+  border-radius: 50%;
 }

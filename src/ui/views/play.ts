@@ -62,8 +62,11 @@ export type PlayViewActions = {
 
 const MENU_ID = "play-menu";
 
-/** `best` = best result so far for this puzzle, if solved before. */
-export function playView(model: PlayViewModel, best: number | null, actions: PlayViewActions) {
+/**
+ * `best` = best result so far for this puzzle, if solved before.
+ * `embedded`: inside the editor frame (test play), without the own header.
+ */
+export function playView(model: PlayViewModel, best: number | null, actions: PlayViewActions, options: { embedded?: boolean } = {}) {
   const { session } = model;
   const { type } = session;
   const moves = moveCount(session);
@@ -72,7 +75,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
   const menu = menuItems(model, actions);
   const kicker = model.level ? `${t(type.name)} · ${model.level.index} / ${model.level.total}` : t(type.name);
   return html`
-    <header class="play-head">
+    ${options.embedded ? nothing : html`<header class="play-head">
       ${model.origin === "test"
         ? iconButton({ label: t("backToEditor"), icon: "chevronLeft", onClick: actions.backToEditor })
         : iconButton({ label: t("back"), icon: "chevronLeft", href: model.backHref ?? (model.origin === "own" ? "#/library" : "#/") })}
@@ -88,7 +91,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
               ${menu.map((item) => menuItem(item))}
             </div>`
         : html`<span class="play-head-spacer"></span>`}
-    </header>
+    </header>`}
 
     ${showMoves
       ? html`<div class="stats play-stats" aria-live="polite">

@@ -7,6 +7,9 @@ import { publishDialog } from "../components/publish-dialog.ts";
 import type { PublishDialogActions, PublishDialogModel } from "../components/publish-dialog.ts";
 import { shareDialog } from "../components/share-dialog.ts";
 import type { ShareDialogActions, ShareDialogModel } from "../components/share-dialog.ts";
+import { iconButton, segment, typeVars } from "../components/ui.ts";
+import { icon } from "../icons.ts";
+import type { TemplateResult } from "lit-html";
 
 export type EditorViewModel = {
   type: AnyPuzzleType;
@@ -17,8 +20,11 @@ export type EditorViewModel = {
   share: ShareDialogModel | null; // open share dialog
   /** null = no backend; otherwise whether the user can publish now. */
   publishing: "signed-in" | "signed-out" | null;
+  username: string | null; // signed-in author, for the publish checklist
   publish: PublishDialogModel | null; // open publish dialog
   images: EditorContext<unknown>["images"];
+  /** Test play inside the editor frame (segment "Probespielen"); null = building. */
+  testPlay: TemplateResult | null;
 };
 
 export type EditorViewActions = {
@@ -27,6 +33,7 @@ export type EditorViewActions = {
   redo(): void;
   setTitle(title: string): void;
   testPlay(): void;
+  backToEditor(): void;
   openShare(): void;
   share: ShareDialogActions;
   openPublish(): void;
@@ -37,68 +44,90 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
   const { type, session } = model;
   const hasSolver = type.solve !== undefined;
   const { canTest, canShare } = readiness({ ...model, hasSolver });
+  const mode = model.testPlay ? "test" : "build";
   return html`
-    <header class="toolbar">
-      <a class="button secondary" href="#/library" aria-label=${t("back")}>←</a>
-      <h1 class="toolbar-title">${t(type.name)}</h1>
+    <header class="editor-head">
+      ${iconButton({ label: t("editorClose"), icon: "close", href: "#/library" })}
+      <div class="editor-title typed" style=${typeVars(type)}>
+        <span class="play-kicker">${t(type.name)} · ${model.verified ? t("editorReady") : t("libraryDraft")}</span>
+        <label class="title-input">
+          <span class="visually-hidden">${t("editorTitleLabel")}</span>
+          <input
+            type="text"
+            maxlength="200"
+            .value=${session.title}
+            @input=${(e: Event) => actions.setTitle((e.target as HTMLInputElement).value)}
+          />
+          ${icon("pencil", 14)}
+        </label>
+      </div>
+      <button class="editor-share" ?disabled=${!canShare} @click=${actions.openShare}>${t("share")}</button>
     </header>
-    <label class="field">
-      <span>${t("editorTitleLabel")}</span>
-      <input
-        type="text"
-        maxlength="200"
-        .value=${session.title}
-        @input=${(e: Event) => actions.setTitle((e.target as HTMLInputElement).value)}
-      />
-    </label>
-    <div class="editor-toolbar">
-      <button class="secondary" @click=${actions.undo} ?disabled=${!canUndoEdit(session)}>${t("undo")}</button>
-      <button class="secondary" @click=${actions.redo} ?disabled=${!canRedoEdit(session)}>${t("redo")}</button>
-      <span class="spacer"></span>
-      <button class="secondary" @click=${actions.testPlay} ?disabled=${!canTest}>${t("testPlay")}</button>
-      <button @click=${actions.openShare} ?disabled=${!canShare}>${t("share")}</button>
-      ${model.publishing
-        ? html`<button @click=${actions.openPublish} ?disabled=${!canShare || model.publishing !== "signed-in"}>
-            ${t("publish")}
-          </button>`
-        : nothing}
-    </div>
-    ${canShare && model.publishing === "signed-out"
-      ? html`<p class="hint">${t("publishSignInHint")} <a href="#/account">${t("accountLink")}</a></p>`
+
+    ${segment(
+      t("editorMode"),
+      [
+        { value: "build", label: t("editorBuild"), icon: "pencil" },
+        { value: "test", label: t("testPlay"), icon: "play" },
+      ],
+      mode,
+      (value) => (value === "test" ? canTest && actions.testPlay() : actions.backToEditor()),
+    )}
+
+    ${checkLine(model, hasSolver)}
+    ${!canTest || model.verified || model.testPlay ? nothing : html`<p class="editor-hint">${t("statusNotVerified")}</p>`}
+
+    ${model.testPlay
+      ? html`<div class="editor-test">${model.testPlay}</div>`
+      : html`<div class="editor-body">
+          ${type.renderEditor({ data: currentData(session), update: actions.update, images: model.images })}
+          <div class="editor-tools-bar">
+            ${iconButton({ label: t("undo"), icon: "undo", onClick: actions.undo, disabled: !canUndoEdit(session) })}
+            ${iconButton({ label: t("redo"), icon: "redo", onClick: actions.redo, disabled: !canRedoEdit(session) })}
+          </div>
+        </div>`}
+    ${model.share
+      ? shareDialog(model.share, actions.share, {
+          publishing: model.publishing,
+          username: model.username,
+          minMoves: model.solve?.status === "solved" ? model.solve.moves.length : null,
+          openPublish: actions.openPublish,
+        })
       : nothing}
-    ${type.renderEditor({ data: currentData(session), update: actions.update, images: model.images })}
-    <section class="editor-status" role="status">
-      ${model.problems.length > 0
-        ? html`
-            <p class="status-problem">${t("problemsHeading")}</p>
-            <ul class="problem-list">
-              ${model.problems.map((text) => html`<li>${text}</li>`)}
-            </ul>
-          `
-        : html`
-            ${hasSolver ? html`<p class=${solveClass(model.solve)}>${solveText(model.solve)}</p>` : nothing}
-            <p class=${model.verified ? "status-ok" : ""}>
-              ${model.verified ? t("statusVerified") : t("statusNotVerified")}
-            </p>
-          `}
-    </section>
-    ${model.share ? shareDialog(model.share, actions.share) : nothing}
     ${model.publish ? publishDialog(model.publish, actions.publish) : nothing}
   `;
 }
 
-function solveText(solve: SolveResult<unknown> | null): string {
-  if (!solve) return t("statusChecking");
-  switch (solve.status) {
-    case "solved":
-      return solve.moves.length === 1 ? t("statusSolvableOne") : t("statusSolvable", { moves: solve.moves.length });
-    case "unsolvable":
-      return t("statusUnsolvable");
-    case "aborted":
-      return t("statusAborted");
-  }
+/** Live check as one status line: green when solvable, red with the reason when not. */
+function checkLine(model: EditorViewModel, hasSolver: boolean) {
+  const [tone, text]: [string, string] =
+    model.problems.length > 0
+      ? ["problem", `${t("problemsHeading")} ${model.problems[0]}`]
+      : !hasSolver
+        ? model.verified
+          ? ["ok", t("statusVerified")]
+          : ["", t("statusPlayable")]
+        : solveLine(model.solve);
+  return html`<div class="check-line ${tone}" role="status">
+    ${icon(tone === "ok" ? "check" : tone === "problem" ? "alert" : "info", 18)}
+    <span>${text}</span>
+    ${model.problems.length > 1 ? html`<span class="check-more">+${model.problems.length - 1}</span>` : nothing}
+  </div>
+  ${model.problems.length > 1
+    ? html`<ul class="problem-list">
+        ${model.problems.slice(1).map((p) => html`<li>${p}</li>`)}
+      </ul>`
+    : nothing}`;
 }
 
-function solveClass(solve: SolveResult<unknown> | null): string {
-  return solve?.status === "unsolvable" ? "status-problem" : solve?.status === "solved" ? "status-ok" : "";
+function solveLine(solve: SolveResult<unknown> | null): [string, string] {
+  if (!solve) return ["", t("statusChecking")];
+  switch (solve.status) {
+    case "solved":
+      return ["ok", solve.moves.length === 1 ? t("checkSolvableOne") : t("checkSolvable", { moves: solve.moves.length })];
+    case "unsolvable":
+      return ["problem", t("statusUnsolvable")];
+    case "aborted":
+      return ["", t("statusAborted")];
+  }
 }
