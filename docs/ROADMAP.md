@@ -313,16 +313,27 @@ Der einfachste Typ mit Spielfigur. Er testet die Richtungs-Eingabe aus M16.
 - [ ] Live testen: veröffentlichen (Edge Function wird erst beim Push deployt), in der Galerie nach Typ filtern.
 
 ### M18 – Sokoban (`sokoban`)
-- [ ] Datenformat: Raster mit Wand, Boden, Ziel, Kiste, Kiste auf Ziel und Spielfigur; höchstens z. B. 20×20.
+- [x] Datenformat: Raster mit Wand, Boden, Ziel, Kiste, Kiste auf Ziel und Spielfigur; höchstens z. B. 20×20.
   Ein Zug ist ein Schritt; ein Schritt, der eine Kiste schiebt, zählt ebenfalls als ein Zug.
-- [ ] Validierung: genau eine Figur, gleich viele Kisten wie Ziele (mindestens eine).
-- [ ] Solver: Breitensuche nach Schritten über (Figur, Kisten), Kisten sortiert im Zustandsschlüssel; Pruning über tote
+  (Im XSB-Textformat, eine Zeichenkette pro Zeile; Links um 230 Zeichen.)
+- [x] Validierung: genau eine Figur, gleich viele Kisten wie Ziele (mindestens eine).
+- [x] Solver: Breitensuche nach Schritten über (Figur, Kisten), Kisten sortiert im Zustandsschlüssel; Pruning über tote
   Felder (Ecken ohne Ziel). Bricht er ab (auch serverseitig), wird ohne `minMoves` veröffentlicht, und die Stufe kommt aus
   Bewertungen wie beim Quiz.
-- [ ] Bedienung: Wischen, Pfeiltasten, Tippen auf ein erreichbares Feld läuft dorthin (Wegsuche ohne Schieben,
+  (Tote Felder allgemein: von dort kann eine Kiste nie mehr auf ein Ziel. Stufen bis 20 / bis 50 Schritte. Vier Beispiele mit
+  12, 29, 42 und 53 Schritten, alle innerhalb des Server-Limits lösbar.)
+- [x] Bedienung: Wischen, Pfeiltasten, Tippen auf ein erreichbares Feld läuft dorthin (Wegsuche ohne Schieben,
   zählt als mehrere Schritte); Undo pro Schritt.
-- [ ] Editor: Wände ziehend malen, Kiste, Ziel, Figur, Radierer.
-- [ ] Entscheidung im Meilenstein: Sollen in der Rangliste Schritte oder Schiebe-Züge zählen? (Standard: Schritte, wie der Zugzähler.)
+  (Dazu: Tippen auf eine Kiste neben der Figur schiebt sie. Der Laufweg stoppt bei Undo und jeder anderen Eingabe.)
+- [x] Editor: Wände ziehend malen, Kiste, Ziel, Figur, Radierer.
+- [x] Entscheidung im Meilenstein: Sollen in der Rangliste Schritte oder Schiebe-Züge zählen? (Standard: Schritte, wie der Zugzähler.)
+  (Schritte, wie vorgeschlagen; bei Bedarf in M25 nochmal ansehen.)
+- [x] Checkliste für neue Typen. Im Browser über die LAN-Adresse geprüft: Spielen mit Wischen, Tasten, Richtungsknöpfen,
+  Laufen und Schieben per Tippen, Undo während eines Laufwegs, Gelöst-Sheet; Editor (Kisten/Ziele-Prüfung, tote Ecke,
+  Wand-Strich mit Undo, Probespielen), hell und dunkel, mobil und Desktop.
+- [ ] Handy-Test, dabei auch: Wie lange friert der Editor bei einem großen, offenen Lager ein (Solver-Abbruch nach 200 000
+  Knoten)? Falls störend: Solver-Limit pro Typ.
+- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M19 – Klotski (`klotski`)
 Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt in den Core oder wird bewusst kopiert.

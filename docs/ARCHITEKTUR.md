@@ -98,6 +98,7 @@ src/
     laser/     { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     quiz/      { index.ts, rules.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     ice/       { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    sokoban/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # deutsche Mail-Vorlagen
@@ -208,7 +209,7 @@ Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
 ### Spielfiguren steuern (`ui/components/swipe.ts`, seit M16)
 
 Für Typen mit einer Figur (Eis-Rutschen, Sokoban): `swipeStart`/`swipeEnd`/`swipeCancel` auf dem Spielfeld liefern die
-Wischrichtung (dominante Achse, mindestens 24 px; kürzer liefert `"tap"`, z. B. um auf ein Feld zu tippen), `directionKey` übersetzt Pfeiltasten und WASD
+Wischrichtung (dominante Achse, mindestens 24 px; kürzer liefert `"tap"`, z. B. um auf ein Feld zu tippen, siehe Eis-Rutschen und Sokoban), `directionKey` übersetzt Pfeiltasten und WASD
 (Tastenkombinationen wie Strg+Z bleiben frei) und `directionPad` zeigt vier 44-px-Knöpfe als Alternative. Die reine
 Logik dazu (`swipeDir`, `keyDir`) liegt getestet in `core/grid.ts`.
 
@@ -298,6 +299,32 @@ type IceMove = "N" | "E" | "S" | "W";                                 // ein Rut
   Die Figur zeigt im Editor den Start.
 - Beispiele sind per Skript erzeugt: Zufallsbretter mit genau dieser minimalen Zugzahl, ausgewählt nach vielen erreichbaren
   Positionen und Sackgassen.
+
+### Sokoban (`sokoban`, seit M18)
+
+```ts
+type SokobanData = { rows: string[] };  // XSB-Format: "#" Wand, " " Boden, "." Ziel, "$" Kiste, "*" Kiste auf Ziel,
+                                        // "@" Figur, "+" Figur auf Ziel; 3–20 Felder je Seite, alle Zeilen gleich lang
+type SokobanState = { player: number; boxes: readonly number[] };  // Zellindizes y · Breite + x
+type SokobanMove = "N" | "E" | "S" | "W";                         // ein Schritt; Schieben ist auch ein Schritt
+```
+
+- Das XSB-Textformat ist unter Sokoban-Programmen verbreitet und hält Links kurz (etwa 230 Zeichen für die Beispiele).
+- Genau eine Figur, mindestens eine Kiste und gleich viele Ziele wie Kisten. Gelöst, wenn alle Kisten auf Zielen stehen.
+- Die Kisten behalten im Zustand ihre Reihenfolge, damit jede Kiste dasselbe SVG-Element bleibt und animiert verschoben wird;
+  nur der Solver vergleicht sie als Menge.
+- **Solver:** Breitensuche nach Schritten über (Figur, Kisten), Kisten sortiert im Schlüssel. Pruning über **tote Felder**
+  (`liveCells`: Felder, von denen eine Kiste nie mehr auf ein Ziel kommt, berechnet durch „Ziehen“ von jedem Ziel aus);
+  ein Test vergleicht mit einer Suche ohne Pruning. Große, offene Lager brechen ab (im Editor nach etwa 0,5 s am Desktop);
+  dann wird ohne `minMoves` veröffentlicht, und die Stufe kommt aus Bewertungen. Stufen: bis 20 Schritte leicht, bis 50 mittel.
+- **Bedienung:** Wischen, Pfeiltasten/WASD, Richtungsknöpfe; Tippen auf ein erreichbares Feld läuft dorthin (`walkPath`,
+  ohne zu schieben). Die Schritte werden einzeln im Abstand von 90 ms ausgeführt, zählen also einzeln und lassen sich einzeln
+  zurücknehmen. Der Lauf stoppt bei jeder anderen Eingabe und sobald die Figur nicht dort steht, wo der nächste Schritt sie
+  erwartet (Undo, Neustart, anderes Rätsel). Tippen auf eine Kiste direkt neben der Figur schiebt sie.
+- Boden außerhalb der Mauern (für die Figur nicht erreichbar) wird blass gezeichnet.
+- **Editor:** Wand und Radierer ziehend; Kiste, Ziel und Figur per Tippen. Kiste und Ziel auf einem Feld ergeben „Kiste auf
+  Ziel“, die Figur gibt es nur einmal. Beim Vergrößern kommt Boden dazu.
+- Beispiele sind per Skript erzeugt (Zufallsräume, gelöst innerhalb des Server-Limits, ausgewählt nach vielen Schüben).
 
 ### Quiz (`quiz`)
 
