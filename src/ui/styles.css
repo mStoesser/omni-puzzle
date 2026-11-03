@@ -284,6 +284,16 @@ h2 {
   font-size: 0.875rem;
 }
 
+/* Scroll containers and cards are positioned, so absolutely positioned descendants (e.g. .visually-hidden)
+   stay inside them. Otherwise they escape the scroller's clipping and widen the page on phones,
+   which shifts the fixed tab bar. */
+.tile-scroller,
+.chips,
+.puzzle-tile,
+.puzzle-card {
+  position: relative;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
