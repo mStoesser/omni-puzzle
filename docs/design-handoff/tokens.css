@@ -1,0 +1,108 @@
+/* Knobelkiste – Design Tokens
+   Dunkel ist Standard. Hell über [data-theme="light"] oder System-Präferenz. */
+
+:root {
+  /* Flächen */
+  --kk-bg: #0F1115;
+  --kk-surface: #171A21;
+  --kk-surface-2: #1F232C;
+  --kk-line: #2A2F3A;
+
+  /* Text */
+  --kk-text: #F3F4F6;
+  --kk-muted: #A1A8B5;
+  --kk-disabled: #6B7280;
+
+  /* Marke – nur für Hauptaktionen */
+  --kk-brand: #FFD34D;
+  --kk-brand-tint: rgba(255, 211, 77, .12);
+  --kk-brand-ink: #FFD34D;      /* Marke als Textfarbe (Links, aktiver Tab) */
+  --kk-on-brand: #1C1700;
+
+  /* Status */
+  --kk-ok: #5BE38D;
+  --kk-ok-tint: rgba(91, 227, 141, .14);
+  --kk-danger: #FF7676;
+  --kk-danger-line: rgba(255, 118, 118, .35);
+
+  /* Rätseltypen: Farbe + Tint (Hintergrund für Icon-Kacheln/Badges) */
+  --kk-type-rushhour: #FF8A66;
+  --kk-type-rushhour-tint: rgba(255, 138, 102, .14);
+  --kk-type-laser: #4FD8E8;
+  --kk-type-laser-tint: rgba(79, 216, 232, .13);
+  --kk-type-quiz: #B9A2FF;
+  --kk-type-quiz-tint: rgba(185, 162, 255, .15);
+
+  /* Overlay */
+  --kk-scrim: rgba(8, 9, 12, .72);
+  --kk-tabbar-bg: rgba(15, 17, 21, .94);
+
+  /* Typografie */
+  --kk-font-display: 'Space Grotesk', Inter, system-ui, sans-serif;
+  --kk-font-body: Inter, system-ui, sans-serif;
+
+  /* Radien */
+  --kk-radius-sm: 10px;   /* kleine Buttons, Inputs in Panels */
+  --kk-radius-md: 12px;   /* Icon-Buttons, Inputs */
+  --kk-radius-lg: 14px;   /* Haupt-Buttons, Stat-Kacheln */
+  --kk-radius-xl: 18px;   /* Karten */
+  --kk-radius-2xl: 20px;  /* große Karten, Spielfeld (mobil) */
+  --kk-radius-sheet: 28px;/* Bottom-Sheets oben */
+  --kk-radius-pill: 999px;
+
+  /* Abstände (4er-Raster) */
+  --kk-space-1: 4px;
+  --kk-space-2: 8px;
+  --kk-space-3: 12px;
+  --kk-space-4: 16px;
+  --kk-space-5: 20px;
+  --kk-space-6: 24px;
+  --kk-space-7: 28px;
+  --kk-space-8: 32px;
+
+  /* Größen */
+  --kk-tap-min: 44px;
+  --kk-btn-h: 48px;
+  --kk-btn-h-lg: 52px;
+  --kk-tabbar-h: 84px;
+}
+
+:root[data-theme="light"] {
+  --kk-bg: #F6F5F1;
+  --kk-surface: #FFFFFF;
+  --kk-surface-2: #EEEDE8;
+  --kk-line: #E0DED7;
+  --kk-text: #16181D;
+  --kk-muted: #5B6170;
+  --kk-disabled: #9AA0AC;
+  --kk-brand: #FFC933;
+  --kk-brand-tint: rgba(255, 201, 51, .18);
+  --kk-brand-ink: #7A5B00;      /* Gelb ist auf Weiß als Text nicht lesbar */
+  --kk-on-brand: #1C1700;
+  --kk-ok: #15803D;
+  --kk-ok-tint: rgba(21, 128, 61, .12);
+  --kk-danger: #C62828;
+  --kk-danger-line: rgba(198, 40, 40, .35);
+  --kk-type-rushhour: #C2410C;
+  --kk-type-rushhour-tint: rgba(234, 88, 12, .12);
+  --kk-type-laser: #0E7C8C;
+  --kk-type-laser-tint: rgba(14, 124, 140, .11);
+  --kk-type-quiz: #6D4ED6;
+  --kk-type-quiz-tint: rgba(109, 78, 214, .11);
+  --kk-scrim: rgba(22, 24, 29, .45);
+  --kk-tabbar-bg: rgba(255, 255, 255, .95);
+}
+
+@media (prefers-color-scheme: light) {
+  /* Einstellung "System": gleiche Werte wie [data-theme="light"] */
+  :root:not([data-theme]) {
+    --kk-bg: #F6F5F1; --kk-surface: #FFFFFF; --kk-surface-2: #EEEDE8; --kk-line: #E0DED7;
+    --kk-text: #16181D; --kk-muted: #5B6170; --kk-disabled: #9AA0AC;
+    --kk-brand: #FFC933; --kk-brand-tint: rgba(255, 201, 51, .18); --kk-brand-ink: #7A5B00; --kk-on-brand: #1C1700;
+    --kk-ok: #15803D; --kk-ok-tint: rgba(21, 128, 61, .12); --kk-danger: #C62828; --kk-danger-line: rgba(198, 40, 40, .35);
+    --kk-type-rushhour: #C2410C; --kk-type-rushhour-tint: rgba(234, 88, 12, .12);
+    --kk-type-laser: #0E7C8C; --kk-type-laser-tint: rgba(14, 124, 140, .11);
+    --kk-type-quiz: #6D4ED6; --kk-type-quiz-tint: rgba(109, 78, 214, .11);
+    --kk-scrim: rgba(22, 24, 29, .45); --kk-tabbar-bg: rgba(255, 255, 255, .95);
+  }
+}

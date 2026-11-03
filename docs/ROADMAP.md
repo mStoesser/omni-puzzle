@@ -207,19 +207,64 @@ folgen mit M10, wenn es veröffentlichte Rätsel gibt.)
   Kopie in die Bibliothek mit Bild, Aufräumjob löscht Bilder zurückgezogener Rätsel und lässt vorhandene stehen.
   Handy-Test erfolgreich. Die App meldet jetzt, wenn ein altes App-Fenster den Gerätespeicher beim Update blockiert.)
 
+### M15 – Redesign der App-Hülle
+Vorlage: `docs/design-handoff/` (Spezifikation, Tokens, Entwürfe). Die Darstellung der Rätsel selbst bleibt unverändert.
+- [x] Design-Tokens (`src/ui/tokens.css`), Schriften Inter und Space Grotesk selbst gehostet (OFL), Theme über
+  `data-theme` auf `<html>`; Dunkel ist Standard, Hell und System wählbar.
+  (Die alten CSS-Variablen bleiben als Aliase, weil die Rätsel-Komponenten sie nutzen. Rushhour und Laser wählen ihre
+  dunklen Farben jetzt nach `data-theme` statt nur nach der Systemeinstellung, die Farbwerte sind gleich.)
+- [x] Jeder Rätseltyp hat ein Linien-Symbol und eine Typfarbe (`PuzzleType.icon` als SVG, `PuzzleType.color`) statt Emoji.
+- [x] Komponenten: eigenes Linien-Icon-Set, Buttons, Icon-Button, Segment, Chips, Badges, Karten, Stat-Kacheln,
+  Einstellungs-Listen, Bottom-Sheet, Popover-Menü, Tab-Leiste (mobil) und obere Navigation (Desktop, ab 900 px).
+- [x] Start: Begrüßung, Bau-Banner, Typ-Kacheln mit Fortschritt (Level mobil im Sheet, Desktop direkt in der Karte),
+  „Neu in der Galerie“.
+- [x] Spiel: Kopf mit Typ · Level und Mehr-Menü, Stat-Kacheln, Spielfeld-Container, Steuerleiste; Gelöst als Bottom-Sheet
+  (optimal / nicht optimal, Like, Bewertung, nächstes Rätsel, Remixen).
+- [x] Galerie: Typ-Chips, Trefferzahl, Schwierigkeit und Sortierung, Rätsel-Karten mit Autor und relativer Zeit.
+- [x] Editor: Kopf mit tippbarem Titel, Segment Bauen/Probespielen (Probespielen im Editor-Rahmen), Live-Prüfung als
+  Statuszeile, Werkzeug-Raster; Teilen-Sheet mit „Per Link“ und „In der Galerie veröffentlichen“ samt Prüfliste.
+- [x] Meine Rätsel: Listenkarten mit Status-Badge und Mehr-Menü (Bearbeiten, Spielen, Duplizieren, Löschen).
+- [x] Profil: Stats, Einstellungsgruppen (Anzeigename, Passwort, Veröffentlichungen als Sheets), Darstellung auch ohne Konto,
+  Rechtliches, Abmelden, Gefahrenbox.
+- [x] Desktop: Spiel mit Seitenleiste (Stats, So geht’s, weitere Level, Remixen), Editor dreispaltig
+  (Werkzeuge, Bau-Fläche, Prüfung und Einstellungen).
+- [x] Im Browser mit den Entwürfen verglichen (mobil 390 px, Desktop 1280/1440 px, dunkel und hell).
+- [ ] Live testen auf dem Handy, auch mit einem echten veröffentlichten Rätsel (Like-Zeile im Gelöst-Sheet).
+
 ## Phase 3: Ausbau
 - [ ] Geräteübergreifende Synchronisierung von Bibliothek und Fortschritt mit dem Account.
+- [ ] Lokalisation: mehrere Sprachen unterstützen.
 - [ ] Weitere Typen: Sokoban, Rohre, Lights Out, Nonogramm, Klotski (als Rush-Hour-Variante), Eis-Rutschen …
 - [ ] Laser-Erweiterungen (Inventar, Strahlteiler, Farben).
 - [ ] Rätsel-Ketten bzw. Escape-Modus.
 - [ ] Ranglisten (wenigste Züge, schnellste Zeit), tägliches Rätsel.
 - [ ] Optional: App-Store-Versionen via Capacitor.
 
+## Phase 4: Ideen aus dem Redesign
+Funktionen aus dem Entwurf (`docs/design-handoff/`), die in M15 bewusst weggelassen wurden.
+Vor dem Umsetzen jeweils entscheiden, ob sie kommen sollen.
+- [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche).
+- [ ] Zeitmessung beim Spielen (Stat-Kachel „Zeit“, im Gelöst-Sheet statt „Bestwert“).
+- [ ] Schwierigkeitsstufe im Editor anzeigen (Live-Prüfung und Prüf-Panel).
+- [ ] „Lösung abspielen“ im Prüf-Panel des Editors.
+- [ ] Teilen per QR-Code im Teilen-Sheet.
+- [ ] Töne & Vibration (Schalter unter Profil › Darstellung).
+- [ ] Status-Filter in „Meine Rätsel“ (Alle · Entwürfe · Geteilt · Gespeichert).
+- [ ] Status-Badges „In der Galerie“, „Per Link geteilt“ und „Gespeichert“ (dafür muss gespeichert werden,
+  ob ein Rätsel geteilt oder veröffentlicht wurde).
+- [ ] Karte „Weiterspielen“ auf der Startseite (zuletzt offenes Rätsel mit Zwischenstand speichern).
+- [ ] Suche nach Titel oder Autor (Startseite, Galerie, Desktop-Navigation).
+- [ ] Teilen direkt aus dem Spiel (Knopf im Spiel-Kopf bzw. im Mehr-Menü).
+- [ ] Tastenkürzel im Spiel und Editor (z. B. Strg Z, R, Werkzeuge per Ziffer) und ihre Anzeige.
+- [ ] Beschreibung (optional) schon im Editor statt erst beim Veröffentlichen.
+- [ ] Echte Vorschaubilder der Rätsel auf den Karten statt des Platzhalter-Rasters.
+- [ ] Linien-Symbole statt Emojis auch in den Rätsel-Editoren (Werkzeug-Raster, „Bild hinzufügen“ im Quiz).
+
 ---
 
 ## Offene Entscheidungen
 - [x] Name des Spiels: **Knobelkiste**.
-- [ ] Visueller Stil (Farbpalette, flach oder verspielt).
+- [x] Visueller Stil: Design-Übergabe in `docs/design-handoff/`, umgesetzt in M15.
 - [x] Backend für Phase 2: Supabase (EU-Region).
 - [x] SMTP-Anbieter für Account-Mails: Brevo (Absender-Domain `stits.dev`).
 - [ ] Wird Englisch als zweite Sprache schon in Phase 1 benötigt?

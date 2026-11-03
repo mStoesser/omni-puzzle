@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Knobelkiste – Galerie</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+.kk{--bg:#0F1115;--surface:#171A21;--surface-2:#1F232C;--line:#2A2F3A;--text:#F3F4F6;--muted:#A1A8B5;--brand:#FFD34D;--on-brand:#1C1700;--car:#FF8A66;--car-tint:rgba(255,138,102,.14);--laser:#4FD8E8;--laser-tint:rgba(79,216,232,.13);--quiz:#B9A2FF;--quiz-tint:rgba(185,162,255,.15);--ok:#5BE38D;--danger:#FF7676;font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
+.kk *{box-sizing:border-box}
+.kk button,.kk input{font:inherit;color:inherit;cursor:pointer}
+.kk h1,.kk h2,.kk h3{font-family:'Space Grotesk',Inter,sans-serif;margin:0}
+.kk p{margin:0}
+.board{background-color:var(--surface-2);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:14px 14px}
+a{color:var(--brand)}a:hover{color:#FFE38A}
+</style>
+</head>
+<body>
+<div class="kk" style="width: 390px; height: 1180px; position: relative; overflow: hidden">
+
+<header style="padding: 20px 20px 0">
+<h1 style="font-size: 28px; letter-spacing: -0.02em">Galerie</h1>
+<p style="color: var(--muted); font-size: 14px; margin-top: 4px">Rätsel aus der Community</p>
+<label style="margin-top: 16px; height: 48px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--muted)">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Suchen</span>
+<input type="search" placeholder="Titel oder Autor suchen" style="flex: 1; background: transparent; border: 0; outline: none; font-size: 15px; color: var(--text)">
+</label>
+</header>
+
+<div style="display: flex; gap: 8px; padding: 14px 20px 0; overflow: hidden">
+<button aria-pressed="true" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--text); color: var(--bg); font-size: 14px; font-weight: 600; flex: none">Alle</button>
+<button style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; flex: none"><span style="width: 8px; height: 8px; border-radius: 99px; background: var(--car)"></span>Ausparken</button>
+<button style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; flex: none"><span style="width: 8px; height: 8px; border-radius: 99px; background: var(--laser)"></span>Laser &amp; Spiegel</button>
+<button style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; flex: none"><span style="width: 8px; height: 8px; border-radius: 99px; background: var(--quiz)"></span>Quiz</button>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 10px">
+<span style="color: var(--muted); font-size: 14px">3 Rätsel</span>
+<button style="height: 36px; border: 0; background: transparent; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 4px">Neueste<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 0 20px">
+
+<a href="mobile-spiel.html" style="display: flex; gap: 14px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; color: var(--text); text-decoration: none">
+<div class="board" style="width: 88px; height: 88px; border-radius: 12px; flex: none"></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="align-self: flex-start; font-size: 12px; font-weight: 600; color: var(--quiz); background: var(--quiz-tint); padding: 3px 8px; border-radius: 999px">Quiz</span>
+<h3 style="font-size: 17px">Foto</h3>
+<p style="color: var(--muted); font-size: 13px">von Michi · vor 2 Std.</p>
+<div style="display: flex; gap: 14px; color: var(--muted); font-size: 13px; margin-top: auto">
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>0</span>
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>3</span>
+<span>Leicht</span>
+</div>
+</div>
+</a>
+
+<a href="mobile-spiel.html" style="display: flex; gap: 14px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; color: var(--text); text-decoration: none">
+<div class="board" style="width: 88px; height: 88px; border-radius: 12px; flex: none"></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="align-self: flex-start; font-size: 12px; font-weight: 600; color: var(--quiz); background: var(--quiz-tint); padding: 3px 8px; border-radius: 999px">Quiz</span>
+<h3 style="font-size: 17px">Foto</h3>
+<p style="color: var(--muted); font-size: 13px">von Michi · vor 3 Std.</p>
+<div style="display: flex; gap: 14px; color: var(--muted); font-size: 13px; margin-top: auto">
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>0</span>
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>1</span>
+<span>Leicht</span>
+</div>
+</div>
+</a>
+
+<a href="mobile-spiel.html" style="display: flex; gap: 14px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; color: var(--text); text-decoration: none">
+<div class="board" style="width: 88px; height: 88px; border-radius: 12px; flex: none"></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; gap: 6px"><span style="font-size: 12px; font-weight: 600; color: var(--quiz); background: var(--quiz-tint); padding: 3px 8px; border-radius: 999px">Quiz</span><span style="font-size: 12px; font-weight: 600; color: var(--ok); padding: 3px 0; display: flex; align-items: center; gap: 3px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>gelöst</span></div>
+<h3 style="font-size: 17px">Total</h3>
+<p style="color: var(--muted); font-size: 13px">von Hans · gestern</p>
+<div style="display: flex; gap: 14px; color: var(--muted); font-size: 13px; margin-top: auto">
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>0</span>
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5l12 7-12 7z"></path></svg>1</span>
+<span>Mittel</span>
+</div>
+</div>
+</a>
+
+<a href="mobile-spiel.html" style="display: flex; gap: 14px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; color: var(--text); text-decoration: none">
+<div class="board" style="width: 88px; height: 88px; border-radius: 12px; flex: none"></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="align-self: flex-start; font-size: 12px; font-weight: 600; color: var(--laser); background: var(--laser-tint); padding: 3px 8px; border-radius: 999px">Laser &amp; Spiegel</span>
+<h3 style="font-size: 17px">[Titel]</h3>
+<p style="color: var(--muted); font-size: 13px">von [Autor] · [Datum]</p>
+<div style="display: flex; gap: 14px; color: var(--muted); font-size: 13px; margin-top: auto">
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>–</span>
+<span>Schwer · min. 9 Züge</span>
+</div>
+</div>
+</a>
+
+<a href="mobile-spiel.html" style="display: flex; gap: 14px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; color: var(--text); text-decoration: none">
+<div class="board" style="width: 88px; height: 88px; border-radius: 12px; flex: none"></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="align-self: flex-start; font-size: 12px; font-weight: 600; color: var(--car); background: var(--car-tint); padding: 3px 8px; border-radius: 999px">Ausparken</span>
+<h3 style="font-size: 17px">[Titel]</h3>
+<p style="color: var(--muted); font-size: 13px">von [Autor] · [Datum]</p>
+<div style="display: flex; gap: 14px; color: var(--muted); font-size: 13px; margin-top: auto">
+<span style="display: flex; align-items: center; gap: 4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>–</span>
+<span>Mittel · min. 12 Züge</span>
+</div>
+</div>
+</a>
+
+</div>
+
+<nav aria-label="Hauptnavigation" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; padding: 8px 8px 20px; background: rgba(15,17,21,.94); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center">
+<a href="mobile-start.html" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--muted); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg>Start</a>
+<a href="mobile-galerie.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--brand); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>Galerie</a>
+<a href="mobile-editor.html" aria-label="Rätsel bauen" style="justify-self: center; width: 52px; height: 52px; border-radius: 16px; background: var(--brand); color: var(--on-brand); display: grid; place-items: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></a>
+<a href="mobile-meine-raetsel.html" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--muted); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v16l-6-4-6 4z"></path></svg>Meine</a>
+<a href="mobile-konto.html" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--muted); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>Profil</a>
+</nav>
+
+</div>
+</body>
+</html>

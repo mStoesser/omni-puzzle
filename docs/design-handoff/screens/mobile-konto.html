@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Knobelkiste – Konto</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+.kk{--bg:#0F1115;--surface:#171A21;--surface-2:#1F232C;--line:#2A2F3A;--text:#F3F4F6;--muted:#A1A8B5;--brand:#FFD34D;--on-brand:#1C1700;--quiz:#B9A2FF;--quiz-tint:rgba(185,162,255,.15);--ok:#5BE38D;--danger:#FF7676;font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
+.kk *{box-sizing:border-box}
+.kk button{font:inherit;color:inherit;cursor:pointer}
+.kk h1,.kk h2,.kk h3{font-family:'Space Grotesk',Inter,sans-serif;margin:0}
+.kk p{margin:0}
+a{color:var(--brand)}a:hover{color:#FFE38A}
+</style>
+</head>
+<body>
+<div class="kk" style="width: 390px; height: 1160px; position: relative; overflow: hidden">
+
+<header style="padding: 24px 20px 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px">
+<div style="width: 80px; height: 80px; border-radius: 999px; background: var(--quiz-tint); color: var(--quiz); display: grid; place-items: center; font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700">H</div>
+<div>
+<h1 style="font-size: 24px">Hans</h1>
+<p style="color: var(--muted); font-size: 14px; margin-top: 2px">michael.stoesser+hans@gmail.com</p>
+</div>
+</header>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 20px 20px 0">
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center"><p style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700">4</p><p style="font-size: 12px; color: var(--muted)">gelöst</p></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center"><p style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700">2</p><p style="font-size: 12px; color: var(--muted)">gebaut</p></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center"><p style="font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700">0</p><p style="font-size: 12px; color: var(--muted)">Likes erhalten</p></div>
+</div>
+
+<section style="padding: 24px 20px 0">
+<h2 style="font-size: 13px; font-family: Inter, sans-serif; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px">Profil</h2>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden">
+<button style="width: 100%; height: 56px; border: 0; background: transparent; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 15px; border-bottom: 1px solid var(--line)"><span>Anzeigename</span><span style="display: flex; align-items: center; gap: 6px; color: var(--muted)">Hans<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></button>
+<button style="width: 100%; height: 56px; border: 0; background: transparent; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 15px; border-bottom: 1px solid var(--line)"><span>Passwort ändern</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A8B5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+<a href="mobile-meine-raetsel.html" style="width: 100%; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 15px; color: var(--text); text-decoration: none"><span>Meine Veröffentlichungen</span><span style="display: flex; align-items: center; gap: 6px; color: var(--muted)">1<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></a>
+</div>
+</section>
+
+<section style="padding: 24px 20px 0">
+<h2 style="font-size: 13px; font-family: Inter, sans-serif; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px">Darstellung</h2>
+<div role="radiogroup" aria-label="Farbschema" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px">
+<button role="radio" aria-checked="true" style="height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); font-weight: 600; font-size: 14px">Dunkel</button>
+<button role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 10px; background: transparent; font-size: 14px; color: var(--muted)">Hell</button>
+<button role="radio" aria-checked="false" style="height: 40px; border: 0; border-radius: 10px; background: transparent; font-size: 14px; color: var(--muted)">System</button>
+</div>
+<div style="margin-top: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 56px">
+<span style="font-size: 15px">Töne &amp; Vibration</span>
+<span role="switch" aria-checked="true" aria-label="Töne und Vibration" style="width: 46px; height: 28px; border-radius: 99px; background: var(--brand); position: relative; display: block"><span style="position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border-radius: 99px; background: var(--on-brand)"></span></span>
+</div>
+</section>
+
+<section style="padding: 24px 20px 0">
+<h2 style="font-size: 13px; font-family: Inter, sans-serif; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px">Rechtliches</h2>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden">
+<a href="#" style="height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 15px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line)">Impressum<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A8B5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+<a href="#" style="height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 15px; color: var(--text); text-decoration: none">Datenschutz<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A8B5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+</div>
+</section>
+
+<section style="padding: 24px 20px 0; display: flex; flex-direction: column; gap: 10px">
+<button style="height: 52px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 15px">Abmelden</button>
+<div style="border: 1px solid rgba(255,118,118,.35); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<p style="font-size: 13px; color: var(--muted)">Löscht Profil, veröffentlichte Rätsel, Likes, Bewertungen und Meldungen. Lokal gespeicherte Rätsel bleiben auf diesem Gerät.</p>
+<button style="align-self: flex-start; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(255,118,118,.35); background: transparent; color: var(--danger); font-weight: 600; font-size: 15px">Konto löschen …</button>
+</div>
+</section>
+
+<nav aria-label="Hauptnavigation" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; padding: 8px 8px 20px; background: rgba(15,17,21,.94); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center">
+<a href="mobile-start.html" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--muted); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg>Start</a>
+<a href="mobile-galerie.html" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--muted); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>Galerie</a>
+<a href="mobile-editor.html" aria-label="Rätsel bauen" style="justify-self: center; width: 52px; height: 52px; border-radius: 16px; background: var(--brand); color: var(--on-brand); display: grid; place-items: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></a>
+<a href="mobile-meine-raetsel.html" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--muted); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v16l-6-4-6 4z"></path></svg>Meine</a>
+<a href="mobile-konto.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--brand); text-decoration: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>Profil</a>
+</nav>
+
+</div>
+</body>
+</html>

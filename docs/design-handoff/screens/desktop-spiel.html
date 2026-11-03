@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Knobelkiste – Spiel (Desktop)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F1115}
+.kk{--bg:#0F1115;--surface:#171A21;--surface-2:#1F232C;--line:#2A2F3A;--text:#F3F4F6;--muted:#A1A8B5;--brand:#FFD34D;--on-brand:#1C1700;--laser:#4FD8E8;--laser-tint:rgba(79,216,232,.13);--ok:#5BE38D;--danger:#FF7676;font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
+.kk *{box-sizing:border-box}
+.kk button{font:inherit;color:inherit;cursor:pointer}
+.kk h1,.kk h2,.kk h3{font-family:'Space Grotesk',Inter,sans-serif;margin:0}
+.kk p{margin:0}
+.kk kbd{font-family:Inter,sans-serif;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.board{background-color:var(--surface);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:80px 80px;background-position:-1px -1px}
+a{color:var(--brand)}a:hover{color:#FFE38A}
+</style>
+</head>
+<body>
+<div class="kk" style="min-height: 100%; padding-bottom: 40px">
+
+<header style="border-bottom: 1px solid var(--line)">
+<div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+<a href="desktop-start.html" aria-label="Zurück zur Übersicht" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); display: grid; place-items: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+<div style="flex: 1; min-width: 200px">
+<p style="font-size: 13px; color: var(--muted)"><span style="color: var(--laser); font-weight: 600">Laser &amp; Spiegel</span> · Level 3 von 4</p>
+<h1 style="font-size: 22px">Spiegelkabinett</h1>
+</div>
+<button style="height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"></path></svg>Teilen</button>
+<button aria-label="Mehr Optionen" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+</div>
+</header>
+
+<main style="max-width: 1200px; margin: 0 auto; padding: 28px 24px 0; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 18px">
+<div class="board" style="width: 100%; max-width: 560px; aspect-ratio: 1 / 1; border-radius: 24px; border: 1px solid var(--line); display: grid; place-items: center">
+<div style="background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; text-align: center"><p style="font-size: 15px; font-weight: 600">Spielfeld</p><p style="font-size: 13px; color: var(--muted); margin-top: 2px">rätselspezifisch</p></div>
+</div>
+<div role="toolbar" aria-label="Spielsteuerung" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center">
+<button style="height: 48px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"></path><path d="M4 9h11a5 5 0 0 1 0 10h-3"></path></svg>Zurück <kbd>Strg Z</kbd></button>
+<button disabled style="height: 48px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: #6B7280; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: default"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"></path><path d="M20 9H9a5 5 0 0 0 0 10h3"></path></svg>Vor</button>
+<button style="height: 48px; padding: 0 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>Neustart <kbd>R</kbd></button>
+<button style="height: 48px; padding: 0 16px; border-radius: 14px; border: 0; background: var(--surface-2); color: var(--brand); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"></path></svg>Hinweis</button>
+</div>
+</div>
+
+<aside style="flex: 1 1 300px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center"><p style="font-size: 12px; color: var(--muted)">Züge</p><p style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700">1</p></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center"><p style="font-size: 12px; color: var(--muted)">Ziel</p><p style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700">4</p></div>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center"><p style="font-size: 12px; color: var(--muted)">Zeit</p><p style="font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700">0:24</p></div>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="font-size: 16px">So geht’s</h2>
+<p style="color: var(--muted); font-size: 14px; line-height: 1.5">Klick einen Spiegel an, um ihn zu drehen. Der Laser muss alle Ziele treffen. Graue Blöcke halten den Strahl auf.</p>
+</div>
+
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 4px">
+<h2 style="font-size: 16px; margin-bottom: 6px">Weitere Level</h2>
+<a href="#" style="display: flex; justify-content: space-between; padding: 10px 0; color: var(--text); text-decoration: none; font-size: 14px; border-bottom: 1px solid var(--line)">Erster Strahl<span style="color: var(--ok); font-weight: 600">gelöst</span></a>
+<a href="#" style="display: flex; justify-content: space-between; padding: 10px 0; color: var(--text); text-decoration: none; font-size: 14px; border-bottom: 1px solid var(--line)">Um die Ecke<span style="color: var(--ok); font-weight: 600">gelöst</span></a>
+<a href="#" aria-current="page" style="display: flex; justify-content: space-between; padding: 10px 0; color: var(--brand); text-decoration: none; font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--line)">Spiegelkabinett<span>jetzt</span></a>
+<a href="#" style="display: flex; justify-content: space-between; padding: 10px 0; color: var(--text); text-decoration: none; font-size: 14px">Lichtlabyrinth<span style="color: var(--muted)">5 Züge</span></a>
+</div>
+
+<button style="height: 48px; border-radius: 14px; border: 1px solid var(--line); background: transparent; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg>Als Vorlage remixen</button>
+</aside>
+
+</main>
+</div>
+</body>
+</html>

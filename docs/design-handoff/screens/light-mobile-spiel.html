@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Knobelkiste – Spiel (Hell)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F5F1}
+.kk{--bg:#F6F5F1;--surface:#FFFFFF;--surface-2:#EEEDE8;--line:#E0DED7;--text:#16181D;--muted:#5B6170;--brand:#FFC933;--brand-ink:#7A5B00;--on-brand:#1C1700;--laser:#0E7C8C;--ok:#15803D;font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
+.kk *{box-sizing:border-box}
+.kk button{font:inherit;color:inherit;cursor:pointer}
+.kk h1,.kk h2,.kk h3{font-family:'Space Grotesk',Inter,sans-serif;margin:0}
+.kk p{margin:0}
+.board{background-color:var(--surface);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:50px 50px;background-position:-1px -1px}
+a{color:#7A5B00}a:hover{color:#5A4300}
+</style>
+</head>
+<body>
+<div class="kk" style="width: 390px; height: 844px; position: relative; overflow: hidden; display: flex; flex-direction: column">
+
+<header style="display: flex; align-items: center; gap: 8px; padding: 16px 16px 8px">
+<a href="light-mobile-start.html" aria-label="Zurück" style="width: 44px; height: 44px; flex: none; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); display: grid; place-items: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+<div style="flex: 1; min-width: 0; text-align: center">
+<p style="font-size: 12px; font-weight: 600; color: var(--laser); letter-spacing: 0.04em">LASER &amp; SPIEGEL · 3 / 4</p>
+<h1 style="font-size: 18px; margin-top: 2px">Spiegelkabinett</h1>
+</div>
+<button aria-label="Mehr Optionen" style="width: 44px; height: 44px; flex: none; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+</header>
+
+<div style="display: flex; justify-content: center; gap: 8px; padding: 8px 16px 0">
+<div style="flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; text-align: center"><p style="font-size: 12px; color: var(--muted)">Züge</p><p style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700">1</p></div>
+<div style="flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; text-align: center"><p style="font-size: 12px; color: var(--muted)">Ziel</p><p style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700">4</p></div>
+<div style="flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; text-align: center"><p style="font-size: 12px; color: var(--muted)">Bestwert</p><p style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--muted)">–</p></div>
+</div>
+
+<main style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px 20px; gap: 14px">
+<div class="board" style="width: 350px; height: 350px; border-radius: 20px; border: 1px solid var(--line); display: grid; place-items: center">
+<div style="background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; text-align: center">
+<p style="font-size: 14px; font-weight: 600">Spielfeld</p>
+<p style="font-size: 12px; color: var(--muted); margin-top: 2px">rätselspezifisch</p>
+</div>
+</div>
+<p style="font-size: 14px; color: var(--muted); text-align: center; max-width: 320px">Tippe einen Spiegel an, um ihn zu drehen. Triff alle Ziele.</p>
+</main>
+
+<nav aria-label="Spielsteuerung" style="margin: 0 16px 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 6px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+<button style="height: 60px; border: 0; border-radius: 14px; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"></path><path d="M4 9h11a5 5 0 0 1 0 10h-3"></path></svg>Zurück</button>
+<button disabled style="height: 60px; border: 0; border-radius: 14px; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: #9AA0AC; cursor: default"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"></path><path d="M20 9H9a5 5 0 0 0 0 10h3"></path></svg>Vor</button>
+<button style="height: 60px; border: 0; border-radius: 14px; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>Neustart</button>
+<button style="height: 60px; border: 0; border-radius: 14px; background: var(--brand); color: var(--on-brand); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"></path></svg>Hinweis</button>
+</nav>
+
+</div>
+</body>
+</html>
