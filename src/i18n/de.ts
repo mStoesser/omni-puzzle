@@ -193,7 +193,7 @@ export const de = {
   galleryType: "Typ",
   galleryAllTypes: "Alle Typen",
   galleryLevel: "Schwierigkeit",
-  galleryAllLevels: "Alle",
+  galleryAllLevels: "Alle Stufen",
   gallerySort: "Sortierung",
   gallerySortNew: "Neueste",
   gallerySortLikes: "Beliebteste",
@@ -441,4 +441,8 @@ export const de = {
   solvedYourMoves: "Deine Züge",
   solvedMinimum: "Minimum",
   solvedLikeQuestion: "Hat’s dir gefallen?",
+  galleryChipAll: "Alle",
+  galleryCount: "{count} Rätsel",
+  galleryCountMore: "{count}+ Rätsel",
+  galleryMinMoves: "min. {moves} Züge",
 } as const;

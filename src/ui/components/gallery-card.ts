@@ -4,6 +4,7 @@ import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { icon, iconSvg, ICONS } from "../icons.ts";
+import { timeAgo } from "../time.ts";
 import { statusBadge, typeBadge, typeVars } from "./ui.ts";
 
 /** Placeholder preview: a grid with the type symbol. The puzzles themselves are only rendered when played. */
@@ -30,11 +31,13 @@ export function galleryCard(item: GalleryItem, type: AnyPuzzleType | undefined, 
     <span class="puzzle-card-body">
       <span class="puzzle-card-badges">${typeBadge(type, item.type)}${solved ? statusBadge("solved") : nothing}</span>
       <span class="puzzle-card-title">${item.title}</span>
-      <span class="puzzle-card-sub">${author(item)}</span>
+      <span class="puzzle-card-sub">${[author(item), timeAgo(item.publishedAt, Date.now())].filter(Boolean).join(" · ")}</span>
       <span class="puzzle-card-meta">
         ${likes(item)}
-        <span class="meta-item">${icon("play", 12)}${t("galleryPlays", { count: item.playCount })}</span>
+        <span class="meta-item">${icon("play", 12)}<span aria-hidden="true">${item.playCount}</span
+          ><span class="visually-hidden">${t("galleryPlays", { count: item.playCount })}</span></span>
         ${item.level ? html`<span class="meta-item">${t(`level${item.level}`)}</span>` : nothing}
+        ${item.minMoves !== null ? html`<span class="meta-item">${t("galleryMinMoves", { moves: item.minMoves })}</span>` : nothing}
         ${average === null
           ? nothing
           : html`<span class="meta-item"><span aria-hidden="true">Ø ${formatAverage(average)}</span
