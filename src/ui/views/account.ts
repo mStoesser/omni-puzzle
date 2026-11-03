@@ -5,6 +5,10 @@ import { PUBLISH } from "../../core/publish.ts";
 import type { OwnPublication } from "../../core/published.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
+import { segment, sheet, stat } from "../components/ui.ts";
+import { icon } from "../icons.ts";
+import type { IconName } from "../icons.ts";
+import type { ThemeChoice } from "../theme.ts";
 
 export type AccountMode = "signIn" | "signUp" | "reset" | "newPassword";
 
@@ -20,6 +24,20 @@ export type AccountViewModel = {
   publications: (OwnPublication & { typeName: string })[] | null; // null = not loaded yet
   editingPublication: string | null; // id with the open edit form
   confirmWithdraw: string | null; // id waiting for confirmation
+  panel: AccountPanel | null; // open settings sheet
+};
+
+/** Settings that open in a sheet. */
+export type AccountPanel = "name" | "password" | "publications";
+
+/** Device settings and numbers shown with or without an account. */
+export type ProfileExtras = {
+  theme: ThemeChoice;
+  stats: { solved: number; built: number };
+};
+
+export type ProfileActions = {
+  setTheme(theme: ThemeChoice): void;
 };
 
 /** Actions resolve to true on success, so the view can clear the form. */
@@ -37,6 +55,7 @@ export type AccountActions = {
   savePublication(id: string, title: string, description: string): Promise<boolean>;
   askWithdraw(id: string | null): void;
   withdraw(id: string): void;
+  openPanel(panel: AccountPanel | null): void;
 };
 
 const TITLE: Record<AccountMode, MessageKey> = {
@@ -46,20 +65,150 @@ const TITLE: Record<AccountMode, MessageKey> = {
   newPassword: "accountNewPassword",
 };
 
-export function accountView(model: AccountViewModel, actions: AccountActions) {
-  const signedIn = model.user !== null && model.mode !== "newPassword";
+/**
+ * Profile page. `model` null = no backend (no accounts): only the device settings are shown.
+ * Signed out, the sign-in forms take the place of the profile card.
+ */
+export function accountView(model: AccountViewModel | null, actions: AccountActions | null, extras: ProfileExtras, profileActions: ProfileActions) {
+  const signedIn = model !== null && model.user !== null && model.mode !== "newPassword";
   return html`
-    <header class="toolbar">
-      <a class="button secondary" href="#/" aria-label=${t("back")}>←</a>
-      <h1 class="toolbar-title">${signedIn ? t("account") : t(TITLE[model.mode])}</h1>
-    </header>
-    ${model.message
-      ? html`<p class=${model.message.tone === "ok" ? "account-ok" : "notice"} role=${model.message.tone === "ok" ? "status" : "alert"}>
-          ${t(model.message.text)}
-        </p>`
-      : nothing}
-    ${signedIn ? profileSection(model, actions) : authForm(model, actions)}
+    ${model && actions
+      ? signedIn
+        ? profileHead(model, extras)
+        : html`<header class="page-head"><h1>${t(TITLE[model.mode])}</h1></header>
+            ${message(model)} ${authForm(model, actions)}`
+      : html`<header class="page-head"><h1>${t("navProfile")}</h1></header>
+          <p class="info-box">${icon("info", 18)}<span>${t("accountUnavailable")}</span></p>`}
+    ${signedIn ? html`${message(model)} ${profileSettings(model, actions!)}` : nothing}
+
+    <p class="label settings-label" id="settings-look">${t("profileLook")}</p>
+    ${segment(
+      t("profileTheme"),
+      [
+        { value: "dark", label: t("themeDark") },
+        { value: "light", label: t("themeLight") },
+        { value: "system", label: t("themeSystem") },
+      ],
+      extras.theme,
+      profileActions.setTheme,
+    )}
+
+    <p class="label settings-label">${t("profileLegal")}</p>
+    <ul class="settings">
+      <li>${row({ href: "#/impressum", text: t("imprint") })}</li>
+      <li>${row({ href: "#/datenschutz", text: t("privacy") })}</li>
+    </ul>
+
+    ${signedIn ? accountActions(model, actions!) : nothing}
+    ${signedIn && model.panel ? panelSheet(model, actions!) : nothing}
   `;
+}
+
+function message(model: AccountViewModel) {
+  return model.message
+    ? html`<p class=${model.message.tone === "ok" ? "account-ok" : "notice"} role=${model.message.tone === "ok" ? "status" : "alert"}>
+        ${t(model.message.text)}
+      </p>`
+    : nothing;
+}
+
+function profileHead(model: AccountViewModel, extras: ProfileExtras) {
+  const name = model.profile?.username ?? "…";
+  const likes = model.publications?.reduce((sum, p) => sum + p.likeCount, 0);
+  return html`<header class="profile-head">
+      <span class="profile-avatar" aria-hidden="true">${name.slice(0, 1).toUpperCase()}</span>
+      <h1>${name}</h1>
+      <p>${model.user?.email}</p>
+    </header>
+    <div class="stats profile-stats">
+      ${stat(t("profileSolved"), extras.stats.solved)} ${stat(t("profileBuilt"), extras.stats.built)}
+      ${stat(t("profileLikes"), likes ?? "–")}
+    </div>
+    ${model.profile?.banned ? html`<p class="notice">${t("accountBanned")}</p>` : nothing}`;
+}
+
+type RowOptions = { text: string; value?: string | number; href?: string; onClick?: () => void; icon?: IconName };
+
+/** A 56 px settings row: link or button, value and chevron on the right. */
+function row(o: RowOptions) {
+  const content = html`${o.icon ? icon(o.icon, 20) : nothing}<span>${o.text}</span>
+    ${o.value === undefined ? nothing : html`<span class="value">${o.value}</span>`}${icon("chevronRight", 18)}`;
+  return o.href !== undefined
+    ? html`<a class="settings-row" href=${o.href}>${content}</a>`
+    : html`<button class="settings-row" aria-haspopup="dialog" @click=${o.onClick}>${content}</button>`;
+}
+
+function profileSettings(model: AccountViewModel, actions: AccountActions) {
+  const { profile, publications } = model;
+  return html`<p class="label settings-label">${t("profileSection")}</p>
+    <ul class="settings">
+      <li>${row({ text: t("accountUsername"), value: profile?.username ?? "…", onClick: () => actions.openPanel("name") })}</li>
+      <li>${row({ text: t("accountChangePassword"), onClick: () => actions.openPanel("password") })}</li>
+      <li>${row({ text: t("myPublications"), value: publications?.length ?? "…", onClick: () => actions.openPanel("publications") })}</li>
+      ${profile?.isModerator ? html`<li>${row({ text: t("moderationLink"), href: "#/moderation", icon: "shield" })}</li>` : nothing}
+    </ul>`;
+}
+
+function accountActions(model: AccountViewModel, actions: AccountActions) {
+  const { busy } = model;
+  return html`<button type="button" class="secondary block sign-out" ?disabled=${busy} @click=${actions.signOut}>
+      ${icon("logOut", 18)}${t("accountSignOut")}
+    </button>
+    <section class="danger-box" aria-labelledby="delete-heading">
+      <h2 id="delete-heading" class="visually-hidden">${t("accountDelete")}</h2>
+      <p>${t("accountDeleteIntro")}</p>
+      ${model.confirmDelete
+        ? html`
+            <p class="notice" role="alert">${t("accountDeleteConfirm")}</p>
+            <div class="account-actions">
+              <button type="button" class="danger-button" ?disabled=${busy} @click=${actions.deleteAccount}>
+                ${t("accountDeleteFinal")}
+              </button>
+              <button type="button" class="secondary" @click=${() => actions.askDelete(false)}>${t("cancel")}</button>
+            </div>
+          `
+        : html`<button type="button" class="danger" @click=${() => actions.askDelete(true)}>${t("accountDeleteAsk")}</button>`}
+    </section>`;
+}
+
+function panelSheet(model: AccountViewModel, actions: AccountActions) {
+  const { profile, busy } = model;
+  const close = () => actions.openPanel(null);
+  // Forms close the sheet after success; the message then shows on the page.
+  const done = (ok: boolean) => {
+    if (ok) close();
+    return ok;
+  };
+  const head = (text: string) => html`<div class="sheet-head">
+    <h2 id="panel-title" class="sheet-title">${text}</h2>
+    <button class="icon-button" aria-label=${t("close")} @click=${close}>${icon("close", 20)}</button>
+  </div>`;
+  switch (model.panel) {
+    case "name":
+      return sheet(
+        "panel-title",
+        close,
+        html`${head(t("accountRename"))} ${message(model)}
+          <form class="account-form" @submit=${onSubmit(async (f) => done(await actions.rename(field(f, "username"))))}>
+            ${usernameField(profile?.username ?? "")}
+            <button type="submit" class="large" ?disabled=${busy || !profile}>${t("accountSave")}</button>
+          </form>`,
+      );
+    case "password":
+      return sheet(
+        "panel-title",
+        close,
+        html`${head(t("accountChangePassword"))} ${message(model)}
+          <form class="account-form" @submit=${onSubmit(async (f) => done(await actions.setNewPassword(field(f, "password"))))}>
+            ${passwordField("new-password", t("accountNewPasswordLabel"))}
+            <button type="submit" class="large" ?disabled=${busy}>${t("accountSave")}</button>
+          </form>`,
+      );
+    case "publications":
+      return sheet("panel-title", close, html`${head(t("myPublications"))} ${message(model)} ${publicationList(model, actions)}`);
+    default:
+      return nothing;
+  }
 }
 
 /** Submits a form: reads its fields, runs the action, clears the form on success. */

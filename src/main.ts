@@ -57,7 +57,8 @@ import { privacyView } from "./ui/views/privacy.ts";
 import { encodeImage } from "./ui/image-encode.ts";
 import { buildSheet, tabBar, topNav } from "./ui/components/nav.ts";
 import type { NavSection } from "./ui/components/nav.ts";
-import { applyTheme, readTheme, watchSystemTheme } from "./ui/theme.ts";
+import { applyTheme, readTheme, setTheme, watchSystemTheme } from "./ui/theme.ts";
+import type { ThemeChoice } from "./ui/theme.ts";
 import type { EncodeError } from "./ui/image-encode.ts";
 
 type EditorState = {
@@ -91,6 +92,7 @@ type AppState = {
   moderation: ModerationViewModel | null; // moderation route
   buildSheet: boolean; // type choice for a new puzzle is open
   typeSheet: string | null; // home: type whose levels are shown in a sheet
+  theme: ThemeChoice;
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -149,12 +151,14 @@ const store = createStore<AppState>({
     publications: null,
     editingPublication: null,
     confirmWithdraw: null,
+    panel: null,
   },
   gallery: null,
   newest: [],
   moderation: null,
   buildSheet: false,
   typeSheet: null,
+  theme: readTheme(),
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -201,6 +205,7 @@ function enterRoute(route: Route) {
       break;
     case "account":
       void loadPublications();
+      void loadLibrary(); // number of own puzzles
       break;
     case "published":
       void openPublished(route);
@@ -1042,8 +1047,8 @@ function setAccount(change: Partial<AccountViewModel>) {
 
 function resetAccountForm() {
   const { account } = store.get();
-  if (account.message || account.confirmDelete || account.mode !== "signIn" || account.editingPublication || account.confirmWithdraw) {
-    setAccount({ message: null, confirmDelete: false, mode: "signIn", editingPublication: null, confirmWithdraw: null });
+  if (account.message || account.confirmDelete || account.mode !== "signIn" || account.editingPublication || account.confirmWithdraw || account.panel) {
+    setAccount({ message: null, confirmDelete: false, mode: "signIn", editingPublication: null, confirmWithdraw: null, panel: null });
   }
 }
 
@@ -1112,7 +1117,7 @@ function onSession(session: Session | null) {
   const { account } = store.get();
   const user = session?.user ?? null;
   if (user?.id === account.user?.id) return;
-  setAccount({ user, profile: null, confirmDelete: false, publications: null, editingPublication: null, confirmWithdraw: null });
+  setAccount({ user, profile: null, confirmDelete: false, publications: null, editingPublication: null, confirmWithdraw: null, panel: null });
   if (user) void loadProfile(user.id);
   if (user && store.get().route.name === "account") void loadPublications();
   const published = store.get().play?.published;
@@ -1197,6 +1202,7 @@ const accountActions = {
       await loadPublications();
       return { tone: "ok", text: "myPublicationsWithdrawn" };
     }),
+  openPanel: (panel: AccountViewModel["panel"]) => setAccount({ panel, message: null, editingPublication: null, confirmWithdraw: null }),
   deleteAccount: () =>
     void accountTask(async () => {
       await deleteAccount(api!);
@@ -1252,8 +1258,13 @@ function view(state: AppState) {
       return imprintView();
     case "privacy":
       return privacyView(backend !== null);
-    case "account":
-      return auth ? accountView(state.account, accountActions) : messageView(t("accountUnavailable"));
+    case "account": {
+      const extras = {
+        theme: state.theme,
+        stats: { solved: [...state.progress.values()].filter((r) => r.solved).length, built: state.library?.length ?? 0 },
+      };
+      return accountView(auth ? state.account : null, auth ? accountActions : null, extras, profileActions);
+    }
     case "play":
     case "shared":
     case "published": {
@@ -1312,6 +1323,13 @@ function navAccount(state: AppState) {
   const { user, profile } = state.account;
   return { initial: user && profile ? profile.username.slice(0, 1).toUpperCase() : null };
 }
+
+const profileActions = {
+  setTheme: (theme: ThemeChoice) => {
+    setTheme(theme);
+    patch({ theme });
+  },
+};
 
 const homeActions = {
   openType: (id: string) => patch({ typeSheet: id }),

@@ -756,22 +756,6 @@ input[type="password"]:focus-visible,
   font-weight: 600;
 }
 
-.account-facts {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-1) var(--space-3);
-  margin: 0 0 var(--space-3);
-}
-
-.account-facts dt {
-  color: var(--text-muted);
-}
-
-.account-facts dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
 .account-actions {
   display: flex;
   flex-wrap: wrap;
@@ -801,9 +785,15 @@ button.danger-button {
 }
 
 .publication {
-  padding: var(--space-3);
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius);
+  padding: var(--kk-space-4);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-xl);
+  background: var(--kk-surface);
+}
+
+.publication h3 a {
+  color: var(--kk-text);
+  text-decoration: none;
 }
 
 .publication h3 {
@@ -1204,6 +1194,7 @@ a.icon-button {
 
 .settings-row {
   display: flex;
+  justify-content: flex-start;
   align-items: center;
   gap: var(--kk-space-3);
   width: 100%;
@@ -1218,8 +1209,12 @@ a.icon-button {
   text-decoration: none;
 }
 
+.settings-row > span:not(.value) {
+  flex: 1;
+  min-width: 0;
+}
+
 .settings-row .value {
-  margin-left: auto;
   color: var(--kk-muted);
   font-weight: 400;
 }
@@ -2621,4 +2616,86 @@ a.button.compact {
 
 .info-box .icon {
   margin-top: 2px;
+}
+
+/* ===== Profile ===== */
+.profile-head {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 80px;
+  height: 80px;
+  margin-bottom: var(--kk-space-3);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--kk-type-quiz) 22%, var(--kk-surface));
+  color: var(--kk-type-quiz);
+  font-family: var(--kk-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.profile-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.profile-head p {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.profile-stats {
+  margin-top: var(--kk-space-5);
+}
+
+.profile-stats .stat {
+  padding: var(--kk-space-3) var(--kk-space-2);
+  border: 1px solid var(--kk-line);
+}
+
+.profile-stats .stat-value {
+  order: -1;
+  font-size: 1.5rem;
+}
+
+.settings-label {
+  margin: var(--kk-space-6) 0 var(--kk-space-2);
+}
+
+.sign-out {
+  margin-top: var(--kk-space-6);
+}
+
+.danger-box {
+  display: grid;
+  justify-items: start;
+  gap: var(--kk-space-3);
+  margin-top: var(--kk-space-3);
+  padding: var(--kk-space-4);
+  border: 1px solid var(--kk-danger-line);
+  border-radius: var(--kk-radius-xl);
+}
+
+.danger-box p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.sheet .account-form {
+  max-width: none;
+}
+
+.sheet .account-form button[type="submit"] {
+  justify-self: stretch;
+}
+
+.sheet .publication-list {
+  margin: 0;
 }
