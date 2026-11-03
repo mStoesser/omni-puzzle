@@ -1,4 +1,4 @@
-import type { TemplateResult } from "lit-html";
+import type { SVGTemplateResult, TemplateResult } from "lit-html";
 import type { MessageKey } from "../i18n/t.ts";
 
 export type PuzzleMeta = {
@@ -84,7 +84,13 @@ export type PuzzleRules<D, S, M> = {
 export type PuzzleType<D, S, M> = PuzzleRules<D, S, M> & {
   name: MessageKey;
   description: MessageKey; // one sentence for the home page
-  icon: string;
+  /** Line symbol: paths for a 24×24 viewBox, drawn with stroke 2 and round ends in currentColor. */
+  icon: SVGTemplateResult;
+  /**
+   * Type color for accents (icon tile, badge, progress bar), per theme. Pick a free hue with similar
+   * brightness and saturation; yellow is the brand, green and red are status colors.
+   */
+  color: { dark: string; light: string };
   /** Which core play controls make sense for this type (default: all). E.g. a quiz has no undo and no move count. */
   controls?: { undo?: boolean; moves?: boolean };
   /** Localized, user-facing problems for live validation in the editor. Empty = playable. */

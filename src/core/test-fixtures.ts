@@ -1,3 +1,4 @@
+import { svg } from "lit-html";
 import type { TemplateResult } from "lit-html";
 import type { PuzzleDocument, PuzzleType } from "./types.ts";
 
@@ -10,7 +11,8 @@ export const counterType: PuzzleType<CounterData, number, 1 | -1> = {
   version: 2,
   name: "appTitle",
   description: "appTitle",
-  icon: "#",
+  icon: svg`<path d="M4 4h16v16H4z"/>`,
+  color: { dark: "#cccccc", light: "#333333" },
   createDefault: () => ({ target: 3 }),
   validate(data) {
     if (typeof data !== "object" || data === null) throw new Error("not an object");

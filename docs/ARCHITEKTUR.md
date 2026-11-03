@@ -134,7 +134,8 @@ type PuzzleType<D, S, M> = {
   version: number;                  // aktuelle typeVersion
   name: string;                     // i18n-Key
   description: string;              // i18n-Key, ein Satz für die Startseite
-  icon: string;                     // Emoji oder SVG
+  icon: SVGTemplateResult;          // Linien-Symbol: Pfade für viewBox 24×24, Strich 2, runde Enden
+  color: { dark: string; light: string };  // Typfarbe je Theme, nur für Akzente (Kachel, Badge, Fortschritt)
   controls?: { undo?: boolean; moves?: boolean };  // Core-Bedienelemente abschalten (Quiz: kein Undo, kein Zugzähler)
 
   // --- Daten ---
