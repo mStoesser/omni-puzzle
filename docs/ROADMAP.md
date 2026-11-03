@@ -229,7 +229,10 @@ Vorlage: `docs/design-handoff/` (Spezifikation, Tokens, Entwürfe). Die Darstell
 - [x] Desktop: Spiel mit Seitenleiste (Stats, So geht’s, weitere Level, Remixen), Editor dreispaltig
   (Werkzeuge, Bau-Fläche, Prüfung und Einstellungen).
 - [x] Im Browser mit den Entwürfen verglichen (mobil 390 px, Desktop 1280/1440 px, dunkel und hell).
-- [ ] Live testen auf dem Handy, auch mit einem echten veröffentlichten Rätsel (Like-Zeile im Gelöst-Sheet).
+- [x] Live testen auf dem Handy, auch mit einem echten veröffentlichten Rätsel (Like-Zeile im Gelöst-Sheet).
+  (Zwei Fehler gefunden und behoben: Das Gelöst-Sheet schloss sich nach dem lösenden Tipp sofort wieder, weil der
+  folgende Klick den Sheet-Hintergrund traf; mit Einträgen in „Neu in der Galerie“ wurde die Seite breiter als der
+  Bildschirm und die Tab-Leiste verrutschte. Danach Handy-Test erfolgreich.)
 
 ## Phase 3: Ausbau
 - [ ] Geräteübergreifende Synchronisierung von Bibliothek und Fortschritt mit dem Account.
