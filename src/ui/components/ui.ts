@@ -114,6 +114,9 @@ export function label(text: string, id?: string) {
   return html`<p class="label" id=${id ?? nothing}>${text}</p>`;
 }
 
+/** The sheet whose backdrop received the current press, if any. */
+let backdropPress: EventTarget | null = null;
+
 /**
  * Bottom sheet on a native modal <dialog>: focus trap, Escape and the backdrop come from the browser.
  * `onClose` runs when the dialog closes (Escape, close button); the caller then removes it from the state.
@@ -124,9 +127,15 @@ export function sheet(labelledBy: string, onClose: () => void, content: Template
     aria-labelledby=${labelledBy}
     ${ref(showModal)}
     @close=${onClose}
+    @pointerdown=${(e: PointerEvent) => {
+      backdropPress = e.target === e.currentTarget ? e.currentTarget : null;
+    }}
     @click=${(e: Event) => {
-      // A click on the backdrop hits the dialog element itself.
-      if (e.target === e.currentTarget) (e.currentTarget as HTMLDialogElement).close();
+      // A click on the backdrop hits the dialog element itself. Only a press that started there closes:
+      // the click that follows the tap which opened the sheet (e.g. the solving move) must not close it again.
+      const dialog = e.currentTarget as HTMLDialogElement;
+      if (e.target === dialog && backdropPress === dialog) dialog.close();
+      backdropPress = null;
     }}
   >
     <div class="sheet-body">
