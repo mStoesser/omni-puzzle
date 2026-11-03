@@ -1,40 +1,55 @@
-/* Design tokens */
+@import "./tokens.css";
+
+/* Fonts: self-hosted variable fonts (SIL OFL, see fonts/LICENSE-*.txt), Latin subset. */
+@font-face {
+  font-family: "Inter";
+  src: url("./fonts/inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("./fonts/space-grotesk.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+/* Shell tokens on top of tokens.css. The older names stay as aliases: puzzle components use them. */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --bg: #f6f5f2;
-  --surface: #ffffff;
-  --text: #1c1d21;
-  --text-muted: #5d6068;
-  --border: #d9d7d0;
-  --accent: #2f6fdb;
-  --accent-contrast: #ffffff;
-  --danger: #c6362f;
-  --success: #23773f;
-  --control-border: #8b8880; /* 3:1 against surface and background (WCAG 1.4.11) */
+  --bg: var(--kk-bg);
+  --surface: var(--kk-surface);
+  --text: var(--kk-text);
+  --text-muted: var(--kk-muted);
+  --border: var(--kk-line);
+  --accent: var(--kk-brand);
+  --accent-contrast: var(--kk-on-brand);
+  --danger: var(--kk-danger);
+  --success: var(--kk-ok);
+  --control-border: #646b7a; /* 3:1 against surface and background (WCAG 1.4.11) */
+  --focus: var(--kk-brand-ink);
 
-  --radius: 12px;
+  --radius: var(--kk-radius-md);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 16px;
   --space-4: 24px;
-  --tap-min: 44px;
+  --tap-min: var(--kk-tap-min);
 
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: var(--kk-font-body);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16171a;
-    --surface: #212328;
-    --text: #ececee;
-    --text-muted: #a2a5ad;
-    --border: #3a3d44;
-    --accent: #6d9eff;
-    --accent-contrast: #0e1420;
-    --danger: #ff6b62;
-    --success: #5cc97f;
-    --control-border: #6e727b;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --control-border: #8b8880;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --control-border: #8b8880;
   }
 }
 
@@ -68,6 +83,14 @@ body {
     max(var(--space-3), env(safe-area-inset-bottom)) max(var(--space-3), env(safe-area-inset-left));
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--kk-font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 h1 {
   font-size: 1.75rem;
   line-height: 1.2;
@@ -94,7 +117,7 @@ button {
 }
 
 button:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -121,7 +144,7 @@ label.button {
 }
 
 a.button:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -216,7 +239,7 @@ h2 {
 }
 
 .card:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -274,7 +297,7 @@ input[type="text"]:focus-visible,
 input[type="email"]:focus-visible,
 input[type="password"]:focus-visible,
 .field textarea:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -338,7 +361,7 @@ input[type="password"]:focus-visible,
 }
 
 .tool input:focus-visible + span {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -753,13 +776,13 @@ input[type="password"]:focus-visible,
 
 /* Accessibility: one visible focus style for everything focusable, including SVG game pieces. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
 :where(svg [tabindex]):focus-visible {
   outline: none;
-  stroke: var(--accent);
+  stroke: var(--focus);
   stroke-width: 8;
 }
 
@@ -803,7 +826,7 @@ input[type="password"]:focus-visible,
   min-width: 0;
   padding-inline: 0;
   background: none;
-  color: var(--accent);
+  color: var(--kk-brand-ink);
   font-weight: 400;
   text-decoration: underline;
 }
@@ -1080,7 +1103,7 @@ button.danger-button {
 }
 
 .quiz-image-pick:focus-within {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 

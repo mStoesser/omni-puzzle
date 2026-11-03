@@ -1,15 +1,22 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0F1115" />
     <meta name="description" content="Rätsel spielen, selbst bauen und per Link teilen." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Knobelkiste" />
     <title>Knobelkiste</title>
+    <script>
+      // Stored theme before the first paint; same rules as src/ui/theme.ts.
+      try {
+        var theme = localStorage.getItem("knobelkiste-theme");
+        if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
+        if (theme === "system") document.documentElement.removeAttribute("data-theme");
+      } catch (e) {}
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />

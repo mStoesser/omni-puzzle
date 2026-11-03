@@ -55,6 +55,7 @@ import { playView } from "./ui/views/play.ts";
 import type { PlayOrigin, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
 import { privacyView } from "./ui/views/privacy.ts";
 import { encodeImage } from "./ui/image-encode.ts";
+import { applyTheme, readTheme, watchSystemTheme } from "./ui/theme.ts";
 import type { EncodeError } from "./ui/image-encode.ts";
 
 type EditorState = {
@@ -1284,6 +1285,8 @@ function scheduleRender() {
   });
 }
 
+applyTheme(readTheme());
+watchSystemTheme();
 store.subscribe(scheduleRender);
 // Save pending edits before the page is hidden (tab switch, app switch, closing).
 document.addEventListener("visibilitychange", () => {
