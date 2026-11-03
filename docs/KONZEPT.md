@@ -27,7 +27,7 @@ Drei Säulen:
 
 ## Rätseltypen-Katalog
 
-Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **später** = Kandidat für spätere Phasen.
+Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **umgesetzt** = in Phase 3 fertig, **später** = Kandidat für spätere Phasen.
 
 ### Bewegung / Schieben
 | Typ | Beschreibung | Status |
@@ -35,7 +35,7 @@ Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **späte
 | Rush Hour | Blöcke gleiten in ihrer Achse; der Ziel-Block muss zum Ausgang | **MVP** |
 | Klotski | Wie Rush Hour, aber Blöcke bewegen sich in alle Richtungen und haben verschiedene Formen | **Phase 3** (M19) |
 | Sokoban | Kisten auf Zielfelder schieben | **Phase 3** (M18) |
-| Eis-Rutschen | Spielfigur rutscht, bis sie anstößt | **Phase 3** (M17) |
+| Eis-Rutschen | Spielfigur rutscht, bis sie anstößt | **umgesetzt** (M17) |
 | Schiebepuzzle (15er) | Kacheln in die richtige Reihenfolge bringen | später |
 | Water-Sort | Farben in Gläsern sortieren | später |
 | Türme von Hanoi | Scheiben umstapeln | später |

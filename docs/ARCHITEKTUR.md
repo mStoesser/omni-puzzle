@@ -97,6 +97,7 @@ src/
     rushhour/  { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     laser/     { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     quiz/      { index.ts, rules.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    ice/       { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # deutsche Mail-Vorlagen
@@ -207,7 +208,7 @@ Ein Plugin liefert nur reine Zugfunktionen und Darstellung.
 ### Spielfiguren steuern (`ui/components/swipe.ts`, seit M16)
 
 Für Typen mit einer Figur (Eis-Rutschen, Sokoban): `swipeStart`/`swipeEnd`/`swipeCancel` auf dem Spielfeld liefern die
-Wischrichtung (dominante Achse, mindestens 24 px, sonst ist es ein Tippen), `directionKey` übersetzt Pfeiltasten und WASD
+Wischrichtung (dominante Achse, mindestens 24 px; kürzer liefert `"tap"`, z. B. um auf ein Feld zu tippen), `directionKey` übersetzt Pfeiltasten und WASD
 (Tastenkombinationen wie Strg+Z bleiben frei) und `directionPad` zeigt vier 44-px-Knöpfe als Alternative. Die reine
 Logik dazu (`swipeDir`, `keyDir`) liegt getestet in `core/grid.ts`.
 
@@ -274,6 +275,29 @@ type LaserMove = { x: number; y: number };                       // Spiegel umdr
   ein neuer Laser zeigt in die Richtung mit dem meisten Platz. Der Editor zeigt den Strahl der Startstellung.
 - Beispielrätsel sind per Skript erzeugt: genau ein Strahlweg löst sie, die Startstellung ist um `minMoves` Spiegel verdreht.
 - Erweiterungen (später): Spiegel aus einem Inventar platzieren, Strahlteiler, Farben, „Bomben“-Felder, die nicht getroffen werden dürfen.
+
+### Eis-Rutschen (`ice`, seit M17)
+
+```ts
+type IceCell = { x: number; y: number; kind: "wall" | "sand" | "goal" | "start" };
+type IceData = { width: number; height: number; cells: IceCell[] };  // 3–14 Felder je Seite, leeres Eis nicht gelistet
+type IceState = { x: number; y: number };                            // Position der Figur
+type IceMove = "N" | "E" | "S" | "W";                                 // ein Rutschen
+```
+
+- Die Figur rutscht, bis ein Fels oder der Rand sie stoppt; auf **Sand** bleibt sie auf dem Sandfeld stehen und kann von dort
+  weiterrutschen. Ein Zug, bei dem sie sich nicht bewegt (Fels oder Rand direkt davor), ist ungültig und zählt nicht.
+- **Gelöst**, wenn die Figur auf einem Ziel **stehen bleibt**; darüberrutschen zählt nicht. Mehrere Ziele sind erlaubt,
+  eines reicht. Genau ein Start, mindestens ein Ziel.
+- Solver: Breitensuche über die Position (`core/search.ts`), höchstens 196 Zustände, also auch serverseitig sofort fertig.
+  Stufen: bis 4 Züge leicht, bis 9 mittel.
+- Bedienung: Wischen, Tippen auf ein Feld in derselben Reihe oder Spalte (rutscht in diese Richtung), Pfeiltasten/WASD auf
+  dem fokussierten Spielfeld, Richtungsknöpfe darunter. Die Figur ist eine Gruppe mit CSS-`transform`, so animiert das
+  Rutschen (ohne bei `prefers-reduced-motion`). Eine Live-Region sagt Position, Sand und Ziel an.
+- Editor: Fels, Sand und Radierer lassen sich ziehen; Start (versetzt den einzigen Start) und Ziel per Tippen.
+  Die Figur zeigt im Editor den Start.
+- Beispiele sind per Skript erzeugt: Zufallsbretter mit genau dieser minimalen Zugzahl, ausgewählt nach vielen erreichbaren
+  Positionen und Sackgassen.
 
 ### Quiz (`quiz`)
 

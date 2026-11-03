@@ -295,12 +295,22 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), bevor die Typen kommen.
 
 ### M17 – Eis-Rutschen (`ice`)
 Der einfachste Typ mit Spielfigur. Er testet die Richtungs-Eingabe aus M16.
-- [ ] Datenformat: Raster mit Wand, Ziel und Start, dazu optional **Sandfeld**, auf dem die Figur anhält.
+- [x] Datenformat: Raster mit Wand, Ziel und Start, dazu optional **Sandfeld**, auf dem die Figur anhält.
   Ein Zug ist eine Richtung; die Figur rutscht, bis eine Wand oder der Rand sie stoppt.
-- [ ] Gelöst, wenn die Figur **auf** dem Ziel stehen bleibt. Wer nur darüber hinwegrutscht, hat nicht gelöst.
-- [ ] Solver: Breitensuche über die Position (`core/search.ts`), liefert `minMoves`.
-- [ ] Darstellung: Rutschen animiert; Wischen oder Pfeiltasten; Tippen auf ein Feld in gerader Linie rutscht dorthin.
-- [ ] Editor: Wand (ziehend malen), Sand, Start, Ziel, Radierer; Validierung: genau ein Start und mindestens ein Ziel.
+  (Wand heißt im Spiel „Fels“; 3–14 Felder je Seite.)
+- [x] Gelöst, wenn die Figur **auf** dem Ziel stehen bleibt. Wer nur darüber hinwegrutscht, hat nicht gelöst.
+- [x] Solver: Breitensuche über die Position (`core/search.ts`), liefert `minMoves`.
+  (Stufen: bis 4 Züge leicht, bis 9 mittel. Vier Beispiele mit 3, 5, 8 und 12 Zügen, per Skript erzeugt.)
+- [x] Darstellung: Rutschen animiert; Wischen oder Pfeiltasten; Tippen auf ein Feld in gerader Linie rutscht dorthin.
+  (Dazu die Richtungsknöpfe aus M16. `swipeEnd` meldet jetzt auch `"tap"`.)
+- [x] Editor: Wand (ziehend malen), Sand, Start, Ziel, Radierer; Validierung: genau ein Start und mindestens ein Ziel.
+- [x] Checkliste für neue Typen: Tests (Logik, Solver, Editor, Beispiele; ein neuer Test prüft alle Beispiele gegen die
+  Server-Prüfung `preparePublication`), Registrierung, Symbol und Farbe, Barrierefreiheit, Linklänge (Beispiele unter
+  350 Zeichen, ein halb gefülltes 14×14-Feld etwa 650), ARCHITEKTUR.md.
+  Im Browser über die LAN-Adresse geprüft: Spielen mit Wischen, Tippen, Tasten und Richtungsknöpfen, Gelöst-Sheet,
+  Editor (malen, Start versetzen, probespielen, teilen), hell und dunkel, mobil und Desktop.
+- [x] Handy-Test (Spielen mit Wischen, Tippen und Richtungsknöpfen; Editor) erfolgreich.
+- [ ] Live testen: veröffentlichen (Edge Function wird erst beim Push deployt), in der Galerie nach Typ filtern.
 
 ### M18 – Sokoban (`sokoban`)
 - [ ] Datenformat: Raster mit Wand, Boden, Ziel, Kiste, Kiste auf Ziel und Spielfigur; höchstens z. B. 20×20.

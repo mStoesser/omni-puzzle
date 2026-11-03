@@ -8,7 +8,7 @@ import type { IconName } from "../icons.ts";
 
 // Direction input for puzzles with a moving figure (ice sliding, Sokoban …): swipes, arrow keys / WASD
 // and an on-screen pad. Usage on the board (an SVG, so touch-action is already none):
-//   @pointerdown=${swipeStart} @pointerup=${(e) => { const dir = swipeEnd(e); if (dir) move(dir); }}
+//   @pointerdown=${swipeStart} @pointerup=${(e) => { const end = swipeEnd(e); if (end && end !== "tap") move(end); }}
 //   @pointercancel=${swipeCancel} @keydown=${(e) => { const dir = directionKey(e); if (dir) move(dir); }}
 
 /** Minimum swipe length in CSS pixels; shorter gestures count as taps. */
@@ -22,12 +22,18 @@ export function swipeStart(e: PointerEvent) {
   start = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
 }
 
-/** The direction of a swipe that ends with this pointerup, or null (tap, other pointer, no start). */
-export function swipeEnd(e: PointerEvent): Dir | null {
+/**
+ * How the gesture ending with this pointerup went: a swipe direction, "tap" (moved less than SWIPE_MIN),
+ * or null (no matching pointerdown, e.g. another finger, or an exactly diagonal swipe).
+ */
+export function swipeEnd(e: PointerEvent): Dir | "tap" | null {
   const begun = start;
   start = null;
   if (!begun || begun.pointerId !== e.pointerId) return null;
-  return swipeDir(e.clientX - begun.x, e.clientY - begun.y, SWIPE_MIN);
+  const dx = e.clientX - begun.x;
+  const dy = e.clientY - begun.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_MIN) return "tap";
+  return swipeDir(dx, dy, SWIPE_MIN);
 }
 
 export function swipeCancel() {

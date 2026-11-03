@@ -26,6 +26,14 @@ test("a verified puzzle is published with minMoves computed by the solver", () =
   assert.equal(pub.contentKey, progressKey(doc));
 });
 
+test("every built-in example passes the server checks with the same minMoves and a difficulty level", () => {
+  for (const { id, doc } of examples) {
+    const pub = preparePublication({ doc: structuredClone(doc), title: doc.meta.title }, rulesRegistry);
+    assert.equal(pub.minMoves, doc.meta.minMoves ?? null, id);
+    if (pub.minMoves !== null) assert.ok(pub.difficulty !== null && pub.difficulty >= 1 && pub.difficulty <= 3, id);
+  }
+});
+
 test("a quiz has no solver; being solved by its creator is enough", () => {
   const doc = docOf(examples.find((e) => e.doc.type === "quiz")!.id);
   const pub = preparePublication({ doc, title: "Quiz" }, rulesRegistry);
