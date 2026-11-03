@@ -55,6 +55,8 @@ import { playView } from "./ui/views/play.ts";
 import type { PlayOrigin, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
 import { privacyView } from "./ui/views/privacy.ts";
 import { encodeImage } from "./ui/image-encode.ts";
+import { buildSheet, tabBar, topNav } from "./ui/components/nav.ts";
+import type { NavSection } from "./ui/components/nav.ts";
 import { applyTheme, readTheme, watchSystemTheme } from "./ui/theme.ts";
 import type { EncodeError } from "./ui/image-encode.ts";
 
@@ -87,6 +89,8 @@ type AppState = {
   gallery: GalleryState | null; // gallery route
   newest: GalleryItem[]; // "new in the gallery" on the home page
   moderation: ModerationViewModel | null; // moderation route
+  buildSheet: boolean; // type choice for a new puzzle is open
+  typeSheet: string | null; // home: type whose levels are shown in a sheet
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -149,6 +153,8 @@ const store = createStore<AppState>({
   gallery: null,
   newest: [],
   moderation: null,
+  buildSheet: false,
+  typeSheet: null,
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -181,7 +187,7 @@ function now() {
 
 function enterRoute(route: Route) {
   flushSave();
-  patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null });
+  patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
     case "home":
@@ -538,7 +544,7 @@ const playActions = {
 
 // --- Gallery ---
 
-const NEWEST_ON_HOME = 3;
+const NEWEST_ON_HOME = 4;
 
 async function loadNewest() {
   if (!api) return;
@@ -1198,10 +1204,16 @@ function view(state: AppState) {
   switch (state.route.name) {
     case "home": {
       const solved = examples.filter((e) => state.progress.get(state.exampleKeys.get(e.id) ?? "")?.solved);
-      const { user, profile } = state.account;
-      const badge = auth ? { username: user ? (profile?.username ?? "…") : null } : null;
       const gallery = api ? { newest: state.newest, solved: isSolved } : null;
-      return homeView(registry.all(), examples, new Set(solved.map((e) => e.id)), badge, gallery);
+      const model = {
+        types: registry.all(),
+        examples,
+        solvedExamples: new Set(solved.map((e) => e.id)),
+        account: { ...navAccount(state), username: state.account.user ? (state.account.profile?.username ?? null) : null },
+        gallery,
+        typeSheet: state.typeSheet,
+      };
+      return homeView(model, homeActions);
     }
     case "gallery":
       return state.gallery ? galleryView(state.gallery, registry, isSolved, galleryActions) : nothing;
@@ -1250,11 +1262,58 @@ function view(state: AppState) {
   }
 }
 
+/** Navigation section of a route; null = focus mode (play, editor) without navigation. */
+function navSection(route: Route): NavSection | "focus" {
+  switch (route.name) {
+    case "home":
+    case "gallery":
+    case "library":
+    case "account":
+      return route.name;
+    case "play":
+    case "shared":
+    case "published":
+    case "new":
+    case "edit":
+      return "focus";
+    case "imprint":
+    case "privacy":
+    case "moderation":
+      return null;
+  }
+}
+
+function navAccount(state: AppState) {
+  const { user, profile } = state.account;
+  return { initial: user && profile ? profile.username.slice(0, 1).toUpperCase() : null };
+}
+
+const homeActions = {
+  openType: (id: string) => patch({ typeSheet: id }),
+  closeType: () => patch({ typeSheet: null }),
+  openBuild: () => patch({ buildSheet: true }),
+};
+
+const navActions = {
+  openBuild: () => patch({ buildSheet: true }),
+  closeBuild: () => patch({ buildSheet: false }),
+};
+
 function page(state: AppState) {
-  return html`
+  const section = navSection(state.route);
+  const content = html`
     ${state.notice ? html`<p class="notice page-notice" role="alert">${t(state.notice)}</p>` : nothing}
     ${view(state)}
   `;
+  if (section === "focus") return html`<div class="page">${content}</div>`;
+  const account = navAccount(state);
+  const wide = state.route.name === "home" || state.route.name === "gallery";
+  return html`<div class="with-tabbar">
+    ${topNav(section, api !== null, account, navActions.openBuild)}
+    <div class="page ${wide ? "wide" : ""}">${content}</div>
+    ${tabBar(section, api !== null, navActions.openBuild)}
+    ${state.buildSheet ? buildSheet(registry.all(), navActions.closeBuild) : nothing}
+  </div>`;
 }
 
 function pageTitle(state: AppState): string {

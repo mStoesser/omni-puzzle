@@ -2,6 +2,7 @@ import { html, nothing } from "lit-html";
 import type { PuzzleRecord } from "../../core/storage.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
+import { typeTile } from "../components/ui.ts";
 
 export type LibraryItem = {
   record: PuzzleRecord;
@@ -34,7 +35,7 @@ export function libraryView(items: readonly LibraryItem[] | null, types: readonl
         (type) => html`
           <li>
             <a class="card" href="#/new/${type.id}">
-              <span class="card-icon" aria-hidden="true">${type.icon}</span>
+              ${typeTile(type, "sm")}
               <span class="card-title">${t(type.name)}</span>
               <span class="card-detail" aria-hidden="true">＋</span>
             </a>
@@ -52,7 +53,7 @@ function libraryEntry({ record, type, playable }: LibraryItem, actions: LibraryV
   return html`
     <li class="library-item">
       <div class="library-head">
-        <span class="card-icon" aria-hidden="true">${type.icon}</span>
+        ${typeTile(type, "sm")}
         <span>
           <span class="card-title">${title}</span>
           <span class="card-detail">
