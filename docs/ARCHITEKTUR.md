@@ -148,7 +148,7 @@ type PuzzleType<D, S, M> = {
   createDefault(): D;               // Startpunkt für den Editor
   validate(data: unknown): D;       // wirft bei ungültigen Daten (Links sind nicht vertrauenswürdig!)
   migrate?(data: unknown, fromVersion: number): unknown;
-  parseDraft?(data: unknown): D;    // nur Struktur prüfen: Editor-Entwürfe mit Problemen laden
+  parseDraft?(data: unknown): D;    // nur Struktur prüfen: Editor-Entwürfe mit Problemen laden (darf Editor-Felder behalten)
   problems?(data: D): string[];     // lokalisierte Fehlermeldungen für die Live-Validierung im Editor
 
   // --- Spiellogik (rein, DOM-frei) ---
@@ -186,6 +186,11 @@ Seit M10 ist die Schnittstelle zweigeteilt: `PuzzleRules<D, S, M>` enthält `id`
 Solver-Funktionen (also alles oben ohne Texte, `controls`, `problems` und Darstellung). Jeder Typ exportiert sie aus
 `rules.ts` (dazu optional `levels`: Zuggrenzen für leicht/mittel/schwer), `index.ts` ergänzt UI und Texte (`{ ...rules, name, …, renderPlay }`). So kann die Edge Function die Regeln
 importieren, ohne lit-html oder das DOM zu laden. `src/puzzles/rules.test.ts` prüft, dass beide Registrierungen übereinstimmen.
+
+**Editor-Felder:** `parseDraft` darf Felder behalten, die nur der Editor braucht (z. B. das Bild hinter den Hinweisen eines
+Nonogramms), `validate` gibt nur zurück, was zum Spielen nötig ist. Teilen und Veröffentlichen schicken deshalb das geprüfte
+Dokument (`shareableDocument` in `core/document.ts` = `loadDocument(…).doc`), nie den rohen Entwurf. Gespielt wird ohnehin
+immer das Ergebnis von `loadDocument`, also hängt auch der Fortschrittsschlüssel nicht an Editor-Feldern. (Seit M22.)
 
 **Wichtig:** Undo/Redo, Zugzähler, Timer, „Gelöst!“-Dialog und Neustart gehören in den **Core**, nicht in die Plugins.
 Ein Plugin liefert nur reine Zugfunktionen und Darstellung.

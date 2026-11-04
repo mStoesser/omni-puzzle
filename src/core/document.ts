@@ -104,3 +104,13 @@ export function loadDocument<T extends AnyPuzzleRules>(
   }
   return { type, doc: { ...doc, typeVersion: type.version, data } };
 }
+
+/**
+ * The document as it leaves the device (share link, publishing): the checked document from `loadDocument`.
+ * `validate` returns only what is needed to play, so editor-only fields that `parseDraft` keeps in drafts
+ * (e.g. the picture behind a nonogram's clues) are dropped. Progress keys use the same checked data.
+ * Throws a DocumentError for documents that are not playable.
+ */
+export function shareableDocument<T extends AnyPuzzleRules>(doc: unknown, registry: Registry<T>): PuzzleDocument {
+  return loadDocument(doc, registry).doc;
+}

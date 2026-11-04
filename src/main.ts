@@ -5,7 +5,7 @@ import type { UsernameProblem } from "./core/account.ts";
 import { ApiError, apiErrorText, createApi } from "./core/api.ts";
 import { SESSION_KEY, createAuth } from "./core/auth.ts";
 import type { KeyValueStore, Session } from "./core/auth.ts";
-import { DocumentError, loadDocument } from "./core/document.ts";
+import { DocumentError, loadDocument, shareableDocument } from "./core/document.ts";
 import { fetchGalleryPage } from "./core/gallery.ts";
 import type { GalleryCursor, GalleryFilter, GalleryItem } from "./core/gallery.ts";
 import * as editing from "./core/editor-session.ts";
@@ -824,7 +824,13 @@ const shareActions = {
 async function openShare() {
   const editor = store.get().editor;
   if (!editor || !editing.readiness(editorCheck(editor)).canShare) return;
-  const doc = editorDocument(editor);
+  let doc: PuzzleDocument;
+  try {
+    doc = shareableDocument(editorDocument(editor), registry);
+  } catch (error) {
+    console.warn(error); // problems() let through a puzzle that validate rejects
+    return;
+  }
   const hasImages = (editor.type.imageKeys?.(doc.data).length ?? 0) > 0;
   const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", hasImages };
   patch({ share });
@@ -858,8 +864,15 @@ function setPublish(change: Partial<PublishDialogModel>) {
 async function publish(description: string) {
   const { editor, publish: dialog } = store.get();
   if (!api || !editor || !dialog || dialog.state !== "confirm") return;
+  let doc: PuzzleDocument;
+  try {
+    doc = shareableDocument(editorDocument(editor), registry);
+  } catch (error) {
+    console.warn(error); // problems() let through a puzzle that validate rejects
+    setPublish({ error: publishErrorText(error) });
+    return;
+  }
   setPublish({ state: "busy", error: null, publishedId: null });
-  const doc = editorDocument(editor);
   try {
     const images = await imagesForUpload(editor.type.imageKeys?.(doc.data) ?? []);
     const id = await publishPuzzle(api, { doc, title: doc.meta.title, description, images });
@@ -870,7 +883,7 @@ async function publish(description: string) {
     setPublish({ state: "confirm", error: error instanceof InputProblem ? error.text : publishErrorText(error) });
     if (error instanceof ApiError && error.code === "duplicate") {
       // Same key as the server computes: progressKey of the checked document.
-      const existing = await findByContentKey(api, progressKey(loadDocument(doc, registry).doc)).catch(() => null);
+      const existing = await findByContentKey(api, progressKey(doc)).catch(() => null);
       if (existing) setPublish({ publishedId: existing });
     }
   }

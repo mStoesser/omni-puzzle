@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DocumentError, loadDocument, validateEnvelope } from "./document.ts";
+import { DocumentError, loadDocument, shareableDocument, validateEnvelope } from "./document.ts";
 import { createRegistry } from "./registry.ts";
 import { counterDocument, counterType } from "./test-fixtures.ts";
 
@@ -79,4 +79,21 @@ test("loadDocument in draft mode uses parseDraft and still rejects malformed dat
 
 test("loadDocument in draft mode falls back to validate", () => {
   assertCode(() => loadDocument({ ...counterDocument(0), data: { target: -1 } }, registry, { draft: true }), "invalid");
+});
+
+test("shareableDocument drops editor-only fields that parseDraft keeps", () => {
+  // A type whose drafts carry an editor-only note; validate returns only what is needed to play.
+  const noteType = {
+    ...counterType,
+    id: "note-counter",
+    parseDraft(data: unknown) {
+      const { target, note } = data as { target: number; note?: string };
+      return note === undefined ? { target } : { target, note };
+    },
+  };
+  const notes = createRegistry([noteType]);
+  const doc = { ...counterDocument(2), type: "note-counter", data: { target: 2, note: "the solution" } };
+  assert.deepEqual(loadDocument(doc, notes, { draft: true }).doc.data, { target: 2, note: "the solution" });
+  assert.deepEqual(shareableDocument(doc, notes).data, { target: 2 });
+  assertCode(() => shareableDocument({ ...doc, data: { target: -1 } }, notes), "invalid");
 });

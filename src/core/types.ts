@@ -60,12 +60,16 @@ export type PuzzleRules<D, S, M> = {
   version: number; // current typeVersion
 
   createDefault(): D;
-  /** Throws on invalid data. Data from links is untrusted. */
+  /**
+   * Throws on invalid data. Data from links is untrusted. Returns only what is needed to play: editor-only
+   * fields that parseDraft keeps are dropped here, so they never leave the device (see shareableDocument).
+   */
   validate(data: unknown): D;
   migrate?(data: unknown, fromVersion: number): unknown;
   /**
    * Like validate, but only checks the structure, so unfinished editor drafts can be loaded.
-   * Throws on malformed data. Without it, drafts must pass validate.
+   * May keep editor-only fields (e.g. a nonogram's picture behind its clues). Throws on malformed data.
+   * Without it, drafts must pass validate.
    */
   parseDraft?(data: unknown): D;
   initState(data: D): S;
