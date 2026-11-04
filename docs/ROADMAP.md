@@ -310,7 +310,7 @@ Der einfachste Typ mit Spielfigur. Er testet die Richtungs-Eingabe aus M16.
   Im Browser über die LAN-Adresse geprüft: Spielen mit Wischen, Tippen, Tasten und Richtungsknöpfen, Gelöst-Sheet,
   Editor (malen, Start versetzen, probespielen, teilen), hell und dunkel, mobil und Desktop.
 - [x] Handy-Test (Spielen mit Wischen, Tippen und Richtungsknöpfen; Editor) erfolgreich.
-- [ ] Live testen: veröffentlichen (Edge Function wird erst beim Push deployt), in der Galerie nach Typ filtern.
+- [x] Live testen: veröffentlichen (Edge Function wird erst beim Push deployt), in der Galerie nach Typ filtern.
 
 ### M18 – Sokoban (`sokoban`)
 - [x] Datenformat: Raster mit Wand, Boden, Ziel, Kiste, Kiste auf Ziel und Spielfigur; höchstens z. B. 20×20.
@@ -331,9 +331,9 @@ Der einfachste Typ mit Spielfigur. Er testet die Richtungs-Eingabe aus M16.
 - [x] Checkliste für neue Typen. Im Browser über die LAN-Adresse geprüft: Spielen mit Wischen, Tasten, Richtungsknöpfen,
   Laufen und Schieben per Tippen, Undo während eines Laufwegs, Gelöst-Sheet; Editor (Kisten/Ziele-Prüfung, tote Ecke,
   Wand-Strich mit Undo, Probespielen), hell und dunkel, mobil und Desktop.
-- [ ] Handy-Test, dabei auch: Wie lange friert der Editor bei einem großen, offenen Lager ein (Solver-Abbruch nach 200 000
+- [x] Handy-Test, dabei auch: Wie lange friert der Editor bei einem großen, offenen Lager ein (Solver-Abbruch nach 200 000
   Knoten)? Falls störend: Solver-Limit pro Typ.
-- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
+- [x] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M19 – Klotski (`klotski`)
 Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt in den Core oder wird bewusst kopiert.
