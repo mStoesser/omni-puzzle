@@ -33,7 +33,7 @@ Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **umgese
 | Typ | Beschreibung | Status |
 |---|---|---|
 | Rush Hour | Blöcke gleiten in ihrer Achse; der Ziel-Block muss zum Ausgang | **MVP** |
-| Klotski | Wie Rush Hour, aber Blöcke bewegen sich in alle Richtungen und haben verschiedene Formen | **Phase 3** (M19) |
+| Klotski | Wie Rush Hour, aber Blöcke bewegen sich in alle Richtungen und haben verschiedene Formen | **umgesetzt** (M19) |
 | Sokoban | Kisten auf Zielfelder schieben | **umgesetzt** (M18) |
 | Eis-Rutschen | Spielfigur rutscht, bis sie anstößt | **umgesetzt** (M17) |
 | Schiebepuzzle (15er) | Kacheln in die richtige Reihenfolge bringen | später |

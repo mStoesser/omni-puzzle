@@ -73,7 +73,7 @@ src/
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
     storage.ts            # IndexedDB-Wrapper (+ In-Memory-Variante für Tests/Fallback), Fortschritt
     grid.ts               # Richtungen, Koordinaten, Raster-Hilfen, Wisch-/Tastenrichtung, Linien (rein)
-    search.ts             # generische Breitensuche für Solver (Rush Hour, ab M17 Eis-Rutschen, Sokoban …)
+    search.ts             # generische Breitensuche für Solver (Rush Hour, Eis-Rutschen, Sokoban, Klotski)
     hash.ts               # synchrones SHA-256, Normalisierung von Freitext-Antworten
     test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
     api.ts, auth.ts, account.ts  # Backend: fetch-Wrapper, Anmeldung, Konto (ab M8/M9)
@@ -99,6 +99,7 @@ src/
     quiz/      { index.ts, rules.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     ice/       { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     sokoban/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    klotski/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # deutsche Mail-Vorlagen
@@ -325,6 +326,36 @@ type SokobanMove = "N" | "E" | "S" | "W";                         // ein Schritt
 - **Editor:** Wand und Radierer ziehend; Kiste, Ziel und Figur per Tippen. Kiste und Ziel auf einem Feld ergeben „Kiste auf
   Ziel“, die Figur gibt es nur einmal. Beim Vergrößern kommt Boden dazu.
 - Beispiele sind per Skript erzeugt (Zufallsräume, gelöst innerhalb des Server-Limits, ausgewählt nach vielen Schüben).
+
+### Klotski (`klotski`, seit M19)
+
+```ts
+type Block = { id: string; x: number; y: number; w: number; h: number; target?: true };  // w, h: 1 oder 2
+type KlotskiData = { width: number; height: number; blocks: Block[];                     // 3–10 Felder je Seite
+                     exit: { side: "N" | "E" | "S" | "W"; index: number } };             // Startfeld des Ausgangs
+type KlotskiState = { pos: readonly number[] };      // linkes oberes Feld jedes Blocks als y · Breite + x
+type KlotskiMove = { block: number; x: number; y: number };  // Block an diese Stelle schieben
+```
+
+- Eigenes Modul: Teile von Rush Hour (Ausgang im Randring, Blöcke, Ziehen, Tastatur) sind bewusst kopiert und angepasst.
+- Der Ausgang ist so breit wie der Zielblock entlang der Seite (2×2: zwei Felder); er hat keine eigene Breite.
+  Gelöst, wenn der Zielblock die Kante am Ausgang berührt und mit ihm bündig steht. Genau ein Zielblock.
+- **Ein Zug** schiebt einen Block beliebig weit über freie Felder, auch um Ecken (klassische Zählweise). `reachable`
+  sucht alle erreichbaren Positionen eines Blocks per Breitensuche in Einzelschritten.
+- **Solver:** Breitensuche über `core/search.ts`. Gleich große Blöcke sind austauschbar: Der Zustandsschlüssel listet je
+  Größe die sortierten Positionen (der Zielblock ist eine eigene Gruppe). Huarong Dao (81 Züge) braucht so etwa 24 000
+  Zustände und 0,2 s, passt also ins Server-Limit. Stufen: bis 12 Züge leicht, bis 35 mittel.
+- **Bedienung:** Ziehen mit Pointer Capture. Der Klotz springt auf die erreichbare Position, die dem Finger am nächsten ist,
+  und gleitet bis zu einem halben Feld zur nächsten erreichbaren, so lässt er sich um Ecken führen; Loslassen ist ein Zug.
+  Tastatur wie bei Rush Hour: Tab wählt einen Klotz, Pfeiltasten schieben ihn feldweise über freie Felder (Vorschau),
+  Enter/Leertaste oder Verlassen setzt ab, Esc bricht ab. Klötze sind Gruppen mit CSS-`transform`, Absetzen und Undo
+  animieren (ohne bei `prefers-reduced-motion`).
+- **Editor:** Klötze 1×1, 2×1, 1×2, 2×2, roter Block, Ausgang (im Randring) und Radierer (ziehend). Ein Größen-Werkzeug auf
+  einem Klotz ändert dessen Größe; ein neuer Klotz, der am getippten Feld nicht passt, wird nach links/oben versetzt.
+  Der rote Block wird auf einem freien Feld so groß wie möglich (2×2 zuerst). Passt der Ausgang nach einer Änderung am
+  Zielblock oder am Brett nicht mehr, rückt er zurück.
+- Beispiele: drei per Skript erzeugt (Zufallsbretter mit zwei bis sechs freien Feldern, ausgewählt nach Zugzahl), dazu der
+  traditionelle Aufbau Huarong Dao.
 
 ### Quiz (`quiz`)
 

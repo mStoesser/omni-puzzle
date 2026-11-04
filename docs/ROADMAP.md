@@ -337,14 +337,29 @@ Der einfachste Typ mit Spielfigur. Er testet die Richtungs-Eingabe aus M16.
 
 ### M19 – Klotski (`klotski`)
 Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt in den Core oder wird bewusst kopiert.
-- [ ] Datenformat: rechteckige Blöcke 1×1, 1×2, 2×1, 2×2 (größere später), genau ein Zielblock, Ausgang an einer Kante
+- [x] Datenformat: rechteckige Blöcke 1×1, 1×2, 2×1, 2×2 (größere später), genau ein Zielblock, Ausgang an einer Kante
   in Breite des Zielblocks.
-- [ ] Ein Zug verschiebt einen Block beliebig weit über freie Felder, auch um Ecken (klassische Zählweise).
+  (Ausgang als Seite und Startfeld; seine Breite ergibt sich aus dem Zielblock. 3–10 Felder je Seite, höchstens 50 Blöcke.
+  Rush-Hour-Code bewusst kopiert und angepasst, kein neuer Core-Code nötig.)
+- [x] Ein Zug verschiebt einen Block beliebig weit über freie Felder, auch um Ecken (klassische Zählweise).
   Gelöst, wenn der Zielblock am Ausgang steht.
-- [ ] Solver: Breitensuche; im Zustandsschlüssel sind gleich große Blöcke austauschbar (Kanonisierung), sonst explodiert
+- [x] Solver: Breitensuche; im Zustandsschlüssel sind gleich große Blöcke austauschbar (Kanonisierung), sonst explodiert
   der Suchraum. Test mit dem klassischen „Huarong Dao“-Aufbau, bekannte Lösung 81 Züge.
-- [ ] Darstellung: Ziehen mit Einrasten in alle Richtungen (Pointer Capture), Tastatur wie bei Rush Hour.
-- [ ] Editor: Blockgrößen als Werkzeuge, Zielblock, Ausgang am Randring.
+  (81 Züge in etwa 0,2 s, innerhalb des Server-Limits von 40 000 Knoten. Stufen: bis 12 Züge leicht, bis 35 mittel.
+  Vier Beispiele mit 5, 17, 37 und 81 Zügen; die ersten drei per Skript erzeugt, das letzte ist Huarong Dao.)
+- [x] Darstellung: Ziehen mit Einrasten in alle Richtungen (Pointer Capture), Tastatur wie bei Rush Hour.
+  (Der Klotz springt beim Ziehen auf die erreichbare Position, die dem Finger am nächsten ist, und gleitet zur nächsten;
+  so lässt er sich um Ecken führen. Absetzen und Undo sind animiert, außer bei `prefers-reduced-motion`.)
+- [x] Editor: Blockgrößen als Werkzeuge, Zielblock, Ausgang am Randring.
+  (Ein Größen-Werkzeug auf einem Klotz ändert seine Größe; passt ein neuer Klotz nicht, wird er nach links/oben versetzt.
+  Der Ausgang rückt zurück, wenn er für einen breiteren Zielblock nicht mehr passt.)
+- [x] Checkliste für neue Typen: Tests (Logik, Solver, Editor, Beispiele samt Server-Prüfung), Registrierung, Symbol und
+  Farbe, Barrierefreiheit, Linklänge (Beispiele um 350 Zeichen, ein 10×10-Brett mit 50 Klötzen etwa 520), ARCHITEKTUR.md.
+  Solver im Editor bei einem großen, offenen Brett: Abbruch nach 200 000 Knoten in etwa 0,6 s am Desktop.
+  Im Browser über die LAN-Adresse geprüft (Headless Chrome, 390 px): zwei Beispiele per Ziehen optimal gelöst,
+  Tastatur (Pfeile, Enter = ein Zug), blockierter Klotz bleibt stehen, Editor, hell und dunkel, Startseite.
+- [x] Handy-Test (Ziehen um Ecken, Tastatur; Editor) erfolgreich.
+- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M20 – Lights Out (`lightsout`)
 - [ ] Datenformat: Raster (höchstens z. B. 10×10) mit aktiven Feldern (Löcher für unregelmäßige Formen) und Startmuster der Lichter.
