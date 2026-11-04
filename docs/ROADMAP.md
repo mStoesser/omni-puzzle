@@ -362,13 +362,26 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
 - [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M20 – Lights Out (`lightsout`)
-- [ ] Datenformat: Raster (höchstens z. B. 10×10) mit aktiven Feldern (Löcher für unregelmäßige Formen) und Startmuster der Lichter.
+- [x] Datenformat: Raster (höchstens z. B. 10×10) mit aktiven Feldern (Löcher für unregelmäßige Formen) und Startmuster der Lichter.
   Tippen schaltet das Feld und seine vier Nachbarn um; gelöst, wenn alle Lichter aus sind.
-- [ ] Solver: Gauß-Elimination über GF(2), danach den Nullraum durchprobieren (mit Limit) für die minimale Zahl an Tipps.
+  (Textzeilen wie bei Sokoban: `.` aus, `*` an, `#` Loch; 3–10 Felder je Seite; Links um 210 Zeichen.)
+- [x] Solver: Gauß-Elimination über GF(2), danach den Nullraum durchprobieren (mit Limit) für die minimale Zahl an Tipps.
   Erkennt unlösbare Muster sofort.
-- [ ] Editor mit zwei Modi: „Lichter setzen“ (direkt, der Solver prüft) und „Rückwärts tippen“ (Züge auf dem leeren Feld,
+  (Bitsets, Nullraum per Gray-Code; 2^k Kombinationen zählen als Knoten, darüber „abgebrochen“. 10×10 in etwa 1 ms.
+  Test gegen Brute Force auf kleinen Brettern mit Löchern; 5×5 ganz an braucht 15 Tipps.
+  Stufen: bis 4 Tipps leicht, bis 9 mittel. Vier Beispiele mit 3, 6, 10 und 14 Tipps, per Skript erzeugt.)
+- [x] Editor mit zwei Modi: „Lichter setzen“ (direkt, der Solver prüft) und „Rückwärts tippen“ (Züge auf dem leeren Feld,
   ergibt immer ein lösbares Rätsel).
-- [ ] Darstellung: Umschalten animiert, Zugzähler, Tastatur per roving tabindex.
+  (Als Werkzeuge im Raster: „Rückwärts tippen“, „Licht“, dazu „Loch“ und Radierer; Licht, Loch und Radierer ziehend.)
+- [x] Darstellung: Umschalten animiert, Zugzähler, Tastatur per roving tabindex.
+  (Pfeiltasten überspringen Löcher, Enter/Leertaste schaltet. Lichter sind gelb mit Glühen und Punkt, aus ist dunkelgrau,
+  in beiden Themes.)
+- [x] Checkliste für neue Typen: Tests (Logik, Solver, Editor, Beispiele samt Server-Prüfung), Registrierung, Symbol und
+  Farbe, Barrierefreiheit, Linklänge (ein zufälliges 10×10-Brett etwa 240 Zeichen), ARCHITEKTUR.md.
+  Im Browser über die LAN-Adresse geprüft (Headless Chrome, 390 px): zwei Beispiele per Antippen optimal gelöst, Tastatur
+  (Löcher übersprungen, Enter = ein Zug), Editor, hell und dunkel.
+- [x] Handy-Test (Antippen, Editor mit beiden Modi) erfolgreich.
+- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M21 – Rohre (`pipes`)
 - [ ] Datenformat: Kacheln Ende, Gerade, Kurve, T, Kreuz, Quelle; je Kachel eine Drehung und „drehbar/fest“.

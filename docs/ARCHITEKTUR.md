@@ -100,6 +100,7 @@ src/
     ice/       { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     sokoban/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     klotski/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    lightsout/ { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # deutsche Mail-Vorlagen
@@ -356,6 +357,31 @@ type KlotskiMove = { block: number; x: number; y: number };  // Block an diese S
   Zielblock oder am Brett nicht mehr, rückt er zurück.
 - Beispiele: drei per Skript erzeugt (Zufallsbretter mit zwei bis sechs freien Feldern, ausgewählt nach Zugzahl), dazu der
   traditionelle Aufbau Huarong Dao.
+
+### Lights Out (`lightsout`, seit M20)
+
+```ts
+type LightsOutData = { rows: string[] };          // "." Licht aus, "*" Licht an, "#" Loch; 3–10 Felder je Seite
+type LightsOutState = { on: readonly boolean[] }; // je Zelle (y · Breite + x), Löcher immer false
+type LightsOutMove = { x: number; y: number };    // ein Feld antippen
+```
+
+- Ein Tipp schaltet das Feld und seine bis zu vier Nachbarn um (nicht über Löcher und den Rand). Gelöst, wenn alle Lichter
+  aus sind. Mindestens ein Feld; ein Muster ohne Lichter meldet nur der Editor („schon gelöst“).
+- **Solver:** Die Reihenfolge der Tipps ist egal und zweimal tippen hebt sich auf, eine Lösung ist also eine Menge x mit
+  A·x = b über GF(2). Gauß-Elimination (Bitsets mit 32 Feldern pro Wort) findet eine Lösung oder beweist, dass es keine gibt.
+  Alle Lösungen unterscheiden sich um Vektoren des Nullraums; die 2^k Kombinationen der k Basisvektoren werden per Gray-Code
+  durchprobiert (ein XOR pro Schritt), die mit den wenigsten Tipps gewinnt. 2^k zählt als Knotenzahl: Ist sie größer als das
+  Limit, bricht der Solver ab. Rechteckige Bretter bis 10×10 haben höchstens k = 8 (9×9). Stufen: bis 4 Tipps leicht, bis 9 mittel.
+- **Bedienung:** Antippen (`ui/components/tap.ts`); Tastatur per roving tabindex: Pfeiltasten springen zum nächsten Feld
+  in dieser Richtung und überspringen Löcher, Enter/Leertaste schaltet. Eine Live-Region sagt, wie viele Lichter noch an sind.
+  Umschalten ist per CSS-Übergang animiert (ohne bei `prefers-reduced-motion`). Lichter heben sich durch Helligkeit,
+  Glühen und einen hellen Punkt ab.
+- **Editor:** „Rückwärts tippen“ wendet einen Spielzug auf das Muster an; nur so gebaute Rätsel sind immer lösbar.
+  „Licht“ schaltet ein einzelnes Licht (auf einem Loch entsteht ein Feld), dann prüft der Solver. „Loch“ und Radierer
+  (Feld mit Licht aus) formen das Brett; Licht, Loch und Radierer wirken ziehend. Löcher sind im Editor gestrichelt umrandet.
+- Beispiele sind per Skript erzeugt: zufällig rückwärts getippt auf vorgegebenen Formen, ausgewählt nach Zahl der Tipps
+  und vielen Lichtern.
 
 ### Quiz (`quiz`)
 
