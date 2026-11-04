@@ -384,15 +384,29 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
 - [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M21 – Rohre (`pipes`)
-- [ ] Datenformat: Kacheln Ende, Gerade, Kurve, T, Kreuz, Quelle; je Kachel eine Drehung und „drehbar/fest“.
+- [x] Datenformat: Kacheln Ende, Gerade, Kurve, T, Kreuz, Quelle; je Kachel eine Drehung und „drehbar/fest“.
   Tippen dreht drehbare Kacheln um 90° im Uhrzeigersinn.
-- [ ] Gelöst, wenn alle Rohre mit der Quelle verbunden sind und kein Rohrende offen ist. Schleifen sind erlaubt,
+  (Je Zelle eine Hex-Ziffer als Bitmaske der Rohrenden in der Startdrehung, die Form ergibt sich daraus; Quelle als Position,
+  feste Kacheln als Liste von Zellindizes. 3–10 Felder je Seite; Links um 250 Zeichen.)
+- [x] Gelöst, wenn alle Rohre mit der Quelle verbunden sind und kein Rohrende offen ist. Schleifen sind erlaubt,
   damit Bauen einfach bleibt.
-- [ ] Solver: Backtracking mit Constraint-Propagation über die Drehungen; Kosten = nötige Drehungen im Uhrzeigersinn
+- [x] Solver: Backtracking mit Constraint-Propagation über die Drehungen; Kosten = nötige Drehungen im Uhrzeigersinn
   (0–3 pro Kachel), Branch & Bound für `minMoves`.
-- [ ] Editor: Rohre durch Ziehen von Feld zu Feld verlegen (die Kachelformen ergeben sich daraus), Quelle setzen,
+  (Wertebereich je Zelle als 16-Bit-Menge möglicher Masken; Pruning über Kosten-Untergrenze und Erreichbarkeit von der
+  Quelle. Zufällige 10×10-Netze, auch mit vielen Schleifen, in wenigen Millisekunden. Test gegen Brute Force.
+  Stufen: bis 12 Drehungen leicht, bis 30 mittel. Vier Beispiele mit 10, 20, 33 und 58 Drehungen, per Skript erzeugt.)
+- [x] Editor: Rohre durch Ziehen von Feld zu Feld verlegen (die Kachelformen ergeben sich daraus), Quelle setzen,
   Knopf „Verdrehen“ dreht zufällig; Kacheln als fest markieren.
-- [ ] Darstellung: verbundene Rohre füllen sich farbig vom Ziel aus (Animation nur ohne `prefers-reduced-motion`).
+  (Dazu „Drehen“ für einzelne Kacheln und ein Radierer. Per Tastatur verbindet Enter auf zwei Nachbarfeldern nacheinander.
+  Innerhalb eines Strichs zählt jedes Feld nur einmal (Grid-Editor); eine Schleife schließt man mit einem zweiten Strich.)
+- [x] Darstellung: verbundene Rohre füllen sich farbig vom Ziel aus (Animation nur ohne `prefers-reduced-motion`).
+  (Von der Quelle aus, gestaffelt nach Abstand; Drehen animiert. Feste Kacheln mit Nieten; Tastatur per roving tabindex.)
+- [x] Checkliste für neue Typen: Tests (Logik, Solver, Editor, Beispiele samt Server-Prüfung), Registrierung, Symbol und
+  Farbe, Barrierefreiheit, Linklänge (10×10 mit 20 festen Kacheln etwa 360 Zeichen), ARCHITEKTUR.md.
+  Im Browser über die LAN-Adresse geprüft (Headless Chrome, 390 px): zwei Beispiele per Antippen optimal gelöst, feste Kachel
+  dreht nicht, Tastatur, Rohr ziehen im Editor, hell und dunkel.
+- [x] Handy-Test (Drehen, Rohre ziehen im Editor, Verdrehen) erfolgreich.
+- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M22 – Nonogramm (`nonogram`)
 - [ ] Datenformat: Breite, Höhe und **nur die Hinweiszahlen** je Zeile und Spalte, nicht das Lösungsbild. So lässt sich

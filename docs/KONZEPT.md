@@ -50,7 +50,7 @@ Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **umgese
 ### Verbinden
 | Typ | Beschreibung | Status |
 |---|---|---|
-| Rohre / Leitungen | Rohrstücke drehen, bis alles verbunden ist | **Phase 3** (M21) |
+| Rohre / Leitungen | Rohrstücke drehen, bis alles verbunden ist | **umgesetzt** (M21) |
 | Flow | Gleiche Farben verbinden, ohne Kreuzungen | später |
 | Logikgatter | Schaltung bauen, damit der Ausgang leuchtet | später |
 

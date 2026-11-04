@@ -101,6 +101,7 @@ src/
     sokoban/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     klotski/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     lightsout/ { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    pipes/     { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # deutsche Mail-Vorlagen
@@ -382,6 +383,41 @@ type LightsOutMove = { x: number; y: number };    // ein Feld antippen
   (Feld mit Licht aus) formen das Brett; Licht, Loch und Radierer wirken ziehend. Löcher sind im Editor gestrichelt umrandet.
 - Beispiele sind per Skript erzeugt: zufällig rückwärts getippt auf vorgegebenen Formen, ausgewählt nach Zahl der Tipps
   und vielen Lichtern.
+
+### Rohre (`pipes`, seit M21)
+
+```ts
+type PipesData = {
+  rows: string[];                  // je Zelle eine Hex-Ziffer: Rohrenden N = 1, E = 2, S = 4, W = 8 (Startdrehung); 0 = leer
+  source: { x: number; y: number };
+  fixed: number[];                 // Zellindizes (y · Breite + x) fester Kacheln, aufsteigend
+};
+type PipesState = { turns: readonly number[] };  // Vierteldrehungen je Zelle (Zahl der Tipps; die Form zählt modulo 4)
+type PipesMove = { x: number; y: number };       // eine Kachel im Uhrzeigersinn drehen
+```
+
+- Die Form folgt aus der Maske: Ende (1 Ende), Gerade, Kurve, T, Kreuz. Kreuze und leere Felder drehen nicht.
+  Der Zustand zählt die Drehungen ungekürzt, damit die Animation immer im Uhrzeigersinn läuft.
+- **Gelöst**, wenn jedes Rohrende auf ein Rohrende der Nachbarkachel trifft (keines zeigt auf den Rand oder ins Leere)
+  und alle Kacheln mit der Quelle verbunden sind. Schleifen sind erlaubt.
+- **Solver:** Backtracking über die Drehung jeder Kachel. Der Wertebereich einer Zelle ist die Menge der Masken, die sie noch
+  annehmen kann (16-Bit-Menge). Propagation: Nachbarn müssen sich über das Rohrende zwischen ihnen einig sein, am Rand ist
+  keines erlaubt. Verzweigt wird auf der Zelle mit den wenigsten Masken, billigste Drehung zuerst. Ein Knoten fällt weg, wenn
+  die Summe der billigsten Drehungen das bisher beste Ergebnis nicht schlagen kann (Branch & Bound) oder ein Rohr die Quelle
+  nicht mehr erreichen kann. Kosten je Kachel = Vierteldrehungen im Uhrzeigersinn (0–3), also ergibt sich die minimale
+  Zahl an Tipps. Zufällige 10×10-Netze, auch mit vielen Schleifen, brauchen nur Millisekunden.
+  Stufen: bis 12 Drehungen leicht, bis 30 mittel.
+- **Bedienung:** Antippen dreht (`ui/components/tap.ts`), per CSS animiert. Verbundene Rohre füllen sich mit Wasser,
+  gestaffelt nach dem Abstand zur Quelle (`transition-delay`), abgetrennte leeren sich sofort; ohne Animation bei
+  `prefers-reduced-motion`. Feste Kacheln haben Nieten. Tastatur per roving tabindex wie bei Lights Out
+  (leere Felder werden übersprungen); eine Live-Region sagt, wie viele Rohre verbunden sind.
+- **Editor:** Mit „Rohr“ zieht man von Feld zu Feld; zwischen aufeinanderfolgenden Nachbarfeldern entsteht ein Rohr
+  (`drawPath`, die Formen ergeben sich daraus). Weil ein Strich in mehreren `onPaint`-Aufrufen ankommt, merkt sich der
+  Editor die letzte Zelle des Strichs. Per Tastatur verbindet Enter auf zwei Nachbarfeldern nacheinander. Weitere Werkzeuge:
+  Quelle, Drehen (eine Kachel), Fest, Radierer (entfernt auch die Rohrenden der Nachbarn, die hineinführen). Der Knopf
+  „Verdrehen“ dreht alle drehbaren Kacheln zufällig. Gebaut wird also in gelöster Stellung, dann gemischt.
+- Beispiele sind per Skript erzeugt: von der Quelle aus gewachsene Zufallsnetze (eines mit Schleife, zwei mit festen Kacheln),
+  zufällig verdreht, ausgewählt nach Zahl der Drehungen.
 
 ### Quiz (`quiz`)
 
