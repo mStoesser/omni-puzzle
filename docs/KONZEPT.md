@@ -55,7 +55,7 @@ Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **umgese
 | Logikgatter | Schaltung bauen, damit der Ausgang leuchtet | später |
 
 ### Logik-Gitter
-Nonogramm/Picross: **Phase 3** (M22). Sudoku, Kakuro, KenKen, Minesweeper-artig, Einstein-Rätsel: **später**.
+Nonogramm/Picross: **umgesetzt** (M22). Sudoku, Kakuro, KenKen, Minesweeper-artig, Einstein-Rätsel: **später**.
 
 ### Wort, Wissen, Text
 | Typ | Beschreibung | Status |

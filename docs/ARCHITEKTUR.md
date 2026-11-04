@@ -102,6 +102,7 @@ src/
     klotski/   { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     lightsout/ { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     pipes/     { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+    nonogram/  { index.ts, rules.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # deutsche Mail-Vorlagen
@@ -423,6 +424,42 @@ type PipesMove = { x: number; y: number };       // eine Kachel im Uhrzeigersinn
   „Verdrehen“ dreht alle drehbaren Kacheln zufällig. Gebaut wird also in gelöster Stellung, dann gemischt.
 - Beispiele sind per Skript erzeugt: von der Quelle aus gewachsene Zufallsnetze (eines mit Schleife, zwei mit festen Kacheln),
   zufällig verdreht, ausgewählt nach Zahl der Drehungen.
+
+### Nonogramm (`nonogram`, seit M22)
+
+```ts
+type NonogramData = {
+  width: number; height: number;   // 3–15
+  rows: number[][]; cols: number[][];  // Hinweise: Längen der gefüllten Blöcke je Zeile bzw. Spalte, [] = leer
+  image?: string[];                // nur in Entwürfen: das gemalte Bild ("#"/"."); validate lässt es weg
+};
+type NonogramState = { cells: string };              // je Zelle "." offen, "#" gefüllt, "x" gekreuzt
+type NonogramMove = { cells: number[]; mark: "#" | "x" | "." };  // ein Strich über eine Zeile oder Spalte
+```
+
+- **Nur die Hinweise** stecken im Link. Gelöst ist, wenn jede Zeile und Spalte genau ihre Hinweise zeigt (Kreuze zählen als leer).
+- **Analyse** (`analyze`, Teil von `validate`): Ein Zeilenlöser bestimmt, welche Zellen alle Platzierungen eines Hinweises
+  gemeinsam haben. Der Hinweis ist dabei ein kleiner Automat (Lückenzustand vor jedem Block, ein Zustand je Blockzelle);
+  vorwärts und rückwärts erreichbare Zustände (Bitmasken, höchstens 17 Zustände) zeigen, welche Werte eine Zelle annehmen
+  kann. Zeilen und Spalten werden bis zum Stillstand propagiert; bleibt etwas offen, wird geraten (Zelle mit den wenigsten
+  offenen Nachbarn in Zeile und Spalte) und weitergesucht, bis zwei Lösungen gefunden sind oder 2 000 Rateschritte erreicht
+  sind. Ergebnis: eindeutig (mit „geraten ja/nein“), mehrdeutig (mit zwei Lösungen), unlösbar oder abgebrochen.
+  `validate` verlangt „eindeutig“; die Grenze ist fest, also urteilen Editor, App und Server gleich. Pro Datenobjekt gecacht.
+- Kein `solve` und keine `levels`: Es gibt keinen Zugzähler (`controls.moves: false`), die Stufe kommt aus Bewertungen.
+- **Bedienung:** Modus „Füllen“/„Kreuzen“ als native Radiobuttons (kein Neuzeichnen nötig). Das erste Feld eines Strichs
+  entscheidet: Hat es schon die Markierung des Modus, wird geleert, sonst markiert. Der Strich rastet auf die Zeile oder
+  Spalte ein, in der er das erste Feld verlässt; Vorschau per `data-preview`, beim Loslassen ein Zug (ein Undo-Schritt).
+  Erfüllte Hinweise werden grau. Nach dem Lösen verschwinden Kreuze und Linien, das Bild erscheint in der Typfarbe.
+  Tastatur per roving tabindex; das Label jeder Zelle nennt auch die Hinweise ihrer Zeile und Spalte.
+- **Layout und Zoom:** Hinweise oben und links sind eigene SVGs in einem CSS-Grid, die Hinweiszellen sind schmaler als
+  Spielfelder. Ohne Zoom passt sich die Zellgröße per Container-Query der Breite an, mit dem Zoom-Knopf (Checkbox, `:has`)
+  sind es 44 px. Der Bereich scrollt dann, die Hinweise bleiben stehen (`position: sticky`) und lassen sich per Wischen
+  scrollen (`touch-action: pan-x pan-y`), auf dem Raster malt der Finger.
+- **Editor:** Malen und Radierer ziehend im Grid-Editor, die Hinweise folgen jeder Änderung (`fromImage`). Bei Mehrdeutigkeit
+  markiert der Editor die Felder, in denen zwei Lösungen abweichen. Ein Rätsel ohne Bild (Kopie aus einem Link) bekommt
+  sein Bild aus der eindeutigen Lösung zurück (`editorImage`). Die aufklappbare Vorschau zeigt die Hinweise neben dem Bild;
+  sie ist nur zum Ansehen, ihre SVGs lassen Wischgesten durch (`touch-action: auto`), damit die Seite darüber scrollt.
+- Beispiele sind selbst gezeichnete Pixelbilder; der Test prüft Eindeutigkeit und dass kein Bild in den Daten steckt.
 
 ### Quiz (`quiz`)
 

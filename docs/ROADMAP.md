@@ -409,16 +409,38 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
 - [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M22 – Nonogramm (`nonogram`)
-- [ ] Datenformat: Breite, Höhe und **nur die Hinweiszahlen** je Zeile und Spalte, nicht das Lösungsbild. So lässt sich
+- [x] Datenformat: Breite, Höhe und **nur die Hinweiszahlen** je Zeile und Spalte, nicht das Lösungsbild. So lässt sich
   im Link nicht spicken, und gelöst heißt: Alle Zeilen und Spalten erfüllen ihre Hinweise.
-- [ ] Solver: Zeilenlöser (dynamische Programmierung) mit Propagation, bei Bedarf Backtracking; prüft auch die
+  (Entwürfe tragen zusätzlich das gemalte Bild; `validate` lässt es weg, und Teilen und Veröffentlichen schicken seit M22
+  das geprüfte Dokument (`shareableDocument`, eine bewusste Core-Änderung). Links um 210–280 Zeichen.)
+- [x] Solver: Zeilenlöser (dynamische Programmierung) mit Propagation, bei Bedarf Backtracking; prüft auch die
   **Eindeutigkeit**. Ein mehrdeutiges Rätsel ist ein Problem im Editor und kann nicht geteilt werden.
-- [ ] Bedienung: Modus Füllen/Kreuzen, Ziehen füllt eine Reihe (ein Undo-Schritt), erledigte Hinweiszahlen ausgegraut,
+  (Zeilenlöser als kleiner Automat über Bitmasken, gegen Brute Force getestet. Die Analyse zählt bis zu zwei Lösungen,
+  höchstens 2 000 Rateschritte; 15×15 meist unter 1 ms, im schlechtesten Fall etwa 70 ms. Sie ist Teil von `validate`,
+  also prüft auch der Server. Kein `solve` im Sinne des Core, weil es keinen Zugzähler gibt.)
+- [x] Bedienung: Modus Füllen/Kreuzen, Ziehen füllt eine Reihe (ein Undo-Schritt), erledigte Hinweiszahlen ausgegraut,
   kein Zugzähler (`controls.moves: false`). Nach dem Lösen wird das Bild gezeigt.
-- [ ] Editor: Pixel malen (ziehen), Größe einstellen, die Hinweise werden beim Speichern berechnet.
-- [ ] Entscheidung im Meilenstein: maximale Größe auf dem Handy (Tap-Ziele ≥ 44 px gegen 15×15 und mehr; eventuell Zoom).
-- [ ] Entscheidung im Meilenstein: Schwierigkeit messen, z. B. „nur Zeilenlogik“ gegen „braucht Raten“, oder wie beim Quiz
+  (Ein Zug ist eine Menge Zellen mit Markierung; das erste Feld entscheidet: setzen oder leeren. Modus als native
+  Radiobuttons, damit kein Neuzeichnen nötig ist.)
+- [x] Editor: Pixel malen (ziehen), Größe einstellen, die Hinweise werden beim Speichern berechnet.
+  (Die Hinweise folgen jeder Änderung. Bei Mehrdeutigkeit sind die Felder markiert, in denen zwei Lösungen abweichen.
+  „Vorschau mit Hinweiszahlen“ zeigt die Zahlen neben dem Bild, wie Spieler sie sehen; die Seite scrollt darüber.
+  Kopien aus Links bekommen ihr Bild aus der eindeutigen Lösung zurück.)
+- [x] Entscheidung im Meilenstein: maximale Größe auf dem Handy (Tap-Ziele ≥ 44 px gegen 15×15 und mehr; eventuell Zoom).
+  (Entschieden: bis 15×15 mit Zoom-Knopf. Ohne Zoom passt sich die Zellgröße der Breite an (15×15 auf 390 px etwa 18 px),
+  mit Zoom 44 px; die Hinweise bleiben beim Scrollen stehen (`position: sticky`), Wischen auf ihnen scrollt.)
+- [x] Entscheidung im Meilenstein: Schwierigkeit messen, z. B. „nur Zeilenlogik“ gegen „braucht Raten“, oder wie beim Quiz
   aus Bewertungen.
+  (Entschieden: aus Bewertungen wie beim Quiz. Eine gemessene Stufe bräuchte eine Core-Erweiterung und eine Migration,
+  weil der Bewertungs-Trigger sonst überschreibt; die Analyse meldet „geraten“ schon, falls es später kommt.)
+- [x] Checkliste für neue Typen: Tests (Logik, Editor, Beispiele samt Server-Prüfung), Registrierung, Symbol und Farbe,
+  Barrierefreiheit, Linklänge, ARCHITEKTUR.md. Vier Beispiele (5×5, 8×8, 10×10, 15×15), alle mit reiner Zeilenlogik.
+  Im Browser über die LAN-Adresse geprüft (Headless Chrome, 390 px): Katze per Ziehen gelöst (Bild in der Typfarbe,
+  Gelöst-Sheet ohne Zugzahl), Kreuzen und Undo eines Strichs, Zoom mit stehenden Hinweisen, Tastatur, Editor mit
+  Mehrdeutigkeits-Markierung.
+- [x] Handy-Test (Ziehen über Zeilen, Zoom und Scrollen auf den Hinweisen, Editor) erfolgreich. Dabei gefunden und
+  behoben: In der Editor-Vorschau waren die Zahlen schwarz auf dunklem Grund, und über ihr ließ sich nicht hochscrollen.
+- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern, Stufe aus Bewertungen.
 
 ### M23 – Laser-Erweiterungen
 Jede Erweiterung erhöht `typeVersion` des Lasers und bekommt ein `migrate` (CLAUDE.md, Regel 7), auch wenn das alte
