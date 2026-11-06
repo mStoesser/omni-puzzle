@@ -43,6 +43,9 @@ import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
 import type { AnyPlaySession } from "./core/session.ts";
 import { PUBLISH } from "./core/publish.ts";
+import * as scores from "./core/scores.ts";
+import { IDLE_TIMER, elapsedMs, isRunning, pauseTimer, resumeTimer, startTimer } from "./core/timer.ts";
+import type { LeaderboardModel, LeaderboardViewer } from "./ui/components/leaderboard.ts";
 import { decodeDocument, encodeDocument } from "./core/share.ts";
 import { copyRecord, memoryStorage, newPuzzleId, openStorage, progressKey, recordSolve } from "./core/storage.ts";
 import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
@@ -71,7 +74,7 @@ import { libraryView } from "./ui/views/library.ts";
 import type { LibraryItem } from "./ui/views/library.ts";
 import { messageView } from "./ui/views/message.ts";
 import { playView } from "./ui/views/play.ts";
-import type { PlayLevel, PlayOrigin, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
+import type { PlayLevel, PlayOrigin, PlayStats, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
 import { privacyView } from "./ui/views/privacy.ts";
 import { encodeImage } from "./ui/image-encode.ts";
 import { buildSheet, tabBar, topNav } from "./ui/components/nav.ts";
@@ -363,6 +366,7 @@ function startPlay(
     progressKey: progressKey(doc),
     images: extra.images ?? localImages,
     minMoves: doc.meta.minMoves ?? null,
+    timer: IDLE_TIMER,
   };
   if (origin === "example") Object.assign(play, exampleNeighbours(route));
   if (extra.localId !== undefined) play.localId = extra.localId;
@@ -391,6 +395,7 @@ async function openPublished(route: Route & { name: "published" }) {
       me: null,
       busy: false,
       report: null,
+      leaderboard: null,
     };
     // Back to the gallery with the filter the player came from.
     const gallery = store.get().gallery;
@@ -399,6 +404,7 @@ async function openPublished(route: Route & { name: "published" }) {
     if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published, backHref, images })) {
       countPlayOnce(puzzle.id);
       void loadReaction();
+      openLeaderboard();
     }
   } catch (error) {
     console.warn(error);
@@ -542,6 +548,7 @@ const moderationActions = {
     void moderate(() => (item.kind === "chain" ? chains.withdrawChain(api!, item.id) : withdrawPublication(api!, item.id))),
   setBanned: (userId: string, ban: boolean) => void moderate(() => setBanned(api!, userId, ban)),
   resetName: (userId: string) => void moderate(() => resetUsername(api!, userId)),
+  clearScores: (userId: string) => void moderate(() => scores.clearScores(api!, userId)),
   imageUrl: (puzzleId: string, key: string) => (backend ? publishedImageUrl(backend.url, puzzleId, key) : null),
 };
 
@@ -563,7 +570,8 @@ function countPlayOnce(id: string, register: (api: Api, id: string) => Promise<v
   register(api!, id).catch((error: unknown) => console.warn("play counter", error));
 }
 
-function updateSession(change: (s: AnyPlaySession) => AnyPlaySession) {
+/** `restart`: a new attempt, so the time starts again with the next move. */
+function updateSession(change: (s: AnyPlaySession) => AnyPlaySession, options: { restart?: boolean } = {}) {
   const state = store.get();
   if (!state.play) return;
   const prev = state.play.session;
@@ -573,7 +581,8 @@ function updateSession(change: (s: AnyPlaySession) => AnyPlaySession) {
   const justSolved = next.solved && !prev.solved;
   // The dialog appears when the puzzle becomes solved and stays until dismissed or unsolved.
   const showSolved = next.solved && (state.play.showSolved || !prev.solved);
-  const play = { ...state.play, session: next, showSolved };
+  const play = { ...state.play, session: next, showSolved, timer: nextTimer(state.play.timer, prev, next, options.restart === true) };
+  ensureTicking(play.timer);
 
   if (justSolved && play.origin === "test" && state.editor) {
     patch({ play, editor: { ...state.editor, verifiedData: next.data } });
@@ -581,19 +590,186 @@ function updateSession(change: (s: AnyPlaySession) => AnyPlaySession) {
     return;
   }
   if (justSolved && play.progressKey !== null) {
-    const record = recordSolve(state.progress.get(play.progressKey), play.progressKey, session.moveCount(next));
+    const timeMs = solveTime(play.timer);
+    const record = recordSolve(state.progress.get(play.progressKey), play.progressKey, session.moveCount(next), timeMs);
     patch({ play, progress: new Map(state.progress).set(record.key, record) });
     void save(async (s) => s.putProgress(record));
+    if (play.published?.leaderboard) void submitResult(play.published.id, session.path(next), timeMs);
     return;
   }
   patch({ play });
 }
 
+// --- Play time (M25) ---
+
+/** Runs from the first move until solved; restarting starts a new attempt, undoing a solution continues it. */
+function nextTimer(timer: PlayViewModel["timer"], prev: AnyPlaySession, next: AnyPlaySession, restart: boolean) {
+  const at = performance.now();
+  if (restart) return IDLE_TIMER;
+  if (next.solved) return pauseTimer(startTimer(timer, at), at);
+  if (prev.solved) return resumeTimer(timer, at);
+  return document.visibilityState === "hidden" ? timer : startTimer(timer, at);
+}
+
+/** Whole milliseconds, at least 1 (a one-move puzzle can be solved within the same millisecond). */
+function solveTime(timer: PlayViewModel["timer"]) {
+  return Math.max(1, Math.round(elapsedMs(timer, performance.now())));
+}
+
+// While the time runs, the page renders once a second, so the "time" tile counts up.
+let tick: ReturnType<typeof setInterval> | undefined;
+function ensureTicking(timer: PlayViewModel["timer"]) {
+  if (isRunning(timer) && tick === undefined) {
+    tick = setInterval(() => {
+      const play = store.get().play;
+      if (!play || !isRunning(play.timer)) {
+        clearInterval(tick);
+        tick = undefined;
+        return;
+      }
+      scheduleRender();
+    }, 1000);
+  }
+}
+
+/** The time pauses while the page is hidden (other tab, app in the background, screen off). */
+function onVisibility() {
+  store.set((state) => {
+    if (!state.play) return state;
+    const at = performance.now();
+    const timer =
+      document.visibilityState === "hidden" ? pauseTimer(state.play.timer, at) : state.play.session.solved ? state.play.timer : resumeTimer(state.play.timer, at);
+    return timer === state.play.timer ? state : { ...state, play: { ...state.play, timer } };
+  });
+  const play = store.get().play;
+  if (play) ensureTicking(play.timer);
+}
+
+// --- Leaderboards (M25) ---
+
+function setLeaderboard(change: Partial<LeaderboardModel>, puzzleId: string) {
+  store.set((state) => {
+    const published = state.play?.published;
+    if (!state.play || published?.id !== puzzleId || !published.leaderboard) return state;
+    return { ...state, play: { ...state.play, published: { ...published, leaderboard: { ...published.leaderboard, ...change } } } };
+  });
+}
+
+/** After a published puzzle was opened: a leaderboard if its type has one. */
+function openLeaderboard() {
+  const play = store.get().play;
+  const ranking = play?.session.type.ranking;
+  if (!play?.published || !ranking) return;
+  const leaderboard: LeaderboardModel = { ranking, board: null, error: null, submit: { status: "idle" }, confirmClear: null, busy: false };
+  setPublished({ leaderboard }, play.published.id);
+  void loadLeaderboard(play.published.id);
+}
+
+async function loadLeaderboard(puzzleId: string) {
+  if (!api) return;
+  try {
+    const board = await scores.fetchLeaderboard(api, puzzleId);
+    setLeaderboard({ board, error: null }, puzzleId);
+  } catch (error) {
+    console.warn("leaderboard", error);
+    setLeaderboard({ error: apiErrorText(error) }, puzzleId);
+  }
+}
+
+function leaderboardViewer(published: PublishedInfo, state: AppState): LeaderboardViewer {
+  const { user, profile } = state.account;
+  if (!user) return "signed-out";
+  if (published.authorId === user.id) return "own";
+  return profile?.isModerator ? "moderator" : "player";
+}
+
+/** Sends a solution of the open puzzle; offline it waits in the queue. Signed out and own puzzles only get a hint. */
+async function submitResult(puzzleId: string, moves: unknown[], timeMs: number) {
+  const state = store.get();
+  const published = state.play?.published;
+  const user = state.account.user;
+  if (!api || !published || !user || published.authorId === user.id) return;
+  const request: scores.ScoreRequest = { puzzle: puzzleId, moves, timeMs };
+  setLeaderboard({ submit: { status: "sending" } }, puzzleId);
+  try {
+    const { improved } = await scores.submitScore(api, request);
+    setLeaderboard({ submit: { status: "done", improved } }, puzzleId);
+    await loadLeaderboard(puzzleId);
+  } catch (error) {
+    console.warn("submit score", error);
+    if (scores.isRetryable(error)) {
+      writeQueue(scores.enqueue(readQueue(), { ...request, userId: user.id }));
+      setLeaderboard({ submit: { status: "queued" } }, puzzleId);
+    } else {
+      setLeaderboard({ submit: { status: "error", text: scores.scoreErrorText(error) } }, puzzleId);
+    }
+  }
+}
+
+// Results solved offline wait in localStorage and are sent on start, when the connection returns and after signing in.
+const SCORE_QUEUE_KEY = "raetsel-score-queue";
+
+function readQueue() {
+  return scores.parseQueue(browserStore.get(SCORE_QUEUE_KEY));
+}
+
+function writeQueue(queue: scores.PendingScore[]) {
+  if (queue.length === 0) browserStore.remove(SCORE_QUEUE_KEY);
+  else browserStore.set(SCORE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+let flushing = false;
+async function flushScoreQueue() {
+  const user = store.get().account.user;
+  if (!api || !user || flushing) return;
+  flushing = true;
+  try {
+    for (const item of readQueue().filter((q) => q.userId === user.id)) {
+      let improved = false;
+      try {
+        ({ improved } = await scores.submitScore(api, { puzzle: item.puzzle, moves: item.moves, timeMs: item.timeMs }));
+      } catch (error) {
+        if (scores.isRetryable(error)) return; // still offline: try again later
+        console.warn("queued score refused", error); // dropped, like a refused direct submission
+      }
+      const sent = JSON.stringify(item);
+      writeQueue(readQueue().filter((q) => JSON.stringify(q) !== sent));
+      const published = store.get().play?.published;
+      if (published?.id === item.puzzle && published.leaderboard) {
+        if (published.leaderboard.submit.status === "queued") setLeaderboard({ submit: { status: "done", improved } }, item.puzzle);
+        void loadLeaderboard(item.puzzle);
+      }
+    }
+  } finally {
+    flushing = false;
+  }
+}
+
+const leaderboardActions = {
+  askClear: (userId: string | null) => {
+    const id = store.get().play?.published?.id;
+    if (id) setLeaderboard({ confirmClear: userId }, id);
+  },
+  clear: async (userId: string) => {
+    const id = store.get().play?.published?.id;
+    if (!api || !id) return;
+    setLeaderboard({ busy: true }, id);
+    try {
+      await scores.clearScores(api, userId);
+      setLeaderboard({ busy: false, confirmClear: null }, id);
+      await loadLeaderboard(id);
+    } catch (error) {
+      console.warn("clear scores", error);
+      setLeaderboard({ busy: false, confirmClear: null, error: apiErrorText(error) }, id);
+    }
+  },
+};
+
 const playActions = {
   dispatch: (move: unknown) => updateSession((s) => session.dispatch(s, move)),
   undo: () => updateSession(session.undo),
   redo: () => updateSession(session.redo),
-  restart: () => updateSession(session.restart),
+  restart: () => updateSession(session.restart, { restart: true }),
   dismissSolved: () =>
     store.set((state) =>
       state.play?.showSolved ? { ...state, play: { ...state.play, showSolved: false } } : state,
@@ -603,6 +779,7 @@ const playActions = {
   rate,
   openReport,
   report: reportActions,
+  leaderboard: leaderboardActions,
   // Remixing: the copy is a new, unverified draft of the creator.
   copyToLibrary: async () => {
     const play = store.get().play;
@@ -780,6 +957,7 @@ async function openChainStep(route: Route & { name: "chain" }, model: ChainViewM
     me: null,
     busy: false,
     report: null,
+    leaderboard: null,
   };
   const extra = { title: puzzle.title, published, backHref: chainOverview(route.id), images: publishedImages(puzzle.id) };
   if (!startPlay(route, puzzle.doc, "published", extra)) return;
@@ -800,6 +978,7 @@ async function openChainStep(route: Route & { name: "chain" }, model: ChainViewM
   );
   countPlayOnce(puzzle.id);
   void loadReaction();
+  openLeaderboard();
 }
 
 function chainAccess(model: ChainViewModel, user: { id: string } | null): ChainAccess {
@@ -1196,6 +1375,7 @@ const editorActions = {
       progressKey: null,
       images: localImages,
       minMoves: minMovesOf(cachedSolve(editing.currentData(editor.session))),
+      timer: IDLE_TIMER,
     };
     patch({ play });
   },
@@ -1456,7 +1636,9 @@ function onSession(session: Session | null) {
   if (published) {
     setPublished({ me: null }, published.id);
     void loadReaction();
+    if (published.leaderboard) void loadLeaderboard(published.id); // "is me" depends on the user
   }
+  if (user) void flushScoreQueue();
 }
 
 async function loadProfile(userId: string) {
@@ -1625,13 +1807,15 @@ function view(state: AppState) {
     case "shared":
     case "published": {
       if (!state.play) return messageView(t("puzzleNotFound"));
-      const best = state.progress.get(state.play.progressKey ?? "")?.bestMoves ?? null;
       const { published } = state.play;
       let play = published
-        ? { ...state.play, published: { ...published, access: reactionAccess(published, state.account.user) } }
+        ? {
+            ...state.play,
+            published: { ...published, access: reactionAccess(published, state.account.user), viewer: leaderboardViewer(published, state) },
+          }
         : state.play;
       if (play.origin === "example" && state.route.name === "play") play = { ...play, levels: exampleLevels(state, state.route.id) };
-      return playView(play, best, playActions);
+      return playView(play, playStats(state), playActions);
     }
     case "chainNew":
       return chainEditorView(state.chainEditor, state.account.user !== null, registry, chainEditorActions);
@@ -1648,13 +1832,22 @@ function view(state: AppState) {
           username: state.account.profile?.username ?? null,
           publish: state.publish,
           images: editorImages,
-          testPlay: state.play?.origin === "test" ? playView(state.play, null, playActions, { embedded: true }) : null,
+          testPlay: state.play?.origin === "test" ? playView(state.play, playStats(state), playActions, { embedded: true }) : null,
           ...editorCheck(editor),
         },
         editorActions,
       );
     }
   }
+}
+
+function playStats(state: AppState): PlayStats {
+  const record = state.play?.progressKey ? state.progress.get(state.play.progressKey) : undefined;
+  return {
+    bestMoves: record?.solved ? record.bestMoves : null,
+    bestTimeMs: record?.solved ? (record.bestTimeMs ?? null) : null,
+    timeMs: state.play ? elapsedMs(state.play.timer, performance.now()) : 0,
+  };
 }
 
 /** Navigation section of a route; null = focus mode (play, editor) without navigation. */
@@ -1757,11 +1950,14 @@ store.subscribe(scheduleRender);
 // Save pending edits before the page is hidden (tab switch, app switch, closing).
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") flushSave();
+  onVisibility();
 });
+window.addEventListener("online", () => void flushScoreQueue());
 if (auth) {
   auth.subscribe(onSession);
   const user = store.get().account.user;
   if (user) void loadProfile(user.id);
+  void flushScoreQueue();
   handleAuthCallback();
   // Another tab signed in or out.
   window.addEventListener("storage", (e) => {

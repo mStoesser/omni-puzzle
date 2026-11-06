@@ -507,19 +507,34 @@ Format unverändert gültig bleibt.
 - [x] Live testen gegen `dev` (Rechte, ungültige Rätsel-IDs, Zurückziehen eines enthaltenen Rätsels), Handy-Test.
 
 ### M25 – Zeitmessung und Ranglisten
-- [ ] Zeitmessung im Core (vorgezogen aus Phase 4): Sie startet mit dem ersten Zug, pausiert bei verdeckter Seite und
+- [x] Zeitmessung im Core (vorgezogen aus Phase 4): Sie startet mit dem ersten Zug, pausiert bei verdeckter Seite und
   endet beim Lösen. Stat-Kachel „Zeit“, die Bestzeit steht im Fortschritt (`bestTimeMs`, IndexedDB-Version anheben).
-- [ ] `rules.ts` je Typ: `ranking?: "moves" | "time"` (Rush Hour, Laser, Sokoban …: Züge, bei Gleichstand die Zeit;
+  (`core/timer.ts`. Rückgängig nach dem Lösen setzt den Versuch fort, „Neustart“ beginnt einen neuen. Abweichung: keine neue
+  IndexedDB-Version, weil `bestTimeMs` ein optionales Feld im vorhandenen Speicher ist; eine neue Version hätte nur andere
+  offene Tabs zum Neuladen gezwungen. Die Spiel-Session merkt sich dafür die Zugfolge (`path`), ein eigener Core-Commit.)
+- [x] `rules.ts` je Typ: `ranking?: "moves" | "time"` (Rush Hour, Laser, Sokoban …: Züge, bei Gleichstand die Zeit;
   Nonogramm: nur Zeit; Quiz: keine).
-- [ ] Migration: Tabelle `scores` (Nutzer, Rätsel, Züge, Zeit, Datum), pro Nutzer und Rätsel nur der beste Wert;
+- [x] Migration: Tabelle `scores` (Nutzer, Rätsel, Züge, Zeit, Datum), pro Nutzer und Rätsel nur der beste Wert;
   Funktion `leaderboard(puzzle_id)` liefert die Top 10 und den eigenen Platz.
-- [ ] Edge Function `submit-score` (laufzeitneutraler Handler in `src/server/`, mit `node --test` getestet): Token prüfen,
+  (`0010_scores.sql`. Die Tabelle ist nicht direkt lesbar; gleiche Ergebnisse teilen sich einen Platz; gesperrte Spieler und
+  der Autor fehlen. Lokal in einem Wegwerf-Postgres geprüft: Rechte, bessere/schlechtere Ergebnisse, Rangliste nach Zeit,
+  Top-10-Schnitt mit eigenem Platz, ausgeblendetes Rätsel, Sperre, Moderation, Kontolöschung.)
+- [x] Edge Function `submit-score` (laufzeitneutraler Handler in `src/server/`, mit `node --test` getestet): Token prüfen,
   Rätsel laden, `loadDocument`, Zugfolge mit `applyMove` nachspielen (höchstens z. B. 5 000 Züge), `isSolved` prüfen und
   Züge selbst zählen; die Zeit nur auf Plausibilität prüfen (> 0, ≤ 24 h). Gesperrte Nutzer und der Autor kommen nicht in die Rangliste.
-- [ ] Gelöst-Sheet und `#/g/<id>`: Platz und Top 10; ohne Anmeldung ein Hinweis. Ist man offline, wird das Ergebnis
+  (`src/server/score-handler.ts`, Prüfung in `core/scores.ts`. Kein Zug nach dem lösenden. 5 000 Züge kosten höchstens ~35 ms.)
+- [x] Gelöst-Sheet und `#/g/<id>`: Platz und Top 10; ohne Anmeldung ein Hinweis. Ist man offline, wird das Ergebnis
   später gesendet (Warteschlange im `localStorage`).
-- [ ] Moderation: Einträge eines Nutzers aus allen Ranglisten entfernen (z. B. beim Sperren).
-- [ ] Datenschutzerklärung ergänzen: Ranglisten zeigen den Anzeigenamen öffentlich.
+  (Neben dem Spielfeld die Rangliste, im Gelöst-Dialog „Platz n von m“ und die Top 10 zum Aufklappen. Gilt auch für
+  Schritte einer Kette. Gesendet wird beim Start, bei `online` und nach der Anmeldung. Im Browser gegen ein nachgebautes
+  Backend mit dem echten Handler geprüft (Headless Chrome, 390 px und 1280 px): Zeit zählt hoch, Eintragen, Offline-Warteschlange,
+  Moderator entfernt Einträge, Nonogramm nur mit Zeit.)
+- [x] Moderation: Einträge eines Nutzers aus allen Ranglisten entfernen (z. B. beim Sperren).
+  (`mod_clear_scores`: „Entfernen“ in der Rangliste und „Aus Ranglisten entfernen“ beim Autor in der Moderationsansicht.
+  Gesperrte erscheinen ohnehin nicht mehr.)
+- [x] Datenschutzerklärung ergänzen: Ranglisten zeigen den Anzeigenamen öffentlich.
+  (Auch: gespeicherte Ergebnisse, Zugfolge wird nachgespielt, aber nicht gespeichert, Warteschlange im localStorage, Löschung.)
+- [ ] Migration `0010_scores.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow `submit-score`.
 - [ ] Live testen: gefälschte Zugfolgen, zu kurze Zugfolgen, nicht gelöste Endstellung, Handy-Test.
 
 ### M26 – Tägliches Rätsel

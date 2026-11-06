@@ -6,6 +6,7 @@ import { solve } from "./solver.ts";
 export const sokobanRules: PuzzleRules<SokobanData, SokobanState, SokobanMove> = {
   id: "sokoban",
   version: 1,
+  ranking: "moves", // fewest moves, ties broken by time
   createDefault,
   validate,
   parseDraft,

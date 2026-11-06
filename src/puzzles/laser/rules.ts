@@ -6,6 +6,7 @@ import { solve } from "./solver.ts";
 export const laserRules: PuzzleRules<LaserData, LaserState, LaserMove> = {
   id: "laser",
   version: VERSION, // 2: inventory, 3: beam splitters, 4: colors
+  ranking: "moves", // fewest moves, ties broken by time
   createDefault,
   validate,
   migrate,

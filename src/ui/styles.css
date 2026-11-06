@@ -1173,6 +1173,19 @@ a.icon-button {
   gap: var(--kk-space-2);
 }
 
+.stats.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.stats.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Only the move count is announced; the time changes every second. */
+.stats-live {
+  display: contents;
+}
+
 .stat {
   display: grid;
   justify-items: center;
@@ -2817,6 +2830,13 @@ a.button.compact {
   margin-bottom: auto;
 }
 
+.play-side .leaderboard {
+  order: 5;
+  width: 100%;
+  max-width: 560px;
+  margin: var(--kk-space-4) auto 0;
+}
+
 .play-side .published-info {
   order: 4;
   justify-self: center;
@@ -2859,6 +2879,7 @@ a.button.compact {
   .play-side > *,
   .play-side > .play-stats,
   .play-side > .published-info,
+  .play-side > .leaderboard,
   .play-stage > * {
     order: 0;
     margin: 0;
@@ -2957,6 +2978,11 @@ a.button.compact {
   .play-side .stat {
     padding: var(--kk-space-3) var(--kk-space-2);
     border: 1px solid var(--kk-line);
+  }
+
+  /* The sidebar is narrow: four tiles in two rows. */
+  .play-side .stats.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .play-side .stat-value {
@@ -3417,4 +3443,112 @@ a.button.compact {
 .chain-add .field,
 .chain-draft-step .field {
   grid-template-columns: minmax(0, 1fr);
+}
+
+/* Leaderboards (M25) */
+.leaderboard {
+  display: grid;
+  gap: var(--kk-space-2);
+}
+
+.leaderboard h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.leaderboard p,
+.leaderboard-outcome p {
+  margin: 0;
+}
+
+.leaderboard-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leaderboard-entry {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--kk-space-2);
+  min-height: 40px;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-entry:has(.leaderboard-clear) {
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto auto;
+}
+
+.leaderboard-entry + .leaderboard-entry {
+  border-top: 1px solid var(--kk-line);
+}
+
+.leaderboard-place {
+  font-family: var(--kk-font-display);
+  font-weight: 700;
+  text-align: center;
+}
+
+.leaderboard-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-result {
+  color: var(--kk-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.leaderboard-entry.is-me {
+  color: var(--kk-brand-ink);
+  font-weight: 600;
+}
+
+.leaderboard-entry.is-me .leaderboard-result {
+  color: inherit;
+}
+
+/* The own entry below the top 10, after a gap. */
+.leaderboard-below {
+  margin-top: var(--kk-space-1);
+  padding-top: var(--kk-space-1);
+  border-top: 2px dotted var(--kk-line);
+}
+
+.leaderboard-clear {
+  min-height: var(--kk-tap-min);
+  font-size: 0.875rem;
+}
+
+.leaderboard-confirm {
+  display: grid;
+  gap: var(--kk-space-2);
+  margin-top: var(--kk-space-2);
+}
+
+.leaderboard-outcome {
+  display: grid;
+  gap: var(--kk-space-2);
+  width: 100%;
+  text-align: left;
+}
+
+.solved .leaderboard-outcome {
+  background: var(--kk-surface-2);
+}
+
+.leaderboard-place-line {
+  display: grid;
+  gap: var(--kk-space-1);
+}
+
+.leaderboard-details summary {
+  min-height: var(--kk-tap-min);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
 }

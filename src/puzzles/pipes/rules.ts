@@ -6,6 +6,7 @@ import { solve } from "./solver.ts";
 export const pipesRules: PuzzleRules<PipesData, PipesState, PipesMove> = {
   id: "pipes",
   version: 1,
+  ranking: "moves", // fewest moves, ties broken by time
   createDefault,
   validate,
   parseDraft,

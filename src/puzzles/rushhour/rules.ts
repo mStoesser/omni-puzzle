@@ -6,6 +6,7 @@ import { solve } from "./solver.ts";
 export const rushHourRules: PuzzleRules<RushHourData, RushHourState, RushHourMove> = {
   id: "rushhour",
   version: 1,
+  ranking: "moves", // fewest moves, ties broken by time
   createDefault,
   validate,
   parseDraft,

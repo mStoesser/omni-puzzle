@@ -67,7 +67,8 @@ src/
     registry.ts           # Registrierung und Lookup der Rätseltypen
     store.ts              # Mini-Store
     router.ts             # Hash-Router
-    session.ts            # Spiel-Session (rein): Historie, Undo/Redo, Neustart, Zugzähler, gelöst
+    session.ts            # Spiel-Session (rein): Historie, Zugfolge (path), Undo/Redo, Neustart, Zugzähler, gelöst
+    timer.ts              # Spielzeit eines Versuchs (rein, Zeitstempel von außen), Anzeige m:ss (M25)
     editor-session.ts     # Editor-Session (rein): Titel, Undo/Redo, readiness (probespielen/teilen)
     document.ts           # Hülle prüfen, loadDocument: Hülle → Typ → migrate → validate
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
@@ -84,10 +85,12 @@ src/
     reactions.ts          # Likes und Bewertungen
     gallery.ts            # Galerie-Abfragen: Filter, Sortierung, Keyset-Pagination, Filter in der Route
     chains.ts             # Rätsel-Ketten: Laden, Fortschritt/Schlösser, Entwurf, Veröffentlichen (M24)
+    scores.ts             # Ranglisten: Lösung nachspielen (auch in der Edge Function), laden, Warteschlange (M25)
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“
+    score-handler.ts      # Request-Handler der Edge Function „submit-score“ (M25)
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts, chain.ts, chain-editor.ts …
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
@@ -109,6 +112,7 @@ supabase/
   templates/              # deutsche Mail-Vorlagen
   functions/publish/      # Edge Function (Deno), importiert src/server/publish-handler.ts
   functions/cleanup-images/  # Edge Function (Deno), importiert src/server/cleanup-handler.ts
+  functions/submit-score/ # Edge Function (Deno), importiert src/server/score-handler.ts
   config.toml             # nur für das Deployment der Functions
 docs/
 ```
@@ -749,6 +753,29 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   Gelöst-Dialog. Die Übersicht lädt immer neu, Schritte nutzen die geladene Kette. `#/chain/new` ist der Editor;
   der Entwurf liegt nur im App-Zustand.
 
+### Zeitmessung und Ranglisten (M25)
+- **Zeit** (`core/timer.ts`, rein): Sie startet mit dem ersten Zug, pausiert bei verdeckter Seite (`visibilitychange`) und
+  stoppt beim Lösen. Rückgängig nach dem Lösen setzt denselben Versuch fort, „Neustart“ beginnt einen neuen. Gemessen wird
+  mit `performance.now()`; solange sie läuft, rendert die App einmal pro Sekunde. Die Bestzeit steht als `bestTimeMs` im
+  Fortschritt, unabhängig vom Bestwert der Züge. Das Feld ist optional, deshalb braucht IndexedDB keine neue Version.
+- **Zugfolge:** Die Spiel-Session merkt sich zu jedem Zustand den Zug davor; `path(session)` liefert die Züge vom Start
+  bis zum aktuellen Stand ohne zurückgenommene. Züge sind schlichtes JSON.
+- **Rangliste je Typ:** `PuzzleRules.ranking` ist `"moves"` (wenigste Züge, bei Gleichstand die Zeit) oder `"time"`
+  (Nonogramm). Ohne `ranking` (Quiz) gibt es keine Rangliste.
+- **Eintragen** über die Edge Function `submit-score`: Token prüfen, Rätsel mit dem Service-Key laden (unsichtbare und
+  eigene werden abgelehnt), `loadDocument`, dann `checkSolution` (höchstens 5 000 Züge, jeder muss von `applyMove`
+  angenommen werden, keiner nach dem lösenden, am Ende gelöst; Züge zählt der Server). Die Zeit wird nur auf
+  Plausibilität geprüft (1 ms bis 24 h), sie lässt sich also fälschen – die Züge nicht. 5 000 Züge nachzuspielen kostet
+  bei allen Typen unter 40 ms.
+- **Datenmodell** (`0010_scores.sql`): `scores` mit einer Zeile je Spieler und Rätsel (bestes Ergebnis). Nur
+  `submit_score` (Service-Role) schreibt; die Tabelle selbst ist nicht lesbar. `leaderboard(puzzle)` (anonym aufrufbar)
+  liefert die Top 10 und den eigenen Platz, gleiche Ergebnisse teilen sich einen Platz. Gesperrte Spieler und der Autor
+  fehlen in der Liste, auch mit älteren Einträgen. `mod_clear_scores(user)` entfernt einen Spieler aus allen Ranglisten
+  (in der Rangliste und in der Moderationsansicht).
+- **Offline:** Scheitert das Senden ohne Verbindung (oder mit Serverfehler), wartet das Ergebnis im `localStorage`
+  (`raetsel-score-queue`, höchstens 10) und wird beim Start, bei `online` und nach der Anmeldung gesendet – nur für das
+  Konto, mit dem gelöst wurde.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -773,6 +800,7 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 | `likes` | `user_id`, `puzzle_id` (Primärschlüssel aus beiden) | angemeldete Nutzer, nicht für eigene Rätsel |
 | `ratings` | `user_id`, `puzzle_id`, `value` 1–5 | angemeldete Nutzer, nicht für eigene Rätsel |
 | `chains` | `id`, `author_id`, `title`, `description`, `steps` (jsonb), `outro`, `hidden`, `play_count`, `report_count`, `published_at` | Funktion `publish_chain`; Autor nur Titel/Beschreibung/Löschen |
+| `scores` | `puzzle_id`, `user_id` (Primärschlüssel aus beiden), `moves` (null bei Rangliste nach Zeit), `time_ms`, `achieved_at` | Edge Function `submit-score` über `submit_score`, nur bessere Ergebnisse |
 | `reports` | `id`, `puzzle_id` oder `chain_id`, `reporter_id`, `reason`, `comment`, `resolved`, `created_at` | angemeldete Nutzer, eine Meldung pro Rätsel bzw. Kette |
 
 Zähler (`like_count`, `rating_*`, `report_count`) pflegen Trigger, sodass die Galerie ohne Aggregation sortieren kann.

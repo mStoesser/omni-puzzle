@@ -4,7 +4,11 @@ import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
 import type { ImageSource } from "../../core/types.ts";
+import { formatDuration } from "../../core/timer.ts";
+import type { Timer } from "../../core/timer.ts";
 import { t } from "../../i18n/t.ts";
+import { leaderboardOutcome, leaderboardSection } from "../components/leaderboard.ts";
+import type { LeaderboardActions, LeaderboardModel, LeaderboardViewer } from "../components/leaderboard.ts";
 import { reportDialog } from "../components/report-dialog.ts";
 import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
 import { iconButton, popoverMenu, sheet, stat, typeVars } from "../components/ui.ts";
@@ -30,7 +34,11 @@ export type PlayViewModel = {
   next?: { href: string; title: string; label?: string }; // the following example or chain step; `label` replaces the button text
   chain?: { story: string }; // a step of a chain: the text before the puzzle
   levels?: readonly PlayLevel[]; // all examples of the type, shown beside the board on desktop
+  timer: Timer; // play time of this attempt
 };
+
+/** Numbers beside the board: best results so far (null = not solved before) and the running time. */
+export type PlayStats = { bestMoves: number | null; bestTimeMs: number | null; timeMs: number };
 
 export type PlayLevel = { href: string; title: string; current: boolean; solved: boolean; minMoves: number | null };
 
@@ -49,6 +57,9 @@ export type PublishedInfo = {
   access?: "yes" | "loading" | "signed-out" | "own" | "hidden";
   busy: boolean;
   report: ReportDialogModel | null; // open report dialog
+  leaderboard: LeaderboardModel | null; // null = the type has no leaderboard
+  /** Computed from the session when rendering, like `access`. */
+  viewer?: LeaderboardViewer;
 };
 
 export type PlayViewActions = {
@@ -63,20 +74,19 @@ export type PlayViewActions = {
   rate(value: number): void;
   openReport(): void;
   report: ReportDialogActions;
+  leaderboard: LeaderboardActions;
 };
 
 const MENU_ID = "play-menu";
 
-/**
- * `best` = best result so far for this puzzle, if solved before.
- * `embedded`: inside the editor frame (test play), without the own header.
- */
-export function playView(model: PlayViewModel, best: number | null, actions: PlayViewActions, options: { embedded?: boolean } = {}) {
+/** `embedded`: inside the editor frame (test play), without the own header. */
+export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayViewActions, options: { embedded?: boolean } = {}) {
   const { session } = model;
   const { type } = session;
   const moves = moveCount(session);
   const showUndo = type.controls?.undo !== false;
   const showMoves = type.controls?.moves !== false;
+  const best = stats.bestMoves;
   const menu = menuItems(model, actions);
   const level = model.level;
   const remixable = model.origin === "example" || model.origin === "shared" || model.origin === "published";
@@ -119,15 +129,22 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
       </div>
       <aside class="play-side" aria-label=${t("playInfo")}>
         ${showMoves
-          ? html`<div class="stats play-stats" aria-live="polite">
-              ${stat(t("moves"), moves)} ${stat(t("playGoal"), model.minMoves ?? "–")} ${stat(t("playBest"), best ?? "–")}
+          ? html`<div class="stats play-stats four">
+              <span class="stats-live" aria-live="polite">${stat(t("moves"), moves)}</span> ${stat(t("playGoal"), model.minMoves ?? "–")}
+              ${stat(t("playBest"), best ?? "–")} ${stat(t("playTime"), formatDuration(stats.timeMs))}
             </div>`
-          : nothing}
+          : type.ranking === "time"
+            ? html`<div class="stats play-stats two">
+                ${stat(t("playTime"), formatDuration(stats.timeMs))}
+                ${stat(t("playBestTime"), stats.bestTimeMs === null ? "–" : formatDuration(stats.bestTimeMs))}
+              </div>`
+            : nothing}
         <section class="play-how">
           <h2 class="desktop-only">${t("playHow")}</h2>
           <p class="play-hint">${t(type.description)}</p>
         </section>
         ${model.published ? publishedInfo(model.published, best !== null || session.solved, actions) : nothing}
+        ${model.published?.leaderboard ? leaderboardSection(model.published.leaderboard, model.published.viewer ?? "signed-out", actions.leaderboard) : nothing}
         ${model.levels ? levelBox(model.levels) : nothing}
         ${remixable
           ? html`<button class="secondary block play-remix desktop-only" @click=${actions.copyToLibrary}>
@@ -137,7 +154,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
       </aside>
     </div>
 
-    ${model.showSolved ? solvedSheet(showMoves ? moves : null, model, best, actions) : nothing}
+    ${model.showSolved ? solvedSheet(showMoves ? moves : null, model, stats, actions) : nothing}
     ${model.published?.report ? reportDialog(model.published.report, actions.report) : nothing}
   `;
 }
@@ -253,7 +270,9 @@ function solvedSubline(moves: number | null, minMoves: number | null) {
 }
 
 /** `moves` null = the type does not count moves. */
-function solvedSheet(moves: number | null, model: PlayViewModel, best: number | null, actions: PlayViewActions) {
+function solvedSheet(moves: number | null, model: PlayViewModel, stats: PlayStats, actions: PlayViewActions) {
+  const best = stats.bestMoves;
+  const time = formatDuration(stats.timeMs);
   const test = model.origin === "test";
   const optimal = moves !== null && model.minMoves !== null && moves <= model.minMoves;
   const info = model.published;
@@ -273,11 +292,17 @@ function solvedSheet(moves: number | null, model: PlayViewModel, best: number | 
       <p class="solved-sub">${solvedSubline(moves, model.minMoves)}</p>
       ${test ? html`<p class="solved-sub">${t("solvedVerified")}</p>` : nothing}
       ${moves !== null
-        ? html`<div class="stats">
+        ? html`<div class="stats ${test ? "" : "four"}">
             ${stat(t("solvedYourMoves"), moves, optimal ? "ok" : "")} ${stat(t("solvedMinimum"), model.minMoves ?? "–")}
-            ${test ? nothing : stat(t("playBest"), best ?? moves)}
+            ${test ? nothing : html`${stat(t("playBest"), best ?? moves)} ${stat(t("solvedYourTime"), time)}`}
           </div>`
-        : nothing}
+        : model.session.type.ranking === "time"
+          ? html`<div class="stats two">
+              ${stat(t("solvedYourTime"), time)}
+              ${test ? nothing : stat(t("playBestTime"), formatDuration(Math.min(stats.bestTimeMs ?? stats.timeMs, stats.timeMs)))}
+            </div>`
+          : nothing}
+      ${info?.leaderboard ? leaderboardOutcome(info.leaderboard, info.viewer ?? "signed-out", actions.leaderboard) : nothing}
       ${info
         ? html`<div class="like-row box">
               <div>

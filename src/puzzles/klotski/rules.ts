@@ -6,6 +6,7 @@ import { solve } from "./solver.ts";
 export const klotskiRules: PuzzleRules<KlotskiData, KlotskiState, KlotskiMove> = {
   id: "klotski",
   version: 1,
+  ranking: "moves", // fewest moves, ties broken by time
   createDefault,
   validate,
   parseDraft,

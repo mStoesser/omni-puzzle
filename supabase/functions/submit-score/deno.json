@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "lit-html": "npm:lit-html@3.3.3"
+  }
+}

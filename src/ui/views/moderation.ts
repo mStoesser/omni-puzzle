@@ -24,6 +24,7 @@ export type ModerationViewActions = {
   remove(item: ModerationItem): void;
   setBanned(userId: string, ban: boolean): void;
   resetName(userId: string): void;
+  clearScores(userId: string): void; // removes the user from every leaderboard
   imageUrl(puzzleId: string, key: string): string | null;
 };
 
@@ -99,6 +100,7 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
                   ${author.banned ? t("moderationUnban") : t("moderationBan")}
                 </button>
                 <button class="secondary" ?disabled=${busy} @click=${() => actions.resetName(author.id)}>${t("moderationResetName")}</button>
+                <button class="secondary" ?disabled=${busy} @click=${() => actions.clearScores(author.id)}>${t("moderationClearScores")}</button>
               `
             : nothing}
         </div>`}

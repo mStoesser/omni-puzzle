@@ -7,6 +7,7 @@ import type { NonogramData, NonogramMove, NonogramState } from "./logic.ts";
 export const nonogramRules: PuzzleRules<NonogramData, NonogramState, NonogramMove> = {
   id: "nonogram",
   version: 1,
+  ranking: "time", // moves are strokes and say little; fastest wins
   createDefault,
   validate,
   parseDraft,

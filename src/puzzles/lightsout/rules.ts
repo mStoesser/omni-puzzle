@@ -6,6 +6,7 @@ import { solve } from "./solver.ts";
 export const lightsOutRules: PuzzleRules<LightsOutData, LightsOutState, LightsOutMove> = {
   id: "lightsout",
   version: 1,
+  ranking: "moves", // fewest moves, ties broken by time
   createDefault,
   validate,
   parseDraft,

@@ -12,5 +12,6 @@ test("every puzzle type has its rules registered for the server", () => {
     assert.equal(rules.solve, type.solve, type.id);
     assert.equal(rules.migrate, type.migrate, type.id);
     assert.equal(rules.minVersion, type.minVersion, type.id);
+    assert.equal(rules.ranking, type.ranking, type.id);
   }
 });
