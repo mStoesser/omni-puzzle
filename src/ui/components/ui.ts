@@ -52,7 +52,9 @@ export function iconButton(o: IconButtonOptions) {
   if (o.href !== undefined) {
     return html`<a class="icon-button" href=${o.href} aria-label=${o.label} title=${o.label}>${icon(o.icon, 20)}</a>`;
   }
+  // type="button": never submits a surrounding form (e.g. reordering in the chain editor).
   return html`<button
+    type="button"
     class="icon-button"
     aria-label=${o.label}
     title=${o.label}
