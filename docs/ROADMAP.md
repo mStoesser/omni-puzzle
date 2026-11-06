@@ -503,8 +503,8 @@ Format unverändert gültig bleibt.
   (`reports` hat jetzt `puzzle_id` oder `chain_id`. Im Browser gegen ein nachgebautes Backend geprüft (Headless Chrome,
   390 px und 1280 px, hell und dunkel): Galerie, Übersicht, Schritt lösen und weiter, Sperre, Abschluss, Melden,
   Editor, „Meine Ketten“, Moderation.)
-- [ ] Migration `0009_chains.sql` auf `dev` und `prod` einspielen.
-- [ ] Live testen gegen `dev` (Rechte, ungültige Rätsel-IDs, Zurückziehen eines enthaltenen Rätsels), Handy-Test.
+- [x] Migration `0009_chains.sql` auf `dev` und `prod` einspielen.
+- [x] Live testen gegen `dev` (Rechte, ungültige Rätsel-IDs, Zurückziehen eines enthaltenen Rätsels), Handy-Test.
 
 ### M25 – Zeitmessung und Ranglisten
 - [ ] Zeitmessung im Core (vorgezogen aus Phase 4): Sie startet mit dem ersten Zug, pausiert bei verdeckter Seite und
