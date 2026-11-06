@@ -3,10 +3,11 @@ import { backend } from "./backend.ts";
 import { PASSWORD_MIN, accountErrorText, deleteAccount, fetchProfile, renameUser, usernameAvailable, usernameProblem } from "./core/account.ts";
 import type { UsernameProblem } from "./core/account.ts";
 import { ApiError, apiErrorText, createApi } from "./core/api.ts";
+import type { Api } from "./core/api.ts";
 import { SESSION_KEY, createAuth } from "./core/auth.ts";
 import type { KeyValueStore, Session } from "./core/auth.ts";
 import { DocumentError, loadDocument, shareableDocument } from "./core/document.ts";
-import { fetchGalleryPage } from "./core/gallery.ts";
+import { DEFAULT_FILTER, fetchGalleryPage } from "./core/gallery.ts";
 import type { GalleryCursor, GalleryFilter, GalleryItem } from "./core/gallery.ts";
 import * as editing from "./core/editor-session.ts";
 import type { EditorSession } from "./core/editor-session.ts";
@@ -20,7 +21,21 @@ import {
   updatePublication,
   withdrawPublication,
 } from "./core/published.ts";
-import { fetchModerationQueue, hidePuzzle, releasePuzzle, reportPuzzle, resetUsername, setBanned } from "./core/moderation.ts";
+import {
+  fetchModerationQueue,
+  hasReportedChain,
+  hideChain,
+  hidePuzzle,
+  releaseChain,
+  releasePuzzle,
+  reportChain,
+  reportPuzzle,
+  resetUsername,
+  setBanned,
+} from "./core/moderation.ts";
+import type { ModerationItem } from "./core/moderation.ts";
+import * as chains from "./core/chains.ts";
+import type { ChainDraft } from "./core/chains.ts";
 import type { ReportReason } from "./core/moderation.ts";
 import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
 import { formatRoute, parseRoute, startRouter } from "./core/router.ts";
@@ -43,6 +58,10 @@ import { accountView } from "./ui/views/account.ts";
 import type { AccountMessage, AccountViewModel } from "./ui/views/account.ts";
 import { editorView } from "./ui/views/editor.ts";
 import { galleryView } from "./ui/views/gallery.ts";
+import { chainView } from "./ui/views/chain.ts";
+import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
+import { chainEditorView } from "./ui/views/chain-editor.ts";
+import type { ChainEditorModel } from "./ui/views/chain-editor.ts";
 import { moderationView } from "./ui/views/moderation.ts";
 import type { ModerationViewModel } from "./ui/views/moderation.ts";
 import type { GalleryViewModel } from "./ui/views/gallery.ts";
@@ -91,6 +110,8 @@ type AppState = {
   gallery: GalleryState | null; // gallery route
   newest: GalleryItem[]; // "new in the gallery" on the home page
   moderation: ModerationViewModel | null; // moderation route
+  chain: ChainViewModel | null; // the open chain; kept while playing its steps
+  chainEditor: ChainEditorModel | null; // kept while navigating, so the draft survives looking up puzzles
   buildSheet: boolean; // type choice for a new puzzle is open
   typeSheet: string | null; // home: type whose levels are shown in a sheet
   theme: ThemeChoice;
@@ -150,6 +171,7 @@ const store = createStore<AppState>({
     message: null,
     confirmDelete: false,
     publications: null,
+    chains: null,
     editingPublication: null,
     confirmWithdraw: null,
     panel: null,
@@ -157,6 +179,8 @@ const store = createStore<AppState>({
   gallery: null,
   newest: [],
   moderation: null,
+  chain: null,
+  chainEditor: null,
   buildSheet: false,
   typeSheet: null,
   theme: readTheme(),
@@ -225,6 +249,12 @@ function enterRoute(route: Route) {
       break;
     case "edit":
       void openEditor(route);
+      break;
+    case "chain":
+      void openChain(route);
+      break;
+    case "chainNew":
+      void openChainEditor(route);
       break;
   }
 }
@@ -364,7 +394,7 @@ async function openPublished(route: Route & { name: "published" }) {
     };
     // Back to the gallery with the filter the player came from.
     const gallery = store.get().gallery;
-    const backHref = formatRoute({ name: "gallery", filter: gallery?.filter ?? { type: null, level: null, sort: "new" } });
+    const backHref = formatRoute({ name: "gallery", filter: gallery?.filter ?? DEFAULT_FILTER });
     const images = publishedImages(puzzle.id);
     if (startPlay(route, puzzle.doc, "published", { title: puzzle.title, published, backHref, images })) {
       countPlayOnce(puzzle.id);
@@ -504,10 +534,12 @@ async function moderate(action: () => Promise<void>) {
 }
 
 const moderationActions = {
-  release: (id: string) => void moderate(() => releasePuzzle(api!, id)),
-  hide: (id: string) => void moderate(() => hidePuzzle(api!, id)),
+  release: (item: ModerationItem) =>
+    void moderate(() => (item.kind === "chain" ? releaseChain(api!, item.id) : releasePuzzle(api!, item.id))),
+  hide: (item: ModerationItem) => void moderate(() => (item.kind === "chain" ? hideChain(api!, item.id) : hidePuzzle(api!, item.id))),
   askDelete: (id: string | null) => setModeration({ confirmDelete: id, message: null }),
-  remove: (id: string) => void moderate(() => withdrawPublication(api!, id)),
+  remove: (item: ModerationItem) =>
+    void moderate(() => (item.kind === "chain" ? chains.withdrawChain(api!, item.id) : withdrawPublication(api!, item.id))),
   setBanned: (userId: string, ban: boolean) => void moderate(() => setBanned(api!, userId, ban)),
   resetName: (userId: string) => void moderate(() => resetUsername(api!, userId)),
   imageUrl: (puzzleId: string, key: string) => (backend ? publishedImageUrl(backend.url, puzzleId, key) : null),
@@ -517,7 +549,8 @@ const moderationActions = {
 const PLAYS_KEY = "raetsel-plays";
 const MAX_REMEMBERED_PLAYS = 500;
 
-function countPlayOnce(id: string) {
+/** Puzzle and chain ids share the list; uuids do not collide. */
+function countPlayOnce(id: string, register: (api: Api, id: string) => Promise<void> = registerPlay) {
   let ids: unknown;
   try {
     ids = JSON.parse(browserStore.get(PLAYS_KEY) ?? "[]");
@@ -527,7 +560,7 @@ function countPlayOnce(id: string) {
   const played = Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [];
   if (played.includes(id)) return;
   browserStore.set(PLAYS_KEY, JSON.stringify([...played, id].slice(-MAX_REMEMBERED_PLAYS)));
-  registerPlay(api!, id).catch((error: unknown) => console.warn("play counter", error));
+  register(api!, id).catch((error: unknown) => console.warn("play counter", error));
 }
 
 function updateSession(change: (s: AnyPlaySession) => AnyPlaySession) {
@@ -592,7 +625,7 @@ const NEWEST_ON_HOME = 4;
 async function loadNewest() {
   if (!api) return;
   try {
-    const { items } = await fetchGalleryPage(api, { type: null, level: null, sort: "new" }, null, NEWEST_ON_HOME);
+    const { items } = await fetchGalleryPage(api, DEFAULT_FILTER, null, NEWEST_ON_HOME);
     patch({ newest: items });
   } catch (error) {
     console.warn("gallery", error); // the home page then only links to the gallery
@@ -605,7 +638,7 @@ async function openGallery(route: Route & { name: "gallery" }) {
   // Back from a puzzle to the same filter: keep what was loaded instead of starting over.
   if (keep && keep.status !== "error" && JSON.stringify(keep.filter) === JSON.stringify(route.filter)) return;
   patch({
-    gallery: { filter: route.filter, items: [], status: "loading", error: null, hasMore: false, announcement: "", next: null },
+    gallery: { filter: route.filter, items: [], chains: [], status: "loading", error: null, hasMore: false, announcement: "", next: null },
   });
   await loadGalleryPage(route);
 }
@@ -613,20 +646,26 @@ async function openGallery(route: Route & { name: "gallery" }) {
 async function loadGalleryPage(route: Route & { name: "gallery" }) {
   const gallery = store.get().gallery;
   if (!api || !gallery) return;
-  const more = gallery.items.length > 0;
+  const more = gallery.items.length + gallery.chains.length > 0;
   patch({ gallery: { ...gallery, status: more ? "loading-more" : "loading", error: null, announcement: "" } });
   try {
-    const page = await fetchGalleryPage(api, route.filter, gallery.next);
+    const page =
+      route.filter.view === "chains"
+        ? { chains: await chains.fetchChainPage(api, route.filter.sort, gallery.next) }
+        : { puzzles: await fetchGalleryPage(api, route.filter, gallery.next) };
     if (!isCurrent(route)) return;
+    const next = page.chains?.next ?? page.puzzles?.next ?? null;
+    const count = page.chains?.items.length ?? page.puzzles?.items.length ?? 0;
     patch({
       gallery: {
         ...gallery,
-        items: [...gallery.items, ...page.items],
-        next: page.next,
-        hasMore: page.next !== null,
+        items: [...gallery.items, ...(page.puzzles?.items ?? [])],
+        chains: [...gallery.chains, ...(page.chains?.items ?? [])],
+        next,
+        hasMore: next !== null,
         status: "idle",
         error: null,
-        announcement: more ? t("galleryLoaded", { count: page.items.length }) : "",
+        announcement: more ? t(route.filter.view === "chains" ? "galleryChainsLoaded" : "galleryLoaded", { count }) : "",
       },
     });
   } catch (error) {
@@ -656,6 +695,253 @@ const galleryActions = {
 function isSolved(contentKey: string) {
   return store.get().progress.get(contentKey)?.solved === true;
 }
+
+// --- Chains ---
+
+/** Shown on the overview after a locked step was opened; set before redirecting, read when the overview loads. */
+let chainNotice: MessageKey | null = null;
+
+function chainOverview(id: string) {
+  return formatRoute({ name: "chain", id, step: null });
+}
+
+/** Back from a chain to the chain gallery with the filter the player came from. */
+function chainBackHref() {
+  const filter = store.get().gallery?.filter;
+  return formatRoute({ name: "gallery", filter: filter?.view === "chains" ? filter : { ...DEFAULT_FILTER, view: "chains" } });
+}
+
+function progressOf(model: ChainViewModel) {
+  return chains.chainProgress(model.chain.steps, (step) => model.puzzles.has(step.puzzle), isSolved);
+}
+
+function setChain(change: Partial<ChainViewModel>, id: string) {
+  store.set((state) => (state.chain?.chain.id === id ? { ...state, chain: { ...state.chain, ...change } } : state));
+}
+
+/** The chain with its puzzles; the overview always reloads, steps reuse what the overview loaded. */
+async function loadChain(id: string, reuse: boolean): Promise<ChainViewModel | null> {
+  const cached = store.get().chain;
+  if (reuse && cached?.chain.id === id) return cached;
+  const chain = await chains.fetchChain(api!, id);
+  if (!chain) return null;
+  const puzzles = await chains.fetchStepPuzzles(api!, chain.steps.map((s) => s.puzzle));
+  const keep = cached?.chain.id === id ? cached : null;
+  const model: ChainViewModel = { chain, puzzles, reported: keep?.reported ?? null, report: null, notice: null };
+  patch({ chain: model });
+  return model;
+}
+
+async function openChain(route: Route & { name: "chain" }) {
+  if (!api) return fail(route, { text: "chainUnavailable" });
+  // Steps always load their puzzle; the overview shows a loaded chain right away while reloading it.
+  if (route.step !== null || store.get().chain?.chain.id !== route.id) patch({ pending: true });
+  try {
+    const model = await loadChain(route.id, route.step !== null);
+    if (!isCurrent(route)) return;
+    if (!model) return fail(route, { text: "chainNotFound" });
+    if (route.step === null) {
+      patch({ pending: false });
+      setChain({ notice: chainNotice }, route.id);
+      chainNotice = null;
+      countPlayOnce(route.id, chains.registerChainPlay);
+      void loadChainReport();
+      return;
+    }
+    await openChainStep(route, model);
+  } catch (error) {
+    console.warn("chain", error);
+    fail(route, { text: apiErrorText(error) });
+  }
+}
+
+/** Plays step `route.step` like a published puzzle; locked or unavailable steps lead back to the overview. */
+async function openChainStep(route: Route & { name: "chain" }, model: ChainViewModel) {
+  const index = route.step! - 1;
+  const progress = progressOf(model);
+  const step = model.chain.steps[index];
+  const back = () => {
+    chainNotice = step && progress.states[index] === "locked" ? "chainLockedRedirect" : null;
+    location.replace(chainOverview(route.id));
+  };
+  if (!step || !chains.isUnlocked(progress, index)) return back();
+  const puzzle = await fetchPublished(api!, step.puzzle);
+  if (!isCurrent(route)) return;
+  if (!puzzle || puzzle.hidden) return back();
+  const published: PublishedInfo = {
+    id: puzzle.id,
+    author: puzzle.author,
+    authorId: puzzle.authorId,
+    description: puzzle.description,
+    hidden: puzzle.hidden,
+    likeCount: puzzle.likeCount,
+    ratingSum: puzzle.ratingSum,
+    ratingCount: puzzle.ratingCount,
+    me: null,
+    busy: false,
+    report: null,
+  };
+  const extra = { title: puzzle.title, published, backHref: chainOverview(route.id), images: publishedImages(puzzle.id) };
+  if (!startPlay(route, puzzle.doc, "published", extra)) return;
+  // After solving: the next available step, or the closing screen on the overview.
+  const following = model.chain.steps.findIndex((s, i) => i > index && model.puzzles.has(s.puzzle));
+  const next =
+    following === -1
+      ? { href: chainOverview(route.id), title: model.chain.title, label: t("chainFinale") }
+      : {
+          href: formatRoute({ name: "chain", id: route.id, step: following + 1 }),
+          title: model.puzzles.get(model.chain.steps[following]!.puzzle)!.title,
+          label: t("chainNextStep", { index: following + 1 }),
+        };
+  store.set((state) =>
+    state.play
+      ? { ...state, play: { ...state.play, level: { index: index + 1, total: model.chain.steps.length }, next, chain: { story: step.text } } }
+      : state,
+  );
+  countPlayOnce(puzzle.id);
+  void loadReaction();
+}
+
+function chainAccess(model: ChainViewModel, user: { id: string } | null): ChainAccess {
+  if (model.chain.hidden) return "hidden";
+  if (!user) return "signed-out";
+  if (model.chain.authorId === user.id) return "own";
+  return model.reported === null ? "loading" : "yes";
+}
+
+async function loadChainReport() {
+  const { chain, account } = store.get();
+  if (!api || !chain || !account.user || chain.reported !== null) return;
+  try {
+    setChain({ reported: await hasReportedChain(api, account.user.id, chain.chain.id) }, chain.chain.id);
+  } catch (error) {
+    console.warn("chain report", error);
+  }
+}
+
+async function sendChainReport(reason: ReportReason, comment: string) {
+  const { chain, account } = store.get();
+  if (!api || !chain?.report || !account.user || chain.report.state !== "form") return;
+  const id = chain.chain.id;
+  setChain({ report: { state: "busy", error: null } }, id);
+  try {
+    await reportChain(api, account.user.id, id, reason, comment);
+    setChain({ report: { state: "done", error: null }, reported: true }, id);
+  } catch (error) {
+    console.warn("chain report", error);
+    const already = error instanceof ApiError && error.kind === "conflict";
+    setChain({ report: { state: "form", error: already ? "chainReportAlready" : apiErrorText(error) } }, id);
+  }
+}
+
+const chainActions = {
+  openReport: () => {
+    const chain = store.get().chain;
+    if (chain && chain.reported === false) setChain({ report: { state: "form", error: null } }, chain.chain.id);
+  },
+  report: {
+    send: (reason: ReportReason, comment: string) => void sendChainReport(reason, comment),
+    close: () => {
+      const chain = store.get().chain;
+      if (chain) setChain({ report: null }, chain.chain.id);
+    },
+  },
+};
+
+// --- Chain editor ---
+
+function setChainEditor(change: Partial<ChainEditorModel>) {
+  store.set((state) => (state.chainEditor ? { ...state, chainEditor: { ...state.chainEditor, ...change } } : state));
+}
+
+function editDraft(change: (draft: ChainDraft) => ChainDraft) {
+  store.set((state) =>
+    state.chainEditor ? { ...state, chainEditor: { ...state.chainEditor, draft: change(state.chainEditor.draft), error: null } } : state,
+  );
+}
+
+async function openChainEditor(route: Route & { name: "chainNew" }) {
+  if (!api) return fail(route, { text: "chainUnavailable" });
+  const userId = store.get().account.user?.id;
+  if (!userId) return;
+  if (!store.get().chainEditor) {
+    patch({ chainEditor: { draft: chains.EMPTY_DRAFT, own: null, checking: false, addError: null, publishing: false, error: null } });
+  }
+  try {
+    const own = (await listOwnPublications(api, userId)).filter((p) => !p.hidden);
+    setChainEditor({ own: own.map((p) => ({ id: p.id, title: p.title, type: p.type })) });
+  } catch (error) {
+    console.warn("chain editor", error);
+    setChainEditor({ own: [], addError: apiErrorText(error) });
+  }
+}
+
+const ADD_TEXT: Record<chains.AddStepProblem, MessageKey> = { duplicate: "chainAlreadyAdded", full: "chainFull" };
+
+function addDraftStep(step: chains.DraftStep): boolean {
+  const editor = store.get().chainEditor;
+  if (!editor) return false;
+  const result = chains.addStep(editor.draft, step);
+  if (typeof result === "string") {
+    setChainEditor({ addError: ADD_TEXT[result] });
+    return false;
+  }
+  setChainEditor({ draft: result, addError: null, error: null });
+  return true;
+}
+
+const chainEditorActions = {
+  setField: (field: "title" | "description" | "outro", value: string) => editDraft((d) => ({ ...d, [field]: value })),
+  setStepText: (index: number, text: string) => editDraft((d) => chains.setStepText(d, index, text)),
+  move: (index: number, delta: -1 | 1) => editDraft((d) => chains.moveStep(d, index, delta)),
+  remove: (index: number) => editDraft((d) => chains.removeStep(d, index)),
+  addOwn: (puzzleId: string) => {
+    const own = store.get().chainEditor?.own?.find((p) => p.id === puzzleId);
+    if (own) addDraftStep({ puzzle: own.id, title: own.title, type: own.type, text: "" });
+  },
+  addLink: async (text: string): Promise<boolean> => {
+    const editor = store.get().chainEditor;
+    if (!api || !editor || editor.checking) return false;
+    const id = chains.puzzleIdFromLink(text);
+    if (!id) {
+      setChainEditor({ addError: "chainLinkInvalid" });
+      return false;
+    }
+    if (editor.draft.steps.some((s) => s.puzzle === id)) {
+      setChainEditor({ addError: "chainAlreadyAdded" });
+      return false;
+    }
+    setChainEditor({ checking: true, addError: null });
+    try {
+      const puzzle = (await chains.fetchStepPuzzles(api, [id])).get(id);
+      setChainEditor({ checking: false });
+      if (!puzzle) {
+        setChainEditor({ addError: "chainLinkNotFound" });
+        return false;
+      }
+      return addDraftStep({ puzzle: id, title: puzzle.title, type: puzzle.type, text: "" });
+    } catch (error) {
+      console.warn("chain editor", error);
+      setChainEditor({ checking: false, addError: apiErrorText(error) });
+      return false;
+    }
+  },
+  publish: async () => {
+    const editor = store.get().chainEditor;
+    if (!api || !editor || editor.publishing) return;
+    const problem = chains.draftProblem(editor.draft);
+    if (problem) return setChainEditor({ error: problem });
+    setChainEditor({ publishing: true, error: null });
+    try {
+      const id = await chains.publishChain(api, editor.draft);
+      patch({ chainEditor: null });
+      location.hash = chainOverview(id);
+    } catch (error) {
+      console.warn("publish chain", error);
+      setChainEditor({ publishing: false, error: chains.chainErrorText(error) });
+    }
+  },
+};
 
 // --- Editor ---
 
@@ -1091,15 +1377,17 @@ async function loadPublications() {
   const userId = store.get().account.user?.id;
   if (!api || !userId) return;
   try {
-    const list = await listOwnPublications(api, userId);
+    const [list, ownChains] = await Promise.all([listOwnPublications(api, userId), chains.listOwnChains(api, userId)]);
     const publications = list.map((p) => {
       const type = registry.get(p.type);
       return { ...p, typeName: type ? t(type.name) : p.type };
     });
-    if (store.get().account.user?.id === userId) setAccount({ publications });
+    if (store.get().account.user?.id === userId) setAccount({ publications, chains: ownChains });
   } catch (error) {
     console.warn("publications", error);
-    if (store.get().account.user?.id === userId) setAccount({ publications: [], message: { tone: "error", text: apiErrorText(error) } });
+    if (store.get().account.user?.id === userId) {
+      setAccount({ publications: [], chains: [], message: { tone: "error", text: apiErrorText(error) } });
+    }
   }
 }
 
@@ -1152,9 +1440,18 @@ function onSession(session: Session | null) {
   const { account } = store.get();
   const user = session?.user ?? null;
   if (user?.id === account.user?.id) return;
-  setAccount({ user, profile: null, confirmDelete: false, publications: null, editingPublication: null, confirmWithdraw: null, panel: null });
+  setAccount({ user, profile: null, confirmDelete: false, publications: null, chains: null, editingPublication: null, confirmWithdraw: null, panel: null });
   if (user) void loadProfile(user.id);
-  if (user && store.get().route.name === "account") void loadPublications();
+  const { route } = store.get();
+  if (user && route.name === "account") void loadPublications();
+  // The draft belongs to the account that started it.
+  patch({ chainEditor: null });
+  if (route.name === "chainNew") void openChainEditor(route);
+  const chain = store.get().chain;
+  if (chain) {
+    setChain({ reported: null, report: null }, chain.chain.id);
+    void loadChainReport();
+  }
   const published = store.get().play?.published;
   if (published) {
     setPublished({ me: null }, published.id);
@@ -1229,6 +1526,23 @@ const accountActions = {
       await loadPublications();
       return { tone: "ok", text: "myPublicationsSaved" };
     }),
+  saveChain: (id: string, title: string, description: string) =>
+    accountTask(async () => {
+      const clean = title.trim();
+      if (clean === "" || clean.length > chains.CHAIN.maxTitle) throw new InputProblem("chainInvalidTitle");
+      if (description.trim().length > chains.CHAIN.maxDescription) throw new InputProblem("chainInvalidDescription");
+      await chains.updateChain(api!, id, { title: clean, description: description.trim() });
+      setAccount({ editingPublication: null });
+      await loadPublications();
+      return { tone: "ok", text: "myPublicationsSaved" };
+    }),
+  withdrawChain: (id: string) =>
+    void accountTask(async () => {
+      await chains.withdrawChain(api!, id);
+      setAccount({ confirmWithdraw: null });
+      await loadPublications();
+      return { tone: "ok", text: "myChainsWithdrawn" };
+    }),
   askWithdraw: (id: string | null) => setAccount({ confirmWithdraw: id, editingPublication: null, message: null }),
   withdraw: (id: string) =>
     void accountTask(async () => {
@@ -1300,6 +1614,13 @@ function view(state: AppState) {
       };
       return accountView(auth ? state.account : null, auth ? accountActions : null, extras, profileActions);
     }
+    case "chain":
+      if (state.route.step === null) {
+        if (!state.chain) return nothing;
+        return chainView(state.chain, progressOf(state.chain), chainAccess(state.chain, state.account.user), chainBackHref(), registry, chainActions);
+      }
+    // A step is played like a published puzzle.
+    // falls through
     case "play":
     case "shared":
     case "published": {
@@ -1312,6 +1633,8 @@ function view(state: AppState) {
       if (play.origin === "example" && state.route.name === "play") play = { ...play, levels: exampleLevels(state, state.route.id) };
       return playView(play, best, playActions);
     }
+    case "chainNew":
+      return chainEditorView(state.chainEditor, state.account.user !== null, registry, chainEditorActions);
     case "new":
     case "edit": {
       const editor = state.editor;
@@ -1342,6 +1665,8 @@ function navSection(route: Route): NavSection | "focus" {
     case "library":
     case "account":
       return route.name;
+    case "chain":
+      return route.step === null ? "gallery" : "focus";
     case "play":
     case "shared":
     case "published":
@@ -1351,6 +1676,7 @@ function navSection(route: Route): NavSection | "focus" {
     case "imprint":
     case "privacy":
     case "moderation":
+    case "chainNew":
       return null;
   }
 }
@@ -1405,6 +1731,8 @@ function pageTitle(state: AppState): string {
     : route.name === "imprint" ? t("imprint")
     : route.name === "privacy" ? t("privacy")
     : route.name === "account" ? t("account")
+    : route.name === "chain" && state.chain ? state.chain.chain.title
+    : route.name === "chainNew" ? t("chainEditorTitle")
     : (route.name === "new" || route.name === "edit") && state.editor ? t(state.editor.type.name)
     : "");
   return part ? `${part} – ${t("appTitle")}` : t("appTitle");

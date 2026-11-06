@@ -13,7 +13,9 @@ export type Route =
   | { name: "new"; type: string }
   | { name: "edit"; id: string }
   | { name: "play"; id: string }
-  | { name: "published"; id: string };
+  | { name: "published"; id: string }
+  | { name: "chain"; id: string; step: number | null } // step: 1-based, null = overview
+  | { name: "chainNew" };
 
 const TYPE_ID = /^[a-z0-9-]{1,32}$/;
 const LOCAL_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -30,6 +32,11 @@ export function parseRoute(hash: string): Route {
   if (path === "gallery") return { name: "gallery", filter: parseGalleryFilter(search) };
   if (search !== "") return HOME;
   const [head, arg, ...rest] = path.split("/");
+  if (head === "c" && arg !== undefined && PUBLISHED_ID.test(arg) && rest.length <= 1) {
+    if (rest.length === 0) return { name: "chain", id: arg, step: null };
+    const step = Number(rest[0]);
+    return /^[1-9][0-9]?$/.test(rest[0]!) ? { name: "chain", id: arg, step } : HOME;
+  }
   if (rest.length > 0) return HOME;
 
   if (arg === undefined) {
@@ -51,6 +58,8 @@ export function parseRoute(hash: string): Route {
       return LOCAL_ID.test(arg) ? { name: "play", id: arg } : HOME;
     case "g":
       return PUBLISHED_ID.test(arg) ? { name: "published", id: arg } : HOME;
+    case "chain":
+      return arg === "new" ? { name: "chainNew" } : HOME;
     default:
       return HOME;
   }
@@ -84,6 +93,10 @@ export function formatRoute(route: Route): string {
       return `#/play/${route.id}`;
     case "published":
       return `#/g/${route.id}`;
+    case "chain":
+      return route.step === null ? `#/c/${route.id}` : `#/c/${route.id}/${route.step}`;
+    case "chainNew":
+      return "#/chain/new";
   }
 }
 

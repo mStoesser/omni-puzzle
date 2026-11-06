@@ -83,12 +83,13 @@ src/
     moderation.ts         # Melden und Moderationsaktionen
     reactions.ts          # Likes und Bewertungen
     gallery.ts            # Galerie-Abfragen: Filter, Sortierung, Keyset-Pagination, Filter in der Route
+    chains.ts             # Rätsel-Ketten: Laden, Fortschritt/Schlösser, Entwurf, Veröffentlichen (M24)
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“
   ui/
-    views/                # home.ts, library.ts, play.ts, editor.ts
+    views/                # home.ts, library.ts, play.ts, editor.ts, chain.ts, chain-editor.ts …
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
     styles.css
   puzzles/
@@ -614,7 +615,7 @@ und Firebase (Zähler nur mit kostenpflichtigen Functions, umständlich ohne SDK
 ```
 GitHub Pages (statische App) ──fetch──▶ Supabase (Frankfurt)
                                           ├─ Auth: E-Mail + Passwort
-                                          ├─ Postgres + Row Level Security: profiles, puzzles, likes, ratings, reports
+                                          ├─ Postgres + Row Level Security: profiles, puzzles, chains, likes, ratings, reports
                                           ├─ Edge Function (Deno): publish
                                           └─ Storage: Quizbilder (M14)
 ```
@@ -723,6 +724,31 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   die Ordner von Rätseln, die es nicht mehr gibt (`.github/workflows/cleanup-images.yml`, geschützt mit `CLEANUP_SECRET`).
 - **Moderation:** Die Moderationsansicht zeigt Vorschaubilder der Bilder eines Rätsels.
 
+### Rätsel-Ketten (M24)
+- **Datenmodell** (Migration `0009_chains.sql`): Tabelle `chains` mit Titel, Beschreibung, Abschlusstext (`outro`) und
+  `steps` als jsonb-Liste `[{ puzzle, key, text }]` (2–20 Einträge). `key` ist der `content_key` des Rätsels zum Zeitpunkt
+  des Veröffentlichens; er ändert sich nie, also zeigen Galerie-Karten den eigenen Fortschritt ohne weitere Abfrage.
+  Es gibt keinen Fremdschlüssel auf `puzzles`: Ein zurückgezogenes Rätsel bleibt in der Liste stehen und gilt als
+  „nicht mehr verfügbar“.
+- **Veröffentlichen** über die Datenbankfunktion `publish_chain(title, description, steps, outro)` (security definer,
+  aufrufbar für `authenticated`, keine Edge Function nötig): Sperre, Tageslimit 5, Längen, Format der Schritte, keine
+  doppelten Rätsel, jedes Rätsel muss existieren und sichtbar sein. Sie baut die Schritte selbst neu auf (nur `puzzle`,
+  `key`, `text`). Fehler kommen mit `PT400`/`PT403`/`PT429` (HTTP-Status), die Meldung ist ein Code
+  (`invalid-steps`, `unavailable-puzzle`, …), den `chainErrorText` übersetzt. Tabelle und Funktion haben dieselben
+  Grenzen wie `CHAIN` in `core/chains.ts`.
+- Autoren dürfen nur Titel und Beschreibung ändern und löschen (zurückziehen); Moderatoren dürfen löschen. Spielzähler
+  über `register_chain_play` wie bei Rätseln.
+- **Melden:** `reports` hat jetzt `puzzle_id` *oder* `chain_id` (Check-Constraint), eine Meldung pro Nutzer und Kette.
+  `count_report` blendet Ketten wie Rätsel ab 3 offenen Meldungen aus; `mod_release_chain` und `mod_hide_chain`
+  entsprechen den Funktionen für Rätsel. Die Moderationsansicht lädt Rätsel und Ketten und sortiert sie gemeinsam.
+- **Fortschritt** bleibt lokal: `chainProgress` (rein, getestet) markiert jeden Schritt als gelöst, offen, gesperrt oder
+  nicht verfügbar. Ein Schritt ist frei, wenn alle davor gelöst oder nicht verfügbar sind. Verfügbar heißt: Das Rätsel
+  kommt bei `id=in.(…)&hidden=is.false` zurück (ausgeblendete gelten auch für Autor und Moderation als nicht verfügbar).
+- **App:** `#/c/<id>` zeigt die Übersicht, `#/c/<id>/<n>` spielt Schritt n wie ein veröffentlichtes Rätsel (Likes,
+  Bewertung, Melden des Rätsels wie gewohnt), mit dem Text vor dem Rätsel über dem Spielfeld und „Weiter“ im
+  Gelöst-Dialog. Die Übersicht lädt immer neu, Schritte nutzen die geladene Kette. `#/chain/new` ist der Editor;
+  der Entwurf liegt nur im App-Zustand.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -746,7 +772,8 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 | `puzzles` | `id`, `author_id`, `type`, `type_version`, `doc` (jsonb), `content_key` (eindeutig), `title`, `description`, `min_moves`, `difficulty`, `hardness`, `hidden`, `like_count`, `play_count`, `rating_sum`, `rating_count`, `report_count`, `published_at` | Edge Function `publish`; Autor nur Titel/Beschreibung/Löschen |
 | `likes` | `user_id`, `puzzle_id` (Primärschlüssel aus beiden) | angemeldete Nutzer, nicht für eigene Rätsel |
 | `ratings` | `user_id`, `puzzle_id`, `value` 1–5 | angemeldete Nutzer, nicht für eigene Rätsel |
-| `reports` | `id`, `puzzle_id`, `reporter_id`, `reason`, `comment`, `resolved`, `created_at` | angemeldete Nutzer, eine Meldung pro Rätsel |
+| `chains` | `id`, `author_id`, `title`, `description`, `steps` (jsonb), `outro`, `hidden`, `play_count`, `report_count`, `published_at` | Funktion `publish_chain`; Autor nur Titel/Beschreibung/Löschen |
+| `reports` | `id`, `puzzle_id` oder `chain_id`, `reporter_id`, `reason`, `comment`, `resolved`, `created_at` | angemeldete Nutzer, eine Meldung pro Rätsel bzw. Kette |
 
 Zähler (`like_count`, `rating_*`, `report_count`) pflegen Trigger, sodass die Galerie ohne Aggregation sortieren kann.
 Der Spielzähler wird über eine Datenbankfunktion (`register_play`) erhöht, die auch anonym aufrufbar ist.
@@ -760,6 +787,10 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/g/<id>` | veröffentlichtes Rätsel spielen (kurzer Teilen-Link) |
 | `#/account` | Anmelden/Registrieren bzw. Kontoseite mit „Meine Veröffentlichungen“ |
 | `#/moderation` | Moderationsansicht (nur Moderatoren) |
+| `#/gallery?view=chains&sort=…` | Galerie der Ketten (M24) |
+| `#/c/<id>` | Kette: Übersicht mit Schritten, Abschluss |
+| `#/c/<id>/<n>` | Schritt n einer Kette spielen |
+| `#/chain/new` | Ketten-Editor (angemeldet) |
 
 ### Rechtliches
 Vor dem Livegang mit Backend: Datenschutzerklärung (Hosting, Supabase mit AV-Vertrag, Mailanbieter, gespeicherte Daten,

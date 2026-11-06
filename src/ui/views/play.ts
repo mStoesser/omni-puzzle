@@ -27,7 +27,8 @@ export type PlayViewModel = {
   images: ImageSource; // local pictures, or those of the published puzzle
   minMoves: number | null; // shortest solution, if known
   level?: { index: number; total: number }; // position among the examples of its type (1-based)
-  next?: { href: string; title: string }; // the following example
+  next?: { href: string; title: string; label?: string }; // the following example or chain step; `label` replaces the button text
+  chain?: { story: string }; // a step of a chain: the text before the puzzle
   levels?: readonly PlayLevel[]; // all examples of the type, shown beside the board on desktop
 };
 
@@ -86,9 +87,9 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
         : iconButton({ label: t("back"), icon: "chevronLeft", href: model.backHref ?? (model.origin === "own" ? "#/library" : "#/") })}
       <div class="play-title typed" style=${typeVars(type)}>
         <span class="play-kicker"
-          >${t(type.name)}${level
+          >${model.chain ? `${t("chainKicker")} · ` : nothing}${t(type.name)}${level
             ? html` · <span class="level-short">${level.index} / ${level.total}</span
-                ><span class="level-long">${t("playLevelOf", { index: level.index, total: level.total })}</span>`
+                ><span class="level-long">${t(model.chain ? "chainStepOf" : "playLevelOf", { index: level.index, total: level.total })}</span>`
             : nothing}</span
         >
         <h1>${model.title || t("untitled")}</h1>
@@ -101,6 +102,7 @@ export function playView(model: PlayViewModel, best: number | null, actions: Pla
     <div class="play-layout">
       <div class="play-stage">
         <div class="play-main">
+          ${model.chain?.story ? html`<p class="box chain-story play-story">${model.chain.story}</p>` : nothing}
           <div class="board">
             ${type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch, images: model.images })}
           </div>
@@ -258,7 +260,7 @@ function solvedSheet(moves: number | null, model: PlayViewModel, best: number | 
   const primary = test
     ? html`<button class="large block" @click=${actions.backToEditor}>${t("backToEditor")}</button>`
     : model.next
-      ? html`<a class="button large block" href=${model.next.href}>${t("solvedNext", { title: model.next.title })}${icon("chevronRight", 18)}</a>`
+      ? html`<a class="button large block" href=${model.next.href}>${model.next.label ?? t("solvedNext", { title: model.next.title })}${icon("chevronRight", 18)}</a>`
       : model.origin === "own"
         ? html`<a class="button large block" href="#/library">${t("library")}</a>`
         : html`<a class="button large block" href=${model.backHref ?? "#/"}>${model.backHref ? t("solvedBackToGallery") : t("toHome")}</a>`;

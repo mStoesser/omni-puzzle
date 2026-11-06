@@ -6,7 +6,8 @@ import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { showModal } from "./dialog.ts";
 
-export type ReportDialogModel = { state: "form" | "busy" | "done"; error: MessageKey | null };
+/** `subject` "chain": texts for a chain, without the reason "not solvable". */
+export type ReportDialogModel = { state: "form" | "busy" | "done"; error: MessageKey | null; subject?: "chain" };
 
 export type ReportDialogActions = {
   send(reason: ReportReason, comment: string): void;
@@ -21,11 +22,13 @@ export const REASON_TEXT: Record<ReportReason, MessageKey> = {
 };
 
 export function reportDialog(model: ReportDialogModel, actions: ReportDialogActions) {
+  const chain = model.subject === "chain";
+  const reasons = chain ? REPORT_REASONS.filter((r) => r !== "unsolvable") : REPORT_REASONS;
   return html`
     <dialog class="dialog" ${ref(showModal)} @close=${actions.close} aria-labelledby="report-title">
-      <h2 id="report-title">${t("reportTitle")}</h2>
+      <h2 id="report-title">${t(chain ? "chainReport" : "reportTitle")}</h2>
       ${model.state === "done"
-        ? html`<p class="status-ok" role="status">${t("reportDone")}</p>
+        ? html`<p class="status-ok" role="status">${t(chain ? "chainReportDone" : "reportDone")}</p>
             <div class="dialog-actions"><button @click=${actions.close}>${t("close")}</button></div>`
         : html`<form
             @submit=${(e: SubmitEvent) => {
@@ -34,10 +37,10 @@ export function reportDialog(model: ReportDialogModel, actions: ReportDialogActi
               actions.send(String(form.get("reason")) as ReportReason, String(form.get("comment") ?? ""));
             }}
           >
-            <p>${t("reportIntro")}</p>
+            <p>${t(chain ? "chainReportIntro" : "reportIntro")}</p>
             <fieldset class="report-reasons">
               <legend>${t("reportReason")}</legend>
-              ${REPORT_REASONS.map(
+              ${reasons.map(
                 (reason, i) => html`<label class="choice">
                   <input type="radio" name="reason" value=${reason} required ?checked=${i === 0} />
                   <span>${t(REASON_TEXT[reason])}</span>

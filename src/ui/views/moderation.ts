@@ -18,10 +18,10 @@ export type ModerationViewModel = {
 
 /** `imageUrl` builds the public URL of a published picture. */
 export type ModerationViewActions = {
-  release(puzzleId: string): void;
-  hide(puzzleId: string): void;
-  askDelete(puzzleId: string | null): void;
-  remove(puzzleId: string): void;
+  release(item: ModerationItem): void;
+  hide(item: ModerationItem): void;
+  askDelete(id: string | null): void;
+  remove(item: ModerationItem): void;
   setBanned(userId: string, ban: boolean): void;
   resetName(userId: string): void;
   imageUrl(puzzleId: string, key: string): string | null;
@@ -54,9 +54,9 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
   const { author } = item;
   const { busy } = model;
   return html`<li class="publication">
-    <h2 class="moderation-title"><a href="#/g/${item.id}">${item.title}</a></h2>
+    <h2 class="moderation-title"><a href=${item.kind === "chain" ? `#/c/${item.id}` : `#/g/${item.id}`}>${item.title}</a></h2>
     <p class="hint">
-      ${type ? t(type.name) : item.type} · ${date(item.publishedAt)} ·
+      ${item.kind === "chain" ? t("moderationChain", { count: item.stepCount }) : type ? t(type.name) : item.type} · ${date(item.publishedAt)} ·
       <strong>${item.hidden ? t("moderationHidden") : t("moderationVisible")}</strong>
       ${item.reports.length > 0 ? html` · ${t("moderationReports", { count: item.reports.length })}` : nothing}
     </p>
@@ -84,14 +84,14 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
     ${model.confirmDelete === item.id
       ? html`<p class="notice" role="alert">${t("moderationDeleteConfirm", { title: item.title })}</p>
           <div class="account-actions">
-            <button class="danger-button" ?disabled=${busy} @click=${() => actions.remove(item.id)}>${t("moderationDelete")}</button>
+            <button class="danger-button" ?disabled=${busy} @click=${() => actions.remove(item)}>${t("moderationDelete")}</button>
             <button class="secondary" @click=${() => actions.askDelete(null)}>${t("cancel")}</button>
           </div>`
       : html`<div class="account-actions">
-          <button ?disabled=${busy} @click=${() => actions.release(item.id)}>${t("moderationRelease")}</button>
+          <button ?disabled=${busy} @click=${() => actions.release(item)}>${t("moderationRelease")}</button>
           ${item.hidden && item.reports.length === 0
             ? nothing
-            : html`<button class="secondary" ?disabled=${busy} @click=${() => actions.hide(item.id)}>${t("moderationHide")}</button>`}
+            : html`<button class="secondary" ?disabled=${busy} @click=${() => actions.hide(item)}>${t("moderationHide")}</button>`}
           <button class="secondary danger" ?disabled=${busy} @click=${() => actions.askDelete(item.id)}>${t("moderationDelete")}</button>
           ${author && !author.isModerator
             ? html`
@@ -107,6 +107,7 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
 
 /** Thumbnails of the puzzle's pictures, so moderators see them without playing. */
 function images(item: ModerationItem, registry: Registry, actions: ModerationViewActions) {
+  if (item.kind === "chain") return nothing;
   let keys: string[] = [];
   try {
     const { type, doc } = loadDocument(item.doc, registry);

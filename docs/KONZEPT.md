@@ -70,7 +70,7 @@ Fehlersuche, Wimmelbild, langsam aufgedecktes Bild: **später** (Bilder brauchen
 Mehrere Rätsel werden zu einer Kette verknüpft. Die Lösung eines Rätsels (z. B. ein Code) schaltet das nächste frei.
 Das ist das langfristige Alleinstellungsmerkmal.
 In Phase 3 besteht eine Kette aus veröffentlichten Galerie-Rätseln; Lösen schaltet das nächste frei, Texte pro Schritt
-erzählen die Geschichte. Codes, die ein Schloss öffnen, kommen später.
+erzählen die Geschichte (**umgesetzt in M24**). Codes, die ein Schloss öffnen, kommen später.
 
 ### Warum genau diese drei für das MVP?
 Quiz (textbasiert, ohne Raster), Laser (Strahlberechnung, Drehen) und Rush Hour (Ziehen, Zustandssuche)

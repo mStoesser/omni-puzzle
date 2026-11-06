@@ -12,10 +12,10 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute("#/datenschutz"), { name: "privacy" });
   assert.deepEqual(parseRoute("#/account"), { name: "account" });
   assert.deepEqual(parseRoute("#/moderation"), { name: "moderation" });
-  assert.deepEqual(parseRoute("#/gallery"), { name: "gallery", filter: { type: null, level: null, sort: "new" } });
+  assert.deepEqual(parseRoute("#/gallery"), { name: "gallery", filter: { view: "puzzles", type: null, level: null, sort: "new" } });
   assert.deepEqual(parseRoute("#/gallery?type=laser&sort=likes"), {
     name: "gallery",
-    filter: { type: "laser", level: null, sort: "likes" },
+    filter: { view: "puzzles", type: "laser", level: null, sort: "likes" },
   });
   assert.deepEqual(parseRoute("#/p/1.abc_-XYZ"), { name: "shared", code: "1.abc_-XYZ" });
   assert.deepEqual(parseRoute("#/new/rushhour"), { name: "new", type: "rushhour" });
@@ -41,6 +41,12 @@ test("unknown or malformed routes lead to home", () => {
     "#/g/abc",
     "#/library?x=1",
     "#/g/8C0F4F0E-1D2B-4C3A-9E8F-0A1B2C3D4E5F",
+    "#/c/abc",
+    "#/c/8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f/0",
+    "#/c/8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f/01",
+    "#/c/8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f/100",
+    "#/c/8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f/1/2",
+    "#/chain/edit",
   ]) {
     assert.deepEqual(parseRoute(hash), { name: "home" }, hash);
   }
@@ -54,8 +60,12 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "privacy" },
     { name: "account" },
     { name: "moderation" },
-    { name: "gallery", filter: { type: null, level: null, sort: "new" } },
-    { name: "gallery", filter: { type: "quiz", level: 2, sort: "plays" } },
+    { name: "gallery", filter: { view: "puzzles", type: null, level: null, sort: "new" } },
+    { name: "gallery", filter: { view: "puzzles", type: "quiz", level: 2, sort: "plays" } },
+    { name: "gallery", filter: { view: "chains", type: null, level: null, sort: "plays" } },
+    { name: "chain", id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f", step: null },
+    { name: "chain", id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f", step: 20 },
+    { name: "chainNew" },
     { name: "shared", code: "1.abc" },
     { name: "new", type: "laser" },
     { name: "edit", id: "x1" },

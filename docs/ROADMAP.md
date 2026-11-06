@@ -474,20 +474,36 @@ Format unverändert gültig bleibt.
 - [x] Live testen: Rätsel mit Erweiterungen veröffentlichen (nach dem Push), altes Laser-Rätsel in der Galerie weiter als gelöst markiert.
 
 ### M24 – Rätsel-Ketten
-- [ ] **Entscheidung im Meilenstein:** Dürfen Ketten fremde Galerie-Rätsel enthalten? (Vorschlag: ja, als kuratierte
+- [x] **Entscheidung im Meilenstein:** Dürfen Ketten fremde Galerie-Rätsel enthalten? (Vorschlag: ja, als kuratierte
   Sammlung.) Wie lang darf eine Kette sein (Vorschlag: 2–20)? Gibt es Likes für Ketten?
-- [ ] Migration: Tabelle `chains` (Autor, Titel, Beschreibung, Schritte als geordnete Liste aus `puzzle_id` und optionalem
+  (Entschieden: fremde sichtbare Rätsel ja, 2–20 Rätsel, keine Likes für Ketten (die Rätsel darin lassen sich weiter liken).
+  Tageslimit 5 Ketten, Text vor einem Rätsel höchstens 500 Zeichen, Abschlusstext höchstens 2000.)
+- [x] Migration: Tabelle `chains` (Autor, Titel, Beschreibung, Schritte als geordnete Liste aus `puzzle_id` und optionalem
   Text vor dem Rätsel, Abschlusstext, `hidden`, Zähler, `published_at`), RLS wie bei `puzzles`.
   Angelegt wird nur über die Funktion `publish_chain`: Alle Rätsel müssen existieren und sichtbar sein, Tageslimit, gesperrte Nutzer nicht.
-- [ ] Ketten sind wie Rätsel unveränderlich (nur Titel und Beschreibung lassen sich ändern) und lassen sich zurückziehen.
-- [ ] Ketten-Editor (`#/chain/new`): Rätsel aus „Meine Veröffentlichungen“ wählen oder einen `#/g/<id>`-Link einfügen,
+  (`0009_chains.sql`. Die Schritte liegen als jsonb-Liste vor und tragen zusätzlich den `content_key` jedes Rätsels, damit
+  Galerie-Karten den eigenen Fortschritt ohne weitere Abfrage zeigen. Lokal in einem Wegwerf-Postgres mit nachgebauten
+  Supabase-Rollen geprüft: Rechte, ungültige Schritte, doppelte und ausgeblendete Rätsel, Tageslimit, Sperre, Melden,
+  Moderation, Kontolöschung.)
+- [x] Ketten sind wie Rätsel unveränderlich (nur Titel und Beschreibung lassen sich ändern) und lassen sich zurückziehen.
+  (Profil → „Meine Ketten“.)
+- [x] Ketten-Editor (`#/chain/new`): Rätsel aus „Meine Veröffentlichungen“ wählen oder einen `#/g/<id>`-Link einfügen,
   sortieren, Texte pro Schritt (für den Escape-Charakter).
-- [ ] Route `#/c/<id>`: Übersicht mit Schritten und Schlössern. Ein Schritt gilt als gelöst, wenn der lokale Fortschritt
+  (Kein Formular: Enter in einem Feld veröffentlicht nicht versehentlich. Der Entwurf bleibt beim Navigieren erhalten,
+  wird aber nicht gespeichert.)
+- [x] Route `#/c/<id>`: Übersicht mit Schritten und Schlössern. Ein Schritt gilt als gelöst, wenn der lokale Fortschritt
   (`content_key`) gelöst ist; das schaltet den nächsten frei. Am Ende kommt ein Abschluss-Bildschirm.
-- [ ] Zurückgezogene oder ausgeblendete Rätsel werden in der Kette als „nicht mehr verfügbar“ angezeigt und gelten als übersprungen.
-- [ ] Galerie: Umschalter „Rätsel | Ketten“ (Filter in der Route); Karten mit Schrittzahl und eigenem Fortschritt.
-- [ ] Melden und Moderation auch für Ketten (gleiche Schwelle, Moderationsansicht, Löschen); beim Löschen des Kontos
+  (Gespielt wird unter `#/c/<id>/<n>`: Text vor dem Rätsel über dem Spielfeld, nach dem Lösen „Weiter: Schritt n“ bzw.
+  „Zum Abschluss“. Gesperrte Schritte führen mit Hinweis zur Übersicht zurück.)
+- [x] Zurückgezogene oder ausgeblendete Rätsel werden in der Kette als „nicht mehr verfügbar“ angezeigt und gelten als übersprungen.
+- [x] Galerie: Umschalter „Rätsel | Ketten“ (Filter in der Route); Karten mit Schrittzahl und eigenem Fortschritt.
+  (`#/gallery?view=chains`, sortiert nach „Neueste“ oder „Meistgespielt“.)
+- [x] Melden und Moderation auch für Ketten (gleiche Schwelle, Moderationsansicht, Löschen); beim Löschen des Kontos
   verschwinden auch die Ketten.
+  (`reports` hat jetzt `puzzle_id` oder `chain_id`. Im Browser gegen ein nachgebautes Backend geprüft (Headless Chrome,
+  390 px und 1280 px, hell und dunkel): Galerie, Übersicht, Schritt lösen und weiter, Sperre, Abschluss, Melden,
+  Editor, „Meine Ketten“, Moderation.)
+- [ ] Migration `0009_chains.sql` auf `dev` und `prod` einspielen.
 - [ ] Live testen gegen `dev` (Rechte, ungültige Rätsel-IDs, Zurückziehen eines enthaltenen Rätsels), Handy-Test.
 
 ### M25 – Zeitmessung und Ranglisten

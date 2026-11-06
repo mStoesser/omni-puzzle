@@ -3185,3 +3185,236 @@ a.button.compact {
 .page.focus > .button {
   align-self: flex-start;
 }
+
+/* ===== Chains (M24) ===== */
+.gallery-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kk-space-3);
+  align-items: center;
+  margin-bottom: var(--kk-space-4);
+}
+
+.gallery-switch .segment {
+  flex: 1 1 16rem;
+}
+
+.gallery-switch > .button {
+  flex: 0 0 auto;
+}
+
+.badge-chain {
+  background: var(--kk-brand-tint);
+  color: var(--kk-brand-ink);
+}
+
+.chain-thumb .thumb-icon {
+  color: var(--kk-brand-ink);
+}
+
+.chain-head .play-kicker {
+  color: var(--kk-brand-ink);
+}
+
+.chain-next,
+.chain-finale {
+  display: grid;
+  gap: var(--kk-space-3);
+  margin: var(--kk-space-4) 0;
+}
+
+.chain-next .label {
+  margin: 0;
+}
+
+.chain-finale {
+  justify-items: center;
+  text-align: center;
+}
+
+.chain-finale .solved-title {
+  margin: 0;
+}
+
+.chain-story {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  white-space: pre-line; /* line breaks of the author; still plain text */
+  overflow-wrap: anywhere;
+}
+
+.play-story {
+  margin: 0 0 var(--kk-space-3);
+}
+
+.chain-steps,
+.chain-draft-steps {
+  display: grid;
+  gap: var(--kk-space-2);
+  margin: var(--kk-space-4) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chain-step {
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-lg);
+  background: var(--kk-surface);
+}
+
+.chain-step.is-locked,
+.chain-step.is-unavailable {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-3);
+  padding: var(--kk-space-3);
+  color: var(--kk-muted);
+}
+
+.chain-step.is-unavailable {
+  border-style: dashed;
+  background: transparent;
+}
+
+.chain-step-link {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-3);
+  min-height: 56px;
+  padding: var(--kk-space-3);
+  color: var(--kk-text);
+  text-decoration: none;
+}
+
+.chain-step.is-open {
+  border-color: var(--kk-brand);
+}
+
+.chain-step-number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--kk-radius-pill);
+  background: var(--kk-surface-2);
+  font-weight: 700;
+}
+
+.chain-step.is-solved .chain-step-number {
+  background: var(--kk-ok-tint);
+  color: var(--kk-ok);
+}
+
+.chain-step.is-open .chain-step-number {
+  background: var(--kk-brand);
+  color: var(--kk-on-brand);
+}
+
+.chain-step-body {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chain-step-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.chain-step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kk-space-2);
+  align-items: center;
+}
+
+.chain-step-meta .hint {
+  margin: 0;
+}
+
+.chain-report {
+  margin-top: var(--kk-space-2);
+}
+
+/* Chain editor */
+.chain-editor-steps {
+  min-width: 0; /* fieldsets default to min-content */
+  margin: 0 0 var(--kk-space-3);
+  padding: 0;
+  border: 0;
+}
+
+.chain-editor-steps legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.chain-draft-step {
+  padding: var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-lg);
+  background: var(--kk-surface);
+}
+
+.chain-draft-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  margin-bottom: var(--kk-space-2);
+}
+
+.chain-draft-head .chain-step-body {
+  justify-items: start;
+}
+
+.chain-draft-step .field {
+  margin-bottom: 0;
+}
+
+.chain-add {
+  display: grid;
+  gap: var(--kk-space-2);
+  padding: var(--kk-space-3);
+  border: 1px dashed var(--kk-line);
+  border-radius: var(--kk-radius-lg);
+}
+
+.chain-add-row {
+  display: flex;
+  gap: var(--kk-space-2);
+}
+
+.chain-add-row select,
+.chain-add-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.chain-add select {
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.chain-publish {
+  justify-self: start;
+}
+
+/* Long puzzle titles in the select must not widen the form beyond the screen. */
+.chain-editor {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.chain-add,
+.chain-add .field,
+.chain-draft-step .field {
+  grid-template-columns: minmax(0, 1fr);
+}

@@ -5,9 +5,13 @@ import type { Level } from "./difficulty.ts";
 export type GallerySort = "new" | "likes" | "plays" | "hardest";
 export const GALLERY_SORTS: readonly GallerySort[] = ["new", "likes", "plays", "hardest"];
 
+/** Puzzles or chains (M24). Chains have no type, level, likes or difficulty, so only "new" and "plays" apply. */
+export type GalleryView = "puzzles" | "chains";
+export const CHAIN_SORTS: readonly GallerySort[] = ["new", "plays"];
+
 /** What the gallery shows; part of the route, so back navigation and links keep it. */
-export type GalleryFilter = { type: string | null; level: Level | null; sort: GallerySort };
-export const DEFAULT_FILTER: GalleryFilter = { type: null, level: null, sort: "new" };
+export type GalleryFilter = { view: GalleryView; type: string | null; level: Level | null; sort: GallerySort };
+export const DEFAULT_FILTER: GalleryFilter = { view: "puzzles", type: null, level: null, sort: "new" };
 
 export const PAGE_SIZE = 20;
 
@@ -68,12 +72,14 @@ export function galleryQuery(filter: GalleryFilter, cursor: GalleryCursor | null
   };
   if (filter.type) query.type = `eq.${filter.type}`;
   if (filter.level) query.difficulty = `eq.${filter.level}`;
-  if (cursor) {
-    // Rows after the cursor in (column desc, id desc) order. Values are quoted for timestamps.
-    const value = JSON.stringify(String(cursor.value));
-    query.or = `(${column}.lt.${value},and(${column}.eq.${value},id.lt.${cursor.id}))`;
-  }
+  if (cursor) query.or = afterCursor(column, cursor);
   return query;
+}
+
+/** PostgREST `or` filter for the rows after the cursor in (column desc, id desc) order. Values are quoted for timestamps. */
+export function afterCursor(column: string, cursor: GalleryCursor): string {
+  const value = JSON.stringify(String(cursor.value));
+  return `(${column}.lt.${value},and(${column}.eq.${value},id.lt.${cursor.id}))`;
 }
 
 function toItem(row: Row): GalleryItem {
@@ -108,13 +114,20 @@ export async function fetchGalleryPage(
   return { items: page.map(toItem), next };
 }
 
-/** Parses the query part of a gallery route ("type=laser&level=2&sort=likes"); invalid values fall back to defaults. */
+/**
+ * Parses the query part of a gallery route ("type=laser&level=2&sort=likes", "view=chains&sort=plays");
+ * invalid values fall back to defaults.
+ */
 export function parseGalleryFilter(search: string): GalleryFilter {
   const params = new URLSearchParams(search);
+  const sort = params.get("sort") as GallerySort | null;
+  if (params.get("view") === "chains") {
+    return { view: "chains", type: null, level: null, sort: sort !== null && CHAIN_SORTS.includes(sort) ? sort : "new" };
+  }
   const type = params.get("type");
   const level = Number(params.get("level"));
-  const sort = params.get("sort") as GallerySort | null;
   return {
+    view: "puzzles",
     type: type !== null && /^[a-z0-9-]{1,32}$/.test(type) ? type : null,
     level: isLevel(level) ? level : null,
     sort: sort !== null && GALLERY_SORTS.includes(sort) ? sort : "new",
@@ -124,6 +137,7 @@ export function parseGalleryFilter(search: string): GalleryFilter {
 /** The query part for a filter, without defaults ("" for the default filter). */
 export function formatGalleryFilter(filter: GalleryFilter): string {
   const params = new URLSearchParams();
+  if (filter.view === "chains") params.set("view", "chains");
   if (filter.type) params.set("type", filter.type);
   if (filter.level) params.set("level", String(filter.level));
   if (filter.sort !== "new") params.set("sort", filter.sort);

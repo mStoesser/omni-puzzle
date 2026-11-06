@@ -2,6 +2,7 @@ import { html, nothing } from "lit-html";
 import { PASSWORD_MIN, USERNAME } from "../../core/account.ts";
 import type { Profile } from "../../core/account.ts";
 import { PUBLISH } from "../../core/publish.ts";
+import type { OwnChain } from "../../core/chains.ts";
 import type { OwnPublication } from "../../core/published.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
@@ -22,13 +23,14 @@ export type AccountViewModel = {
   message: AccountMessage | null;
   confirmDelete: boolean;
   publications: (OwnPublication & { typeName: string })[] | null; // null = not loaded yet
-  editingPublication: string | null; // id with the open edit form
-  confirmWithdraw: string | null; // id waiting for confirmation
+  chains: OwnChain[] | null; // null = not loaded yet
+  editingPublication: string | null; // id (puzzle or chain) with the open edit form
+  confirmWithdraw: string | null; // id (puzzle or chain) waiting for confirmation
   panel: AccountPanel | null; // open settings sheet
 };
 
 /** Settings that open in a sheet. */
-export type AccountPanel = "name" | "password" | "publications";
+export type AccountPanel = "name" | "password" | "publications" | "chains";
 
 /** Device settings and numbers shown with or without an account. */
 export type ProfileExtras = {
@@ -55,6 +57,8 @@ export type AccountActions = {
   savePublication(id: string, title: string, description: string): Promise<boolean>;
   askWithdraw(id: string | null): void;
   withdraw(id: string): void;
+  saveChain(id: string, title: string, description: string): Promise<boolean>;
+  withdrawChain(id: string): void;
   openPanel(panel: AccountPanel | null): void;
 };
 
@@ -145,6 +149,7 @@ function profileSettings(model: AccountViewModel, actions: AccountActions) {
       <li>${row({ text: t("accountUsername"), value: profile?.username ?? "…", onClick: () => actions.openPanel("name") })}</li>
       <li>${row({ text: t("accountChangePassword"), onClick: () => actions.openPanel("password") })}</li>
       <li>${row({ text: t("myPublications"), value: publications?.length ?? "…", onClick: () => actions.openPanel("publications") })}</li>
+      <li>${row({ text: t("myChains"), value: model.chains?.length ?? "…", onClick: () => actions.openPanel("chains") })}</li>
       ${profile?.isModerator ? html`<li>${row({ text: t("moderationLink"), href: "#/moderation", icon: "shield" })}</li>` : nothing}
     </ul>`;
 }
@@ -206,6 +211,13 @@ function panelSheet(model: AccountViewModel, actions: AccountActions) {
       );
     case "publications":
       return sheet("panel-title", close, html`${head(t("myPublications"))} ${message(model)} ${publicationList(model, actions)}`);
+    case "chains":
+      return sheet(
+        "panel-title",
+        close,
+        html`${head(t("myChains"))} ${message(model)} ${chainList(model, actions)}
+          <a class="button secondary block" href="#/chain/new">${icon("plus", 18)}${t("chainNewButton")}</a>`,
+      );
     default:
       return nothing;
   }
@@ -319,23 +331,57 @@ function profileSection(model: AccountViewModel, actions: AccountActions) {
 }
 
 function publicationList(model: AccountViewModel, actions: AccountActions) {
-  const { publications, busy } = model;
+  const { publications } = model;
   if (publications === null) return html`<p>${t("loading")}</p>`;
   if (publications.length === 0) return html`<p>${t("myPublicationsEmpty")}</p>`;
+  const entries = publications.map((p) => ({
+    id: p.id,
+    href: `#/g/${p.id}`,
+    title: p.title,
+    description: p.description,
+    hidden: p.hidden,
+    sub: `${p.typeName} · ${t("myPublicationsStats", { date: date(p.publishedAt), plays: p.playCount, likes: p.likeCount })}`,
+    confirm: t("myPublicationsWithdrawConfirm", { title: p.title }),
+  }));
+  return ownList(model, entries, actions, { save: actions.savePublication, withdraw: actions.withdraw });
+}
+
+function chainList(model: AccountViewModel, actions: AccountActions) {
+  const { chains } = model;
+  if (chains === null) return html`<p>${t("loading")}</p>`;
+  if (chains.length === 0) return html`<p>${t("myChainsEmpty")}</p>`;
+  const entries = chains.map((c) => ({
+    id: c.id,
+    href: `#/c/${c.id}`,
+    title: c.title,
+    description: c.description,
+    hidden: c.hidden,
+    sub: t("myChainsStats", { date: date(c.publishedAt), steps: c.stepCount, plays: c.playCount }),
+    confirm: t("myChainsWithdrawConfirm", { title: c.title }),
+  }));
+  return ownList(model, entries, actions, { save: actions.saveChain, withdraw: actions.withdrawChain });
+}
+
+const date = (iso: string) => new Date(iso).toLocaleDateString("de-DE");
+
+type OwnEntry = { id: string; href: string; title: string; description: string; hidden: boolean; sub: string; confirm: string };
+
+/** Own publications or chains: title and description can be edited, withdrawing deletes. */
+function ownList(
+  model: AccountViewModel,
+  entries: OwnEntry[],
+  actions: AccountActions,
+  handlers: { save(id: string, title: string, description: string): Promise<boolean>; withdraw(id: string): void },
+) {
+  const { busy } = model;
   return html`<ul class="publication-list">
-    ${publications.map((p) => {
-      const date = new Date(p.publishedAt).toLocaleDateString("de-DE");
-      return html`<li class="publication">
-        <h3><a href="#/g/${p.id}">${p.title}</a></h3>
+    ${entries.map((p) => html`<li class="publication">
+        <h3><a href=${p.href}>${p.title}</a></h3>
         <p class="hint">
-          ${p.typeName} · ${t("myPublicationsStats", { date, plays: p.playCount, likes: p.likeCount })}
-          ${p.hidden ? html` · <strong>${t("myPublicationsHidden")}</strong>` : nothing}
+          ${p.sub} ${p.hidden ? html` · <strong>${t("myPublicationsHidden")}</strong>` : nothing}
         </p>
         ${model.editingPublication === p.id
-          ? html`<form
-              class="account-form"
-              @submit=${onSubmit((f) => actions.savePublication(p.id, field(f, "title"), field(f, "description")))}
-            >
+          ? html`<form class="account-form" @submit=${onSubmit((f) => handlers.save(p.id, field(f, "title"), field(f, "description")))}>
               <label class="field">
                 <span>${t("myPublicationsTitle")}</span>
                 <input type="text" name="title" required maxlength=${PUBLISH.maxTitle} .value=${p.title} />
@@ -350,23 +396,18 @@ function publicationList(model: AccountViewModel, actions: AccountActions) {
               </div>
             </form>`
           : model.confirmWithdraw === p.id
-            ? html`<p class="notice" role="alert">${t("myPublicationsWithdrawConfirm", { title: p.title })}</p>
+            ? html`<p class="notice" role="alert">${p.confirm}</p>
                 <div class="account-actions">
-                  <button type="button" class="danger-button" ?disabled=${busy} @click=${() => actions.withdraw(p.id)}>
+                  <button type="button" class="danger-button" ?disabled=${busy} @click=${() => handlers.withdraw(p.id)}>
                     ${t("myPublicationsWithdraw")}
                   </button>
                   <button type="button" class="secondary" @click=${() => actions.askWithdraw(null)}>${t("cancel")}</button>
                 </div>`
             : html`<div class="account-actions">
-                <button type="button" class="secondary" @click=${() => actions.editPublication(p.id)}>
-                  ${t("myPublicationsEdit")}
-                </button>
-                <button type="button" class="secondary danger" @click=${() => actions.askWithdraw(p.id)}>
-                  ${t("myPublicationsWithdraw")}
-                </button>
+                <button type="button" class="secondary" @click=${() => actions.editPublication(p.id)}>${t("myPublicationsEdit")}</button>
+                <button type="button" class="secondary danger" @click=${() => actions.askWithdraw(p.id)}>${t("myPublicationsWithdraw")}</button>
               </div>`}
-      </li>`;
-    })}
+      </li>`)}
   </ul>`;
 }
 

@@ -1,4 +1,5 @@
 import { html, nothing } from "lit-html";
+import type { ChainItem } from "../../core/chains.ts";
 import type { GalleryItem } from "../../core/gallery.ts";
 import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
@@ -59,6 +60,29 @@ export function galleryTile(item: GalleryItem, type: AnyPuzzleType | undefined, 
         ${likes(item)}
         <span class="meta-item">${t("galleryPlays", { count: item.playCount })}</span>
         ${solved ? html`<span class="meta-item ok">${icon("check", 14)}${t("solvedMark")}</span>` : nothing}
+      </span>
+    </span>
+  </a>`;
+}
+
+/** A chain as a list row (gallery): number of puzzles and how many of them were solved on this device. */
+export function chainCard(item: ChainItem, solvedCount: number) {
+  const total = item.stepKeys.length;
+  return html`<a class="puzzle-card" href="#/c/${item.id}">
+    <span class="thumb list chain-thumb" aria-hidden="true"><span class="thumb-icon">${icon("chain", 14)}</span></span>
+    <span class="puzzle-card-body">
+      <span class="puzzle-card-badges">
+        <span class="badge badge-chain">${icon("chain", 14)}${t("chainSteps", { count: total })}</span>
+        ${solvedCount > 0 && solvedCount >= total ? statusBadge("solved") : nothing}
+      </span>
+      <span class="puzzle-card-title">${item.title}</span>
+      <span class="puzzle-card-sub">${[item.author === null ? t("galleryByUnknown") : t("galleryBy", { author: item.author }), timeAgo(item.publishedAt, Date.now())].filter(Boolean).join(" · ")}</span>
+      <span class="puzzle-card-meta">
+        <span class="meta-item">${icon("play", 12)}<span aria-hidden="true">${item.playCount}</span
+          ><span class="visually-hidden">${t("galleryPlays", { count: item.playCount })}</span></span>
+        ${solvedCount > 0 && solvedCount < total
+          ? html`<span class="meta-item">${t("chainProgress", { solved: solvedCount, total })}</span>`
+          : nothing}
       </span>
     </span>
   </a>`;
