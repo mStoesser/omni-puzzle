@@ -75,6 +75,7 @@ export function validateEnvelope(raw: unknown): PuzzleDocument {
 /**
  * Turns an untrusted document into a playable one:
  * envelope check → type lookup → migrate (if older) → type validation.
+ * The result carries the type's `minVersion` of the data (or the current version), see PuzzleRules.minVersion.
  * With `draft`, the data only needs a valid structure (parseDraft), for editor drafts.
  */
 export function loadDocument<T extends AnyPuzzleRules>(
@@ -102,7 +103,8 @@ export function loadDocument<T extends AnyPuzzleRules>(
   } catch (error) {
     throw new DocumentError("invalid", `validation failed: ${String(error)}`);
   }
-  return { type, doc: { ...doc, typeVersion: type.version, data } };
+  const typeVersion = type.minVersion?.(data) ?? type.version;
+  return { type, doc: { ...doc, typeVersion, data } };
 }
 
 /**

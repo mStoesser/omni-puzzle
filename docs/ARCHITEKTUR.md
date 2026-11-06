@@ -149,6 +149,7 @@ type PuzzleType<D, S, M> = {
   createDefault(): D;               // Startpunkt für den Editor
   validate(data: unknown): D;       // wirft bei ungültigen Daten (Links sind nicht vertrauenswürdig!)
   migrate?(data: unknown, fromVersion: number): unknown;
+  minVersion?(data: D): number;     // älteste typeVersion, die diese Daten darstellen kann (seit M23)
   parseDraft?(data: unknown): D;    // nur Struktur prüfen: Editor-Entwürfe mit Problemen laden (darf Editor-Felder behalten)
   problems?(data: D): string[];     // lokalisierte Fehlermeldungen für die Live-Validierung im Editor
 
@@ -192,6 +193,15 @@ importieren, ohne lit-html oder das DOM zu laden. `src/puzzles/rules.test.ts` pr
 Nonogramms), `validate` gibt nur zurück, was zum Spielen nötig ist. Teilen und Veröffentlichen schicken deshalb das geprüfte
 Dokument (`shareableDocument` in `core/document.ts` = `loadDocument(…).doc`), nie den rohen Entwurf. Gespielt wird ohnehin
 immer das Ergebnis von `loadDocument`, also hängt auch der Fortschrittsschlüssel nicht an Editor-Feldern. (Seit M22.)
+
+**Versionen und Inhaltsschlüssel:** Der Fortschrittsschlüssel (`progressKey`, in der Galerie `content_key`) hasht `type`,
+`typeVersion` und `data`. Damit eine neue `typeVersion`, die alte Daten unverändert lässt, nicht alle Schlüssel ändert
+(Fortschritt und „gelöst“-Markierung weg, Duplikate wieder veröffentlichbar), stempelt `loadDocument` das Dokument mit
+`minVersion(data)`: der ältesten Version, die diese Daten darstellen kann. Ein Laser-Rätsel ohne Erweiterungen bleibt so
+Version 1, auch in Teilen-Links und in der Galerie, und öffnet sich weiter in älteren App-Versionen. Voraussetzung:
+`validate` gibt alte Daten Byte für Byte gleich zurück (neue optionale Felder fehlen, statt mit Standardwert dazustehen).
+Ohne `minVersion` gilt die aktuelle `version` (so beim Quiz, dessen Schlüssel sich mit Version 2 einmal geändert haben).
+(Seit M23, eine bewusste Core-Änderung.)
 
 **Wichtig:** Undo/Redo, Zugzähler, Timer, „Gelöst!“-Dialog und Neustart gehören in den **Core**, nicht in die Plugins.
 Ein Plugin liefert nur reine Zugfunktionen und Darstellung.

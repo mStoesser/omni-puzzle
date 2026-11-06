@@ -67,6 +67,12 @@ export type PuzzleRules<D, S, M> = {
   validate(data: unknown): D;
   migrate?(data: unknown, fromVersion: number): unknown;
   /**
+   * The oldest typeVersion that can represent this (validated) data. loadDocument stamps the document with it, so a
+   * version bump that leaves old data unchanged keeps its progressKey (and content_key in the gallery), and share links
+   * of such puzzles still open in older app versions. Without it, documents get the current `version`.
+   */
+  minVersion?(data: D): number;
+  /**
    * Like validate, but only checks the structure, so unfinished editor drafts can be loaded.
    * May keep editor-only fields (e.g. a nonogram's picture behind its clues). Throws on malformed data.
    * Without it, drafts must pass validate.

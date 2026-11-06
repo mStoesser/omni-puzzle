@@ -54,6 +54,16 @@ test("loadDocument migrates older type versions", () => {
   assert.deepEqual(doc.data, { target: 5 });
 });
 
+test("loadDocument stamps the oldest version that can represent the data (minVersion)", () => {
+  // Counter version 3 only adds something for targets above 9; smaller targets stay version 2 data.
+  const v3 = { ...counterType, version: 3, minVersion: (data: { target: number }) => (data.target > 9 ? 3 : 2) };
+  const registry3 = createRegistry([v3]);
+  assert.equal(loadDocument(counterDocument(4), registry3).doc.typeVersion, 2);
+  assert.equal(loadDocument({ ...counterDocument(4), typeVersion: 3 }, registry3).doc.typeVersion, 2);
+  assert.equal(loadDocument({ ...counterDocument(12), typeVersion: 3 }, registry3).doc.typeVersion, 3);
+  assert.equal(loadDocument({ ...counterDocument(0), typeVersion: 1, data: { goal: 5 } }, registry3).doc.typeVersion, 2);
+});
+
 test("loadDocument rejects unknown types and newer type versions", () => {
   assertCode(() => loadDocument({ ...counterDocument(1), type: "nope" }, registry), "unknown-type");
   assertCode(() => loadDocument({ ...counterDocument(1), typeVersion: 3 }, registry), "unsupported");
