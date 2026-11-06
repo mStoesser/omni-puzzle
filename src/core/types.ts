@@ -89,6 +89,12 @@ export type PuzzleRules<D, S, M> = {
    * more is hard. Only for types with a solver; others get their difficulty from player ratings.
    */
   levels?: { easy: number; medium: number };
+  /**
+   * How the leaderboard of a published puzzle ranks solutions (M25): fewest moves (ties broken by time) or fastest
+   * time. Without it, the type has no leaderboard (e.g. a quiz). The submit-score function replays the moves with
+   * applyMove, so the moves must be plain JSON.
+   */
+  ranking?: "moves" | "time";
   /** Keys of the images the data references (see core/images.ts). Without it, the type has no images. */
   imageKeys?(data: D): string[];
 };

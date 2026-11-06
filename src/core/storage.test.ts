@@ -98,3 +98,12 @@ test("recordSolve keeps the best result", () => {
   assert.deepEqual(recordSolve(first, "k", 9), { key: "k", solved: true, bestMoves: 7 });
   assert.deepEqual(recordSolve(first, "k", 5), { key: "k", solved: true, bestMoves: 5 });
 });
+
+test("recordSolve keeps the best time independently of the best moves", () => {
+  const old = { key: "k", solved: true, bestMoves: 7 }; // from an app version without time
+  const timed = recordSolve(old, "k", 9, 40_000);
+  assert.deepEqual(timed, { key: "k", solved: true, bestMoves: 7, bestTimeMs: 40_000 });
+  assert.equal(recordSolve(timed, "k", 5, 60_000).bestTimeMs, 40_000, "fewer moves, but slower");
+  assert.equal(recordSolve(timed, "k", 9, 30_000).bestTimeMs, 30_000);
+  assert.equal(recordSolve(timed, "k", 9).bestTimeMs, 40_000, "test play without time keeps it");
+});

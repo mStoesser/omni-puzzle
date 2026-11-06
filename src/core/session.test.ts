@@ -7,6 +7,7 @@ import {
   currentState,
   dispatch,
   moveCount,
+  path,
   redo,
   restart,
   undo,
@@ -79,4 +80,14 @@ test("restart returns to the initial state with empty history", () => {
   assert.equal(moveCount(s), 0);
   assert.equal(s.solved, false);
   assert.equal(canRedo(s), false);
+});
+
+test("path holds the moves to the current state, without undone ones", () => {
+  let s = dispatch(dispatch(start(), 1), 1);
+  assert.deepEqual(path(s), [1, 1]);
+  s = undo(s);
+  assert.deepEqual(path(s), [1]);
+  assert.deepEqual(path(redo(s)), [1, 1]);
+  assert.deepEqual(path(dispatch(s, -1)), [1, -1], "a new move replaces the undone one");
+  assert.deepEqual(path(restart(s)), []);
 });

@@ -6,8 +6,11 @@ import type { PuzzleDocument } from "./types.ts";
 /** An own puzzle in the library. `doc` may be a draft that is not playable yet. */
 export type PuzzleRecord = { id: string; doc: PuzzleDocument; updatedAt: string };
 
-/** Progress of a played puzzle, keyed by its content (see progressKey). */
-export type ProgressRecord = { key: string; solved: boolean; bestMoves: number };
+/**
+ * Progress of a played puzzle, keyed by its content (see progressKey). `bestTimeMs` (M25) is missing in records
+ * from older app versions; it is optional, so the database needs no new version.
+ */
+export type ProgressRecord = { key: string; solved: boolean; bestMoves: number; bestTimeMs?: number };
 
 /** A picture of an own puzzle (M14), keyed by the SHA-256 of its bytes. */
 export type ImageRecord = { key: string; type: ImageType; bytes: Uint8Array };
@@ -128,7 +131,12 @@ function isImageRecord(value: unknown): value is ImageRecord {
 function isProgressRecord(value: unknown): value is ProgressRecord {
   if (typeof value !== "object" || value === null) return false;
   const r = value as Record<string, unknown>;
-  return typeof r.key === "string" && typeof r.solved === "boolean" && Number.isInteger(r.bestMoves);
+  return (
+    typeof r.key === "string" &&
+    typeof r.solved === "boolean" &&
+    Number.isInteger(r.bestMoves) &&
+    (r.bestTimeMs === undefined || (typeof r.bestTimeMs === "number" && r.bestTimeMs >= 0))
+  );
 }
 
 /**
@@ -157,8 +165,11 @@ export function progressKey(doc: PuzzleDocument): string {
   return sha256Hex(JSON.stringify([doc.type, doc.typeVersion, doc.data]));
 }
 
-/** Progress after solving with `moves` moves; keeps the best result. */
-export function recordSolve(previous: ProgressRecord | undefined, key: string, moves: number): ProgressRecord {
+/** Progress after solving with `moves` moves in `timeMs`; keeps the best moves and, independently, the best time. */
+export function recordSolve(previous: ProgressRecord | undefined, key: string, moves: number, timeMs?: number): ProgressRecord {
   const bestMoves = previous?.solved ? Math.min(previous.bestMoves, moves) : moves;
-  return { key, solved: true, bestMoves };
+  const record: ProgressRecord = { key, solved: true, bestMoves };
+  const times = [previous?.solved ? previous.bestTimeMs : undefined, timeMs].filter((t) => t !== undefined);
+  if (times.length > 0) record.bestTimeMs = Math.min(...times);
+  return record;
 }

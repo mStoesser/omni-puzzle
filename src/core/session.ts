@@ -6,6 +6,8 @@ export type PlaySession<D, S, M> = {
   readonly data: D;
   readonly history: readonly S[];
   readonly index: number; // position of the current state in history
+  /** moves[i] leads from history[i] to history[i + 1]; sent to the server for leaderboards (see path). */
+  readonly moves: readonly M[];
   readonly solved: boolean;
 };
 
@@ -13,7 +15,7 @@ export type AnyPlaySession = PlaySession<unknown, unknown, unknown>;
 
 export function createSession<D, S, M>(type: PuzzleType<D, S, M>, data: D): PlaySession<D, S, M> {
   const initial = type.initState(data);
-  return { type, data, history: [initial], index: 0, solved: type.isSolved(data, initial) };
+  return { type, data, history: [initial], moves: [], index: 0, solved: type.isSolved(data, initial) };
 }
 
 export function currentState<D, S, M>(session: PlaySession<D, S, M>): S {
@@ -22,6 +24,11 @@ export function currentState<D, S, M>(session: PlaySession<D, S, M>): S {
 
 export function moveCount(session: PlaySession<unknown, unknown, unknown>): number {
   return session.index;
+}
+
+/** The moves from the initial to the current state, without undone ones. */
+export function path<M>(session: PlaySession<unknown, unknown, M>): M[] {
+  return session.moves.slice(0, session.index);
 }
 
 export function canUndo(session: PlaySession<unknown, unknown, unknown>): boolean {
@@ -38,7 +45,8 @@ export function dispatch<D, S, M>(session: PlaySession<D, S, M>, move: M): PlayS
   const next = session.type.applyMove(session.data, currentState(session), move);
   if (next === null) return session;
   const history = [...session.history.slice(0, session.index + 1), next];
-  return goTo({ ...session, history }, history.length - 1);
+  const moves = [...session.moves.slice(0, session.index), move];
+  return goTo({ ...session, history, moves }, history.length - 1);
 }
 
 export function undo<D, S, M>(session: PlaySession<D, S, M>): PlaySession<D, S, M> {
@@ -51,7 +59,7 @@ export function redo<D, S, M>(session: PlaySession<D, S, M>): PlaySession<D, S, 
 
 export function restart<D, S, M>(session: PlaySession<D, S, M>): PlaySession<D, S, M> {
   if (session.history.length === 1) return session;
-  return goTo({ ...session, history: [session.history[0]!] }, 0);
+  return goTo({ ...session, history: [session.history[0]!], moves: [] }, 0);
 }
 
 function goTo<D, S, M>(session: PlaySession<D, S, M>, index: number): PlaySession<D, S, M> {
