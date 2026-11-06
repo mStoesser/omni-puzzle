@@ -270,31 +270,55 @@ type RushHourMove = { block: number; delta: number };
 ### Laser & Spiegel (`laser`)
 
 ```ts
+type Color = "red" | "green" | "blue";
 type LaserCell =
   | { kind: "wall" }
-  | { kind: "emitter"; dir: Dir }
-  | { kind: "target" }
-  | { kind: "mirror"; orientation: "/" | "\\"; rotatable: boolean };
+  | { kind: "emitter"; dir: Dir; color?: Color }      // ohne Farbe: rot (Rot wird nie gespeichert)
+  | { kind: "target"; color?: Color }                 // ohne Farbe: jeder Strahl
+  | { kind: "mirror"; orientation: "/" | "\\"; rotatable: boolean }
+  | { kind: "splitter"; orientation: "/" | "\\"; rotatable: boolean }  // seit Version 3
+  | { kind: "filter"; color: Color };                 // seit Version 4
 type LaserData = { width: number; height: number;
-                   cells: { x: number; y: number; cell: LaserCell }[] };
-type LaserState = { orientations: Record<string, "/" | "\\"> };  // Key "x,y"
-type LaserMove = { x: number; y: number };                       // Spiegel umdrehen
+                   cells: { x: number; y: number; cell: LaserCell }[];
+                   inventory?: number };                // 1–3 Spiegel zum Setzen, seit Version 2
+type LaserState = { orientations: Record<string, "/" | "\\">;  // drehbare Spiegel und Teiler, Key "x,y"
+                    placed: Record<string, "/" | "\\"> };      // gesetzte Inventar-Spiegel
+type LaserMove = { x: number; y: number };                       // ein Antippen
 ```
 
-- Reflexion: `/` = `{ N→E, E→N, S→W, W→S }`, `\` = `{ N→W, W→N, S→E, E→S }`.
-- Strahlverfolgung ab jedem Emitter, bis Wand, Emitter, Rand oder Schleife erreicht ist. Schleifen werden über ein Set besuchter `(x, y, dir)` erkannt.
-  Mit reinen Spiegeln kann es keine Schleife geben (die Bewegung ist umkehrbar, und der Strahl kommt nie in seinen Emitter zurück);
-  die Erkennung ist ein Sicherheitsnetz für spätere Erweiterungen wie Strahlteiler.
-- **Ziele lassen den Strahl durch** (wie ein Sensor), damit ein Strahl mehrere Ziele nacheinander treffen kann.
-- Gelöst, wenn alle Ziele getroffen sind. Der Strahlverlauf wird live als animierte SVG-Polylinie gezeichnet
-  (ohne Animation bei `prefers-reduced-motion`). Spiegel werden als „/“ gezeichnet und für „\“ um 90° gedreht, so animiert das Umklappen.
-- Ein Zug klappt einen drehbaren Spiegel um; zweimal umklappen hebt sich auf. Eine Lösung ist also eine Menge umzuklappender Spiegel.
-- Solver: Mengen drehbarer Spiegel nach steigender Größe durchprobieren (höchstens 2ⁿ, mit Limit); der erste Treffer
-  braucht die wenigsten Züge. Später mit Pruning (nur Spiegel, die der Strahl erreicht).
-- Editor: Laser, Ziel, Spiegel drehbar/fest, Wand, Radierer. Erneutes Tippen dreht Laser (im Uhrzeigersinn) und Spiegel;
-  ein neuer Laser zeigt in die Richtung mit dem meisten Platz. Der Editor zeigt den Strahl der Startstellung.
-- Beispielrätsel sind per Skript erzeugt: genau ein Strahlweg löst sie, die Startstellung ist um `minMoves` Spiegel verdreht.
-- Erweiterungen (später): Spiegel aus einem Inventar platzieren, Strahlteiler, Farben, „Bomben“-Felder, die nicht getroffen werden dürfen.
+- **Versionen:** 1 Spiegel, Wände, Ziele, rote Laser; 2 Inventar; 3 Strahlteiler; 4 Farben. Jede Version liest die älteren
+  Daten unverändert (`migrate` gibt sie durch), und `minVersion` liefert die älteste Version, die ein Rätsel darstellen kann.
+  Optionale Felder fehlen, statt mit Standardwert dazustehen (`inventory: 0` und `color: "red"` werden beim Prüfen entfernt),
+  damit gleiche Rätsel gleich aussehen und alte Inhaltsschlüssel bleiben (siehe „Versionen und Inhaltsschlüssel“).
+- Reflexion: `/` = `{ N→E, E→N, S→W, W→S }`, `\` = `{ N→W, W→N, S→E, E→S }`. Ein **Teiler** lässt den Strahl weiterlaufen
+  und erzeugt zusätzlich den gespiegelten Strahl.
+- **Strahlverfolgung** (`traceBoard` auf einem kompakten `Board` mit einem Code pro Feld): Laser nacheinander, der gespiegelte
+  Teil eines Teilers kommt nach dem aktuellen Strahl dran. Ein Strahl endet am Rand, an Wand, Laser oder einem Filter anderer
+  Farbe, oder wenn er ein Feld in einer Richtung und Farbe betritt, die schon verfolgt wurde (Schleife oder Einmündung).
+  Die Verfolgung liest ein Feld erst, wenn ein Strahl es betritt, und liefert die Felder in der Reihenfolge des ersten
+  Betretens (`order`). Eine Änderung an einem Feld ändert also nur, was danach kommt; darauf baut der Solver.
+- **Ziele lassen den Strahl durch** (wie ein Sensor). Ein Ziel mit Farbe leuchtet nur bei einem Strahl dieser Farbe.
+  Gelöst, wenn alle Ziele getroffen sind. Strahlen werden als animierte SVG-Polylinien gezeichnet (ohne Animation bei
+  `prefers-reduced-motion`). Spiegel werden als „/“ gezeichnet und für „\“ um 90° gedreht, so animiert das Umklappen;
+  Teiler gestrichelt, gesetzte Spiegel mit gestrichelter Basis.
+- **Farben** sind zusätzlich durch Symbole erkennbar (Rot ▲, Grün ■, Blau ◆ auf Laser, Ziel und Filter) und grüne bzw. blaue
+  Strahlen durch ein eigenes Strichmuster. Symbole erscheinen nur in Rätseln mit Farben, alte Rätsel sehen aus wie vorher.
+- **Züge:** Antippen klappt einen drehbaren Spiegel oder Teiler um. Mit Inventar setzt Antippen eines leeren Feldes einen
+  Spiegel „/“, nochmal klappt ihn auf „\“, ein drittes Mal nimmt ihn zurück; ist der Vorrat leer, ist es kein Zug.
+- **Solver:** iterative Vertiefung über die Zahl der Antipper. Eine Änderung ist: drehbares Teil umklappen (1), Spiegel „/“
+  setzen (1) oder „\“ setzen (2). Eine kürzeste Lösung ändert nur Felder, die ein Strahl betritt (sonst wäre sie ohne diese
+  Änderung kürzer). Die Suche wählt Änderungen daher nur aus `order` und nur hinter der vorigen Änderung; so entsteht jede
+  Menge von Änderungen genau einmal. Jede Verfolgung zählt als ein Knoten. Gegen Brute Force auf zufälligen 4×4-Brettern getestet.
+- **Bedienung:** Ohne Inventar sind nur drehbare Teile antippbar und per Tab erreichbar. Mit Inventar ist jedes Feld antippbar,
+  die Tastatur nutzt einen roving tabindex (Pfeiltasten, Enter); der Vorrat steht als Zeile über dem Spielfeld.
+- **Editor:** Palette in Gruppen (Grundlagen: Laser, Ziel, Spiegel drehbar/fest, Wand, Radierer; Teiler: drehbar/fest;
+  Farben: Filter, „Farbe“). Erneutes Tippen mit demselben Werkzeug dreht Laser (im Uhrzeigersinn), Spiegel und Teiler und
+  färbt Filter um; „Farbe“ färbt Laser und Filter rot → grün → blau, Ziele jede → rot → grün → blau. Die Zahl der Spiegel zum
+  Setzen steht unter „Einstellungen“. Ein neuer Laser zeigt in die Richtung mit dem meisten Platz. Der Editor zeigt den Strahl
+  der Startstellung. Problem „Ziel in einer Farbe, die kein Laser hat“.
+- **Beispielrätsel** sind per Skript erzeugt: Lösungsstellung bauen, Ziele auf den Strahl legen, Teile verdrehen. Je
+  Erweiterung ein Beispiel, das ohne sie unlösbar bzw. deutlich leichter ist.
+- Erweiterungen (später): Portale, „Bomben“-Felder, die nicht getroffen werden dürfen.
 
 ### Eis-Rutschen (`ice`, seit M17)
 

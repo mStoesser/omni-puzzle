@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyTool, isTool, resize } from "./edit.ts";
+import { applyTool, isTool, resize, setInventory } from "./edit.ts";
 import { createDefault } from "./logic.ts";
 import type { LaserData } from "./logic.ts";
 
@@ -73,3 +73,58 @@ function emitterDir(data: LaserData) {
   const cell = data.cells.find((c) => c.cell.kind === "emitter")?.cell;
   return cell?.kind === "emitter" ? cell.dir : null;
 }
+
+test("resize keeps the inventory", () => {
+  assert.equal(resize({ ...createDefault(), inventory: 2 }, 4, 4).inventory, 2);
+});
+
+test("setInventory clamps the count and removes the field at 0", () => {
+  const data = createDefault();
+  assert.equal(setInventory(data, 2).inventory, 2);
+  assert.equal(setInventory(data, 9).inventory, 3);
+  assert.ok(!("inventory" in setInventory(setInventory(data, 2), 0)));
+  assert.equal(setInventory(data, 0), data);
+});
+
+test("splitters are placed and turned like mirrors and keep the orientation when switching", () => {
+  let data = applyTool(empty, "rotatableSplitter", 1, 1);
+  assert.deepEqual(data.cells[0]!.cell, { kind: "splitter", orientation: "/", rotatable: true });
+  data = applyTool(data, "rotatableSplitter", 1, 1);
+  data = applyTool(data, "splitter", 1, 1);
+  assert.deepEqual(data.cells[0]!.cell, { kind: "splitter", orientation: "\\", rotatable: false });
+  data = applyTool(data, "mirror", 1, 1);
+  assert.deepEqual(data.cells[0]!.cell, { kind: "mirror", orientation: "\\", rotatable: false });
+});
+
+test("filters start red, and the filter tool cycles their color", () => {
+  let data = applyTool(empty, "filter", 2, 2);
+  assert.deepEqual(data.cells[0]!.cell, { kind: "filter", color: "red" });
+  data = applyTool(data, "filter", 2, 2);
+  assert.deepEqual(data.cells[0]!.cell, { kind: "filter", color: "green" });
+});
+
+test("the color tool cycles lasers, targets and filters and leaves other cells alone", () => {
+  let data = applyTool(empty, "emitter", 0, 0);
+  const colors = [];
+  for (let i = 0; i < 3; i++) {
+    data = applyTool(data, "color", 0, 0);
+    colors.push(JSON.stringify(data.cells[0]!.cell));
+  }
+  assert.deepEqual(colors, [
+    JSON.stringify({ kind: "emitter", dir: "E", color: "green" }),
+    JSON.stringify({ kind: "emitter", dir: "E", color: "blue" }),
+    JSON.stringify({ kind: "emitter", dir: "E" }),
+  ]);
+
+  let target = applyTool(empty, "target", 1, 1);
+  const targets = [];
+  for (let i = 0; i < 4; i++) {
+    target = applyTool(target, "color", 1, 1);
+    targets.push(target.cells[0]!.cell.kind === "target" ? target.cells[0]!.cell.color : "?");
+  }
+  assert.deepEqual(targets, ["red", "green", "blue", undefined]);
+
+  const wall = applyTool(empty, "wall", 1, 1);
+  assert.equal(applyTool(wall, "color", 1, 1), wall);
+  assert.equal(applyTool(empty, "color", 1, 1), empty);
+});

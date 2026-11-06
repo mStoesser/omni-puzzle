@@ -1,50 +1,83 @@
 import type { SolveLimits, SolveResult } from "../../core/types.ts";
-import { flip, prepare, targetCount, traceBoard } from "./logic.ts";
-import type { LaserData, LaserMove, Orientation } from "./logic.ts";
+import { EMPTY, MIRROR, initState, prepare, traceBoard } from "./logic.ts";
+import type { LaserData, LaserMove } from "./logic.ts";
 
 /**
- * Brute force over the rotatable mirrors. Every move flips one mirror, and flipping twice
- * undoes it, so a solution is a set of mirrors to flip. Sets are tried by increasing size;
- * the first hit uses the fewest moves. Each tried set counts as one node.
+ * Finds the fewest taps that light every target. A tap flips a rotatable mirror or splitter (cost 1),
+ * or places a mirror from the inventory: "/" costs 1 tap, "\\" costs 2 (place, then flip).
+ *
+ * A change only matters where a beam enters: changing a cell no beam reaches does not change the trace.
+ * So a cheapest solution only changes entered cells, and the search only tries those (pruning). Changes are made
+ * in the order in which the trace first enters their cells: changing a cell leaves the trace before it untouched
+ * (see traceBoard), so every set of changes is built exactly once, and each step only looks at cells after the
+ * previous change. Iterative deepening over the cost finds the cheapest solution first. Each trace is one node.
  */
 export function solve(data: LaserData, limits: SolveLimits): SolveResult<LaserMove> {
-  const board = prepare(data);
-  const targets = targetCount(data);
-  const rotatable: number[] = [];
-  const orientation: Orientation[] = [];
-  data.cells.forEach(({ cell }, i) => {
-    if (cell.kind === "mirror") orientation[i] = cell.orientation;
-    if (cell.kind === "mirror" && cell.rotatable) rotatable.push(i);
-  });
+  const board = prepare(data, initState(data));
+  const { cells, width } = board;
+  if (board.targets === 0) return { status: "unsolvable" };
+  const turnable = new Uint8Array(cells.length);
+  for (const { x, y, cell } of data.cells) {
+    if ((cell.kind === "mirror" || cell.kind === "splitter") && cell.rotatable) turnable[y * width + x] = 1;
+  }
 
   let nodes = 0;
-  const flipped: number[] = [];
-  let solution: LaserMove[] | null = null;
+  let budgetHit = false; // some branch was cut by the budget, so a larger budget may find more
+  let left = data.inventory ?? 0;
+  const changes: { pos: number; taps: number }[] = [];
 
-  // Tries all sets of `size` mirrors, extending `flipped` with mirrors from rotatable[from..].
-  function search(size: number, from: number): "solved" | "aborted" | null {
-    if (flipped.length === size) {
-      if (++nodes > limits.maxNodes) return "aborted";
-      if (targets === 0 || traceBoard(board, (i) => orientation[i]!).hit.size !== targets) return null;
-      solution = flipped.map((i) => ({ x: data.cells[i]!.x, y: data.cells[i]!.y }));
-      return "solved";
-    }
-    for (let r = from; r <= rotatable.length - (size - flipped.length); r++) {
-      const i = rotatable[r]!;
-      orientation[i] = flip(orientation[i]!);
-      flipped.push(i);
-      const result = search(size, r + 1);
-      flipped.pop();
-      orientation[i] = flip(orientation[i]!);
-      if (result) return result;
+  // Tries all sets of further changes after order index `after` with total cost ≤ budget.
+  function search(budget: number, cost: number, after: number): "solved" | "aborted" | null {
+    if (++nodes > limits.maxNodes) return "aborted";
+    const trace = traceBoard(board, false);
+    if (trace.hitCount === board.targets) return cost === budget ? "solved" : null; // cheaper ones were tried before
+    const { order } = trace;
+    for (let i = after + 1; i < order.length; i++) {
+      const pos = order[i]!;
+      const code = cells[pos]!;
+      if (turnable[pos]) {
+        if (cost + 1 > budget) {
+          budgetHit = true;
+          continue;
+        }
+        cells[pos] = code ^ 1;
+        changes.push({ pos, taps: 1 });
+        const result = search(budget, cost + 1, i);
+        if (result) return result;
+        changes.pop();
+        cells[pos] = code;
+      } else if (code === EMPTY && left > 0) {
+        for (const taps of [1, 2]) {
+          if (cost + taps > budget) {
+            budgetHit = true;
+            continue;
+          }
+          cells[pos] = MIRROR | (taps - 1); // 1 tap: "/", 2 taps: "\\"
+          left--;
+          changes.push({ pos, taps });
+          const result = search(budget, cost + taps, i);
+          if (result) return result;
+          changes.pop();
+          left++;
+          cells[pos] = EMPTY;
+        }
+      }
     }
     return null;
   }
 
-  for (let size = 0; size <= rotatable.length; size++) {
-    const result = search(size, 0);
+  for (let budget = 0; ; budget++) {
+    budgetHit = false;
+    const result = search(budget, 0, -1);
     if (result === "aborted") return { status: "aborted" };
-    if (result === "solved") return { status: "solved", moves: solution! };
+    if (result === "solved") {
+      const moves: LaserMove[] = [];
+      for (const { pos, taps } of changes) {
+        const move = { x: pos % width, y: Math.floor(pos / width) };
+        for (let t = 0; t < taps; t++) moves.push({ ...move });
+      }
+      return { status: "solved", moves };
+    }
+    if (!budgetHit) return { status: "unsolvable" };
   }
-  return { status: "unsolvable" };
 }

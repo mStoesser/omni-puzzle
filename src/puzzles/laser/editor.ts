@@ -1,22 +1,26 @@
 import { html } from "lit-html";
-import type { Dir } from "../../core/grid.ts";
 import type { EditorContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { gridEditor } from "../../ui/components/grid-editor.ts";
 import type { PaletteItem } from "../../ui/components/grid-editor.ts";
-import { applyTool, isTool, resize } from "./edit.ts";
-import { LIMITS, cellAt, findProblems, initState, isSolved } from "./logic.ts";
+import { applyTool, isTool, resize, setInventory } from "./edit.ts";
+import { LIMITS, findProblems, initState, isSolved } from "./logic.ts";
 import type { LaserData, ProblemCode } from "./logic.ts";
-import { boardLayers } from "./render.ts";
+import { boardLayers, describeCell } from "./render.ts";
 
+// In groups, so the tool grid stays clear on a phone. The inventory is a number in the settings.
 const PALETTE: readonly PaletteItem[] = [
-  { id: "emitter", label: t("lsToolEmitter"), icon: "🔦" },
-  { id: "target", label: t("lsToolTarget"), icon: "◎" },
-  { id: "rotatable", label: t("lsToolRotatable"), icon: "↻" },
-  { id: "mirror", label: t("lsToolMirror"), icon: "⟋" },
-  { id: "wall", label: t("lsToolWall"), icon: "■", paint: true },
-  { id: "erase", label: t("lsToolErase"), icon: "⌫", paint: true },
+  { id: "emitter", label: t("lsToolEmitter"), icon: "🔦", group: t("lsGroupBasics") },
+  { id: "target", label: t("lsToolTarget"), icon: "◎", group: t("lsGroupBasics") },
+  { id: "rotatable", label: t("lsToolRotatable"), icon: "↻", group: t("lsGroupBasics") },
+  { id: "mirror", label: t("lsToolMirror"), icon: "⟋", group: t("lsGroupBasics") },
+  { id: "wall", label: t("lsToolWall"), icon: "■", paint: true, group: t("lsGroupBasics") },
+  { id: "erase", label: t("lsToolErase"), icon: "⌫", paint: true, group: t("lsGroupBasics") },
+  { id: "rotatableSplitter", label: t("lsToolRotatableSplitter"), icon: "⤨", group: t("lsGroupSplitters") },
+  { id: "splitter", label: t("lsToolSplitter"), icon: "⋰", group: t("lsGroupSplitters") },
+  { id: "filter", label: t("lsToolFilter"), icon: "▣", group: t("lsGroupColors") },
+  { id: "color", label: t("lsToolColor"), icon: "🎨", group: t("lsGroupColors") },
 ];
 
 const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {
@@ -24,6 +28,7 @@ const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {
   "duplicate-cell": "lsProblemDuplicate",
   "no-emitter": "lsProblemNoEmitter",
   "no-target": "lsProblemNoTarget",
+  "missing-color": "lsProblemMissingColor",
 };
 
 export function problems(data: LaserData): string[] {
@@ -47,6 +52,15 @@ export function renderEditor(ctx: EditorContext<LaserData>) {
         max: LIMITS.maxSize,
         onResize: (width, height) => ctx.update(resize(data, width, height)),
       },
+      settings: [
+        {
+          label: t("lsInventory"),
+          value: data.inventory ?? 0,
+          min: 0,
+          max: LIMITS.maxInventory,
+          set: (count) => ctx.update(setInventory(data, count)),
+        },
+      ],
       palette: PALETTE,
       // Shows the beams of the start position, so the creator sees what the player sees.
       board: boardLayers(data, initState(data), { problemCells }),
@@ -60,22 +74,4 @@ export function renderEditor(ctx: EditorContext<LaserData>) {
       describe: (x, y) => describeCell(data, x, y),
     })}
   `;
-}
-
-const DIR_NAME: Record<Dir, MessageKey> = { N: "dirN", E: "dirE", S: "dirS", W: "dirW" };
-
-function describeCell(data: LaserData, x: number, y: number): string {
-  const index = cellAt(data, x, y);
-  if (index < 0) return "";
-  const { cell } = data.cells[index]!;
-  switch (cell.kind) {
-    case "wall":
-      return t("lsToolWall");
-    case "target":
-      return t("lsToolTarget");
-    case "emitter":
-      return `${t("lsToolEmitter")}, ${t(DIR_NAME[cell.dir])}`;
-    case "mirror":
-      return `${t(cell.rotatable ? "lsToolRotatable" : "lsToolMirror")}, ${t(cell.orientation === "/" ? "lsSlash" : "lsBackslash")}`;
-  }
 }

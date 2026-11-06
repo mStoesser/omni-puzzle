@@ -8,8 +8,14 @@ import { tapCancel, tapEnd, tapStart } from "./tap.ts";
 /** Board units per cell. Plugins draw their board content in this coordinate system. */
 export const CELL = 100;
 
-/** `paint`: the tool paints while dragging over the board (walls, pixels …) instead of acting on a tap. */
-export type PaletteItem = { id: string; label: string; icon: string; paint?: boolean };
+/**
+ * `paint`: the tool paints while dragging over the board (walls, pixels …) instead of acting on a tap.
+ * `group`: a heading shown before the first tool of each group, so long palettes stay clear (e.g. laser).
+ */
+export type PaletteItem = { id: string; label: string; icon: string; paint?: boolean; group?: string };
+
+/** A further number in the settings next to width and height (e.g. the laser's inventory). */
+export type SettingStepper = { label: string; value: number; min: number; max: number; set(value: number): void };
 
 export type GridEditorOptions = {
   width: number;
@@ -17,6 +23,8 @@ export type GridEditorOptions = {
   /** Adds a tappable ring of cells around the board (x/y = -1 and width/height), e.g. for exits. */
   ring: boolean;
   size: { min: number; max: number; onResize(width: number, height: number): void };
+  /** Shown after width and height. */
+  settings?: readonly SettingStepper[];
   palette: readonly PaletteItem[];
   /** SVG content in board units, drawn below the tap layer. */
   board: unknown;
@@ -74,6 +82,9 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
         <legend class="visually-hidden">${t("tool")}</legend>
         ${options.palette.map(
           (item, i) => html`
+            ${item.group !== undefined && item.group !== options.palette[i - 1]?.group
+              ? html`<span class="palette-group">${item.group}</span>`
+              : null}
             <label class="tool">
               <input type="radio" name="tool" value=${item.id} ?checked=${i === 0} />
               <span><span aria-hidden="true">${item.icon}</span> ${item.label}</span>
@@ -97,12 +108,13 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
       <div class="size-controls">
         ${stepper(t("width"), w, options.size, (v) => options.size.onResize(v, h))}
         ${stepper(t("height"), h, options.size, (v) => options.size.onResize(w, v))}
+        ${options.settings?.map((s) => stepper(s.label, s.value, s, (v) => s.set(v)))}
       </div>
     </form>
   `;
 }
 
-function stepper(label: string, value: number, size: GridEditorOptions["size"], set: (value: number) => void) {
+function stepper(label: string, value: number, size: { min: number; max: number }, set: (value: number) => void) {
   return html`
     <div class="stepper" role="group" aria-label=${label}>
       <span>${label}</span>

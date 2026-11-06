@@ -1,11 +1,14 @@
 import type { PuzzleDocument } from "../../core/types.ts";
-import type { LaserCell, LaserData, PlacedCell } from "./logic.ts";
+import type { Dir } from "../../core/grid.ts";
+import { minVersion } from "./logic.ts";
+import type { Color, LaserCell, LaserData, PlacedCell } from "./logic.ts";
 
 // Original puzzles, generated with the solver: exactly one beam path solves each puzzle,
 // and the start position differs from it by minMoves mirrors. minMoves is checked by examples.test.ts.
 
 // Two characters per cell: " ." empty, "##" wall, " O" target, " >" emitter (also ^ v <),
-// " /" or " \" fixed mirror, "*/" or "*\" rotatable mirror (start orientation).
+// " /" or " \" fixed mirror, "*/" or "*\" rotatable mirror (start orientation),
+// "=/" fixed and "%/" rotatable splitter, and with colors (r, g, b): "gO" target, "g>" laser, "gF" filter.
 function parseRows(rows: readonly string[]): LaserData {
   const cells: PlacedCell[] = [];
   rows.forEach((row, y) => {
@@ -17,7 +20,18 @@ function parseRows(rows: readonly string[]): LaserData {
   return { width: rows[0]!.length / 2, height: rows.length, cells };
 }
 
+const COLOR: Record<string, Color> = { r: "red", g: "green", b: "blue" };
+const ARROW: Record<string, Dir> = { ">": "E", "<": "W", "^": "N", v: "S" };
+
 function parseCell(token: string): LaserCell | null {
+  const color = COLOR[token[0]!];
+  if (color) {
+    if (token[1] === "O") return { kind: "target", color };
+    if (token[1] === "F") return { kind: "filter", color };
+    const dir = ARROW[token[1]!];
+    if (dir) return color === "red" ? { kind: "emitter", dir } : { kind: "emitter", dir, color };
+    throw new Error(`unknown token "${token}"`);
+  }
   switch (token) {
     case " .":
       return null;
@@ -36,16 +50,19 @@ function parseCell(token: string): LaserCell | null {
   }
   const orientation = token[1];
   if (orientation !== "/" && orientation !== "\\") throw new Error(`unknown token "${token}"`);
+  if (token[0] === "=" || token[0] === "%") return { kind: "splitter", orientation, rotatable: token[0] === "%" };
   return { kind: "mirror", orientation, rotatable: token[0] === "*" };
 }
 
-function example(id: string, title: string, minMoves: number, rows: readonly string[]) {
+function example(id: string, title: string, minMoves: number, rows: readonly string[], inventory?: number) {
+  const data = parseRows(rows);
+  if (inventory) data.inventory = inventory;
   const doc: PuzzleDocument<LaserData> = {
     format: 1,
     type: "laser",
-    typeVersion: 1,
-    meta: { title, createdAt: "2026-10-30T00:00:00.000Z", verified: true, minMoves },
-    data: parseRows(rows),
+    typeVersion: minVersion(data),
+    meta: { title, createdAt: inventory || minVersion(data) > 1 ? "2026-11-06T00:00:00.000Z" : "2026-10-30T00:00:00.000Z", verified: true, minMoves },
+    data,
   };
   return { id, doc };
 }
@@ -83,5 +100,39 @@ export const laserExamples = [
     " \\ O . . .*\\ /",
     " . .## . . . .",
     " . . .*\\## . .",
+  ]),
+  // M23 extensions, one example each: mirrors to place, beam splitters, colors.
+  example(
+    "laser-5",
+    "Selbst gesetzt",
+    6,
+    [
+      "*\\ . \\ . . . .",
+      " . . . .## . .",
+      " O / .*\\ . . .",
+      " .## . . O . .",
+      " . . . . . . .",
+      " .*/ .## . .*\\",
+      " . ^ . .## . .",
+    ],
+    2,
+  ),
+  example("laser-6", "Geteiltes Licht", 6, [
+    " . . . . O . .",
+    " . \\ .*/%\\ O .",
+    " .## . . / . .",
+    " .## . O##%\\ .",
+    " >*/*\\*\\ . . .",
+    " .*/*\\ . . . .",
+    " . . . . . . .",
+  ]),
+  example("laser-7", "Farbenspiel", 6, [
+    " . . .gv . . .",
+    "rO .=\\*/*/## .",
+    " . .*/ .gO*/ .",
+    " .#### O .*/ <",
+    " . . . .*/ / .",
+    " .##gF . . / .",
+    " . . .rF . . .",
   ]),
 ];

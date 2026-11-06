@@ -445,15 +445,33 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
 ### M23 – Laser-Erweiterungen
 Jede Erweiterung erhöht `typeVersion` des Lasers und bekommt ein `migrate` (CLAUDE.md, Regel 7), auch wenn das alte
 Format unverändert gültig bleibt.
-- [ ] **Inventar** (`typeVersion` 2): Das Rätsel gibt eine Zahl Spiegel vor, die man auf freie Felder setzt. Tippen auf ein
+- [x] **Inventar** (`typeVersion` 2): Das Rätsel gibt eine Zahl Spiegel vor, die man auf freie Felder setzt. Tippen auf ein
   freies Feld setzt einen Spiegel, erneutes Tippen klappt ihn um und dann wieder weg. Solver: Platzierungen nur auf Feldern,
   die ein Strahl erreicht, höchstens z. B. 3 Inventar-Spiegel.
-- [ ] **Strahlteiler** (`typeVersion` 3): ein halbdurchlässiger Spiegel, der Strahl verzweigt sich. Die Schleifenerkennung
+  (`inventory` 1–3. Jedes Antippen ist ein Zug: „/“ kostet einen, „\“ zwei. Der Solver ist neu: Er ändert nur Felder, die ein
+  Strahl betritt, in der Reihenfolge, in der der Strahl sie zuerst betritt, und vertieft schrittweise nach Zügen. Das gilt auch
+  für drehbare Spiegel (das alte „später mit Pruning“) und ist gegen Brute Force getestet. Mit Inventar ist jedes Feld
+  antippbar, die Tastatur nutzt dann einen roving tabindex; der Vorrat steht über dem Spielfeld.)
+- [x] **Strahlteiler** (`typeVersion` 3): ein halbdurchlässiger Spiegel, der Strahl verzweigt sich. Die Schleifenerkennung
   wird damit wirklich gebraucht; die Darstellung zeichnet mehrere Polylinien.
-- [ ] **Farben** (`typeVersion` 4): Laser in Rot, Grün und Blau, Ziele verlangen eine Farbe, Farbfilter lassen nur ihre
+  (Fest oder drehbar, gestrichelt gezeichnet. Besucht wird global nach Feld, Richtung und Farbe, also enden auch Strahlen,
+  die in einen schon verfolgten Strahl einmünden.)
+- [x] **Farben** (`typeVersion` 4): Laser in Rot, Grün und Blau, Ziele verlangen eine Farbe, Farbfilter lassen nur ihre
   Farbe durch (ohne Farbmischung). Farben sind zusätzlich mit Symbolen unterscheidbar (Farbsehschwäche).
-- [ ] Editor-Palette in Gruppen (Grundlagen, Inventar, Teiler, Farben), damit das Werkzeug-Raster auf dem Handy übersichtlich bleibt.
-- [ ] Je Erweiterung Beispielrätsel (Generator-Skript erweitern); alte Links und veröffentlichte Version-1-Rätsel spielen weiter.
+  (Ohne Farbe ist ein Laser rot und ein Ziel nimmt jede Farbe, so bleiben alte Daten gültig. Symbole: Rot ▲, Grün ■, Blau ◆;
+  grüne und blaue Strahlen haben zusätzlich ein eigenes Strichmuster. Neues Editor-Problem: Ziel in einer Farbe ohne Laser.)
+- [x] Editor-Palette in Gruppen (Grundlagen, Inventar, Teiler, Farben), damit das Werkzeug-Raster auf dem Handy übersichtlich bleibt.
+  (Gruppen-Überschriften im Grid-Editor, `PaletteItem.group`. Das Inventar ist kein Werkzeug, sondern eine Zahl unter
+  „Einstellungen“ neben Breite und Höhe (`settings` im Grid-Editor). Werkzeuge: Teiler fest/drehbar, Filter, „Farbe“ färbt
+  Laser, Ziele und Filter reihum um.)
+- [x] Je Erweiterung Beispielrätsel (Generator-Skript erweitern); alte Links und veröffentlichte Version-1-Rätsel spielen weiter.
+  („Selbst gesetzt“, „Geteiltes Licht“, „Farbenspiel“, je 6 Züge; der Generator baut eine Lösungsstellung, legt Ziele auf den
+  Strahl und verdreht dann Teile. Jedes Beispiel ist ohne seine Erweiterung unlösbar bzw. viel leichter. Damit Versions-Sprünge
+  keine Inhaltsschlüssel ändern, gibt es im Core `minVersion` (eine bewusste Core-Änderung): Ein Rätsel ohne Erweiterungen
+  bleibt Version 1, Fortschritt und Galerie-Markierungen bleiben erhalten. Im Browser geprüft (Headless Chrome, 390 px und
+  1280 px): Beispiel mit Inventar per Tastatur optimal gelöst, Editor mit allen neuen Werkzeugen, hell und dunkel.)
+- [ ] Handy-Test (Spiegel setzen, Teiler und Farben; Editor mit Gruppen und Inventar).
+- [ ] Live testen: Rätsel mit Erweiterungen veröffentlichen (nach dem Push), altes Laser-Rätsel in der Galerie weiter als gelöst markiert.
 
 ### M24 – Rätsel-Ketten
 - [ ] **Entscheidung im Meilenstein:** Dürfen Ketten fremde Galerie-Rätsel enthalten? (Vorschlag: ja, als kuratierte

@@ -355,6 +355,21 @@ input[type="password"]:focus-visible,
   border: 0;
 }
 
+/* Group heading inside the palette grid: a full row of its own. */
+.palette-group {
+  grid-column: 1 / -1;
+  margin-top: var(--kk-space-2);
+  color: var(--kk-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.palette-group:first-of-type {
+  margin-top: 0;
+}
+
 .tool input {
   position: absolute;
   opacity: 0;

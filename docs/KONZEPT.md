@@ -44,7 +44,7 @@ Status: **MVP** = Phase 1, **Phase 3** = eingeplant (siehe ROADMAP.md), **umgese
 | Typ | Beschreibung | Status |
 |---|---|---|
 | Laser & Spiegel | Spiegel drehen, damit der Laser alle Ziele trifft | **MVP** |
-| Laser-Erweiterungen | Strahlteiler, Farbfilter, Portale, Spiegel aus einem Inventar platzieren | **Phase 3** (M23: Inventar, Strahlteiler, Farben) |
+| Laser-Erweiterungen | Strahlteiler, Farbfilter, Portale, Spiegel aus einem Inventar platzieren | **umgesetzt** (M23: Inventar, Strahlteiler, Farben); Portale **später** |
 | Lights Out | Klick schaltet Feld und Nachbarn um; alles soll aus sein | **umgesetzt** (M20) |
 
 ### Verbinden
