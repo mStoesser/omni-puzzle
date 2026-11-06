@@ -470,8 +470,8 @@ Format unverändert gültig bleibt.
   keine Inhaltsschlüssel ändern, gibt es im Core `minVersion` (eine bewusste Core-Änderung): Ein Rätsel ohne Erweiterungen
   bleibt Version 1, Fortschritt und Galerie-Markierungen bleiben erhalten. Im Browser geprüft (Headless Chrome, 390 px und
   1280 px): Beispiel mit Inventar per Tastatur optimal gelöst, Editor mit allen neuen Werkzeugen, hell und dunkel.)
-- [ ] Handy-Test (Spiegel setzen, Teiler und Farben; Editor mit Gruppen und Inventar).
-- [ ] Live testen: Rätsel mit Erweiterungen veröffentlichen (nach dem Push), altes Laser-Rätsel in der Galerie weiter als gelöst markiert.
+- [x] Handy-Test (Spiegel setzen, Teiler und Farben; Editor mit Gruppen und Inventar).
+- [x] Live testen: Rätsel mit Erweiterungen veröffentlichen (nach dem Push), altes Laser-Rätsel in der Galerie weiter als gelöst markiert.
 
 ### M24 – Rätsel-Ketten
 - [ ] **Entscheidung im Meilenstein:** Dürfen Ketten fremde Galerie-Rätsel enthalten? (Vorschlag: ja, als kuratierte
