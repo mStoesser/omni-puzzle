@@ -359,7 +359,7 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
   Im Browser über die LAN-Adresse geprüft (Headless Chrome, 390 px): zwei Beispiele per Ziehen optimal gelöst,
   Tastatur (Pfeile, Enter = ein Zug), blockierter Klotz bleibt stehen, Editor, hell und dunkel, Startseite.
 - [x] Handy-Test (Ziehen um Ecken, Tastatur; Editor) erfolgreich.
-- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
+- [x] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M20 – Lights Out (`lightsout`)
 - [x] Datenformat: Raster (höchstens z. B. 10×10) mit aktiven Feldern (Löcher für unregelmäßige Formen) und Startmuster der Lichter.
@@ -381,7 +381,7 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
   Im Browser über die LAN-Adresse geprüft (Headless Chrome, 390 px): zwei Beispiele per Antippen optimal gelöst, Tastatur
   (Löcher übersprungen, Enter = ein Zug), Editor, hell und dunkel.
 - [x] Handy-Test (Antippen, Editor mit beiden Modi) erfolgreich.
-- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
+- [x] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M21 – Rohre (`pipes`)
 - [x] Datenformat: Kacheln Ende, Gerade, Kurve, T, Kreuz, Quelle; je Kachel eine Drehung und „drehbar/fest“.
@@ -406,7 +406,7 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
   Im Browser über die LAN-Adresse geprüft (Headless Chrome, 390 px): zwei Beispiele per Antippen optimal gelöst, feste Kachel
   dreht nicht, Tastatur, Rohr ziehen im Editor, hell und dunkel.
 - [x] Handy-Test (Drehen, Rohre ziehen im Editor, Verdrehen) erfolgreich.
-- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
+- [x] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern.
 
 ### M22 – Nonogramm (`nonogram`)
 - [x] Datenformat: Breite, Höhe und **nur die Hinweiszahlen** je Zeile und Spalte, nicht das Lösungsbild. So lässt sich
@@ -440,7 +440,7 @@ Eine Variante von Rush Hour, aber als eigenes Modul (Regel 5): Gemeinsames kommt
   Mehrdeutigkeits-Markierung.
 - [x] Handy-Test (Ziehen über Zeilen, Zoom und Scrollen auf den Hinweisen, Editor) erfolgreich. Dabei gefunden und
   behoben: In der Editor-Vorschau waren die Zahlen schwarz auf dunklem Grund, und über ihr ließ sich nicht hochscrollen.
-- [ ] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern, Stufe aus Bewertungen.
+- [x] Live testen: veröffentlichen (nach dem Push), in der Galerie nach Typ filtern, Stufe aus Bewertungen.
 
 ### M23 – Laser-Erweiterungen
 Jede Erweiterung erhöht `typeVersion` des Lasers und bekommt ein `migrate` (CLAUDE.md, Regel 7), auch wenn das alte
