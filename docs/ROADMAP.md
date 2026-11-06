@@ -534,8 +534,8 @@ Format unverändert gültig bleibt.
   Gesperrte erscheinen ohnehin nicht mehr.)
 - [x] Datenschutzerklärung ergänzen: Ranglisten zeigen den Anzeigenamen öffentlich.
   (Auch: gespeicherte Ergebnisse, Zugfolge wird nachgespielt, aber nicht gespeichert, Warteschlange im localStorage, Löschung.)
-- [ ] Migration `0010_scores.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow `submit-score`.
-- [ ] Live testen: gefälschte Zugfolgen, zu kurze Zugfolgen, nicht gelöste Endstellung, Handy-Test.
+- [x] Migration `0010_scores.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow `submit-score`.
+- [x] Live testen: gefälschte Zugfolgen, zu kurze Zugfolgen, nicht gelöste Endstellung, Handy-Test.
 
 ### M26 – Tägliches Rätsel
 - [ ] Migration: Tabelle `daily` (Tag als Schlüssel, `puzzle_id`, geplant von). Die Funktion `daily_puzzle()`
