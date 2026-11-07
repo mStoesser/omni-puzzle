@@ -569,22 +569,36 @@ Format unverändert gültig bleibt.
 - [x] Live testen (Tageswechsel simulieren, leere Galerie, ausgeblendetes Tagesrätsel), Handy-Test.
 
 ### M27 – Synchronisierung von Bibliothek und Fortschritt
-- [ ] **Entscheidung im Meilenstein:** Was passiert beim Abmelden mit den lokalen Daten (behalten oder vom Gerät löschen)?
+- [x] **Entscheidung im Meilenstein:** Was passiert beim Abmelden mit den lokalen Daten (behalten oder vom Gerät löschen)?
   Und wenn sich danach ein anderes Konto anmeldet? (Vorschlag: behalten, bei einem Kontowechsel nachfragen.)
-- [ ] Migration: `sync_puzzles` (Nutzer, ID, Dokument, `updated_at` vom Client, `deleted`, `changed_at` vom Server) und
+  (Entschieden wie vorgeschlagen: Abmelden behält alles. Das Gerät merkt sich das Konto des letzten Syncs. Dasselbe Konto
+  synchronisiert weiter; ein Gerät, das noch nie synchronisiert hat, übernimmt seine Daten ohne Rückfrage. Bei einem
+  anderen Konto fragt das Profil: „In mein Konto übernehmen“ oder „Vom Gerät entfernen“. Nach dem Löschen des Kontos
+  gelten die Daten wieder als „noch nie synchronisiert“.)
+- [x] Migration: `sync_puzzles` (Nutzer, ID, Dokument, `updated_at` vom Client, `deleted`, `changed_at` vom Server) und
   `sync_progress` (Nutzer, Schlüssel, gelöst, beste Züge, beste Zeit, `changed_at`); RLS nur eigene Zeilen;
   Grenzen pro Nutzer (z. B. 500 Rätsel, 64 KB pro Dokument). Privater Storage-Bucket `user-images/<uid>/<key>`.
-- [ ] IndexedDB-Version anheben: Grabsteine für gelöschte Rätsel, „geändert seit dem letzten Sync“, Sync-Cursor pro Konto.
-- [ ] `core/sync.ts` (rein, getestet): Zusammenführen wie oben entschieden; holen seit Cursor (`changed_at`, Keyset),
+  (`0012_sync.sql`. Zusätzlich `sync_state` mit einer Änderungsnummer pro Konto, siehe Cursor. Grenzen: 500 Rätsel,
+  2 000 Zeilen mit Grabsteinen, 64 KB pro Dokument, 5 000 Fortschritte, 100 Bilder.)
+- [x] IndexedDB-Version anheben: Grabsteine für gelöschte Rätsel, „geändert seit dem letzten Sync“, Sync-Cursor pro Konto.
+  (Version 3 mit den Stores `tombstones`, `dirty` und `meta`.)
+- [x] `core/sync.ts` (rein, getestet): Zusammenführen wie oben entschieden; holen seit Cursor (`changed_at`, Keyset),
   dann eigene Änderungen per `sync_push` senden. Die Funktion setzt nur neuere Stände (`updated_at`) durch.
   Der Cursor nutzt die Server-Zeit, damit falsch gehende Uhren nicht schaden.
-- [ ] Wann synchronisiert wird: nach der Anmeldung, beim Start, beim Sichtbarwerden der Seite, bei `online` und kurz nach
+  (Abweichung: Der Cursor ist eine Änderungsnummer pro Konto statt `changed_at`, weil Zeitstempel bei gleichzeitigen
+  Transaktionen nicht in Commit-Reihenfolge ankommen. Getestet mit zwei Geräten gegen einen nachgebauten Server.)
+- [x] Wann synchronisiert wird: nach der Anmeldung, beim Start, beim Sichtbarwerden der Seite, bei `online` und kurz nach
   dem Speichern. Bilder werden hochgeladen und erst beim Öffnen geladen.
-- [ ] Alles vom Server geht durch `loadDocument(…, { draft: true })`.
-- [ ] Profil: Sync-Status („zuletzt synchronisiert …“, Fehler, „Jetzt synchronisieren“).
-- [ ] Konto löschen entfernt die Sync-Daten; der Aufräumjob löscht dann auch die `user-images`. Die Datenschutzerklärung
+- [x] Alles vom Server geht durch `loadDocument(…, { draft: true })`.
+  (Dokumente einer neueren App-Version werden gespeichert und erst nach dem Update angezeigt.)
+- [x] Profil: Sync-Status („zuletzt synchronisiert …“, Fehler, „Jetzt synchronisieren“).
+- [x] Konto löschen entfernt die Sync-Daten; der Aufräumjob löscht dann auch die `user-images`. Die Datenschutzerklärung
   wird ergänzt (gespeicherte Entwürfe und Fortschritt).
-- [ ] Free-Tier abschätzen (500 MB Datenbank, 1 GB Storage) und Grenzen danach festlegen.
+  (Der Aufräumjob löscht außerdem Bilder, die keins der synchronisierten Rätsel mehr benutzt.)
+- [x] Free-Tier abschätzen (500 MB Datenbank, 1 GB Storage) und Grenzen danach festlegen.
+  (Rechnung in `docs/ARCHITEKTUR.md`, Abschnitt M27.)
+- [ ] Migration `0012_sync.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue
+  `cleanup-images`.
 - [ ] Live testen mit zwei Geräten: gleichzeitige Änderungen, offline ändern, löschen auf einem Gerät, erstes Anmelden
   mit vorhandenen lokalen Daten.
 

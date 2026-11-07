@@ -20,7 +20,7 @@ test("memory storage stores, lists newest first and deletes puzzles", async () =
   assert.deepEqual((await storage.getPuzzle("a"))?.doc.data, { target: 9 });
   assert.equal((await storage.listPuzzles())[0]!.id, "a");
 
-  await storage.deletePuzzle("b");
+  await storage.deletePuzzle("b", "2026-10-05T00:00:00.000Z");
   assert.equal(await storage.getPuzzle("b"), null);
   assert.equal((await storage.listPuzzles()).length, 2);
 });

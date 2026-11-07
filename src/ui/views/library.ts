@@ -20,8 +20,8 @@ export type LibraryViewActions = {
   openBuild(): void;
 };
 
-/** `items` null = still loading. */
-export function libraryView(items: readonly LibraryItem[] | null, actions: LibraryViewActions) {
+/** `items` null = still loading. `synced`: signed in, so the library is synced with the account (M27). */
+export function libraryView(items: readonly LibraryItem[] | null, actions: LibraryViewActions, synced = false) {
   return html`
     <header class="page-head with-action">
       <h1>${t("library")}</h1>
@@ -32,7 +32,7 @@ export function libraryView(items: readonly LibraryItem[] | null, actions: Libra
       : items.length === 0
         ? html`<p class="empty">${t("libraryEmpty")}</p>`
         : html`<ul class="card-list">${items.map((item) => libraryEntry(item, actions))}</ul>`}
-    <p class="info-box">${icon("info", 18)}<span>${t("libraryLocalHint")}</span></p>
+    <p class="info-box">${icon("info", 18)}<span>${t(synced ? "librarySyncedHint" : "libraryLocalHint")}</span></p>
   `;
 }
 

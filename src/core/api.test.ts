@@ -106,3 +106,27 @@ test("every error has a text", () => {
   assert.equal(texts.size, kinds.length);
   assert.equal(apiErrorText(new Error("boom")), "apiServer");
 });
+
+test("storage sends and returns raw bytes", async () => {
+  const calls: Call[] = [];
+  const doFetch = (async (url: string | URL, init: RequestInit = {}) => {
+    calls.push({ url: String(url), init });
+    return new Response(init.method === "POST" ? "" : new Uint8Array([1, 2, 3]), { status: 200 });
+  }) as typeof fetch;
+  const api = createApi(CONFIG, { fetch: doFetch, accessToken: () => "user-jwt" });
+  assert.equal(await api.storage("object/b/u/k", { bytes: new Uint8Array([9]), contentType: "image/webp", headers: { "x-upsert": "true" } }), undefined);
+  const headers = calls[0]!.init.headers as Record<string, string>;
+  assert.equal(calls[0]!.url, "https://abc123.supabase.co/storage/v1/object/b/u/k");
+  assert.equal(calls[0]!.init.method, "POST");
+  assert.equal(headers["Content-Type"], "image/webp");
+  assert.equal(headers["x-upsert"], "true");
+  assert.equal(headers.Authorization, "Bearer user-jwt");
+  assert.deepEqual(new Uint8Array(await (calls[0]!.init.body as Blob).arrayBuffer()), new Uint8Array([9]));
+  assert.deepEqual(await api.storage("object/authenticated/b/u/k"), new Uint8Array([1, 2, 3]));
+  assert.equal(calls[1]!.init.method, "GET");
+});
+
+test("storage errors map like the others", async () => {
+  const api = createApi(CONFIG, { fetch: fakeFetch(400, '{"statusCode":"403","error":"Unauthorized","message":"new row violates row-level security policy"}') });
+  await assert.rejects(api.storage("object/x"), (e) => e instanceof ApiError && e.kind === "invalid" && e.code === "Unauthorized");
+});

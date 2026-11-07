@@ -52,6 +52,15 @@ export type Api = {
   auth<T>(path: string, request?: ApiRequest): Promise<T>;
   /** Edge Functions: /functions/v1/<name> */
   functions<T>(name: string, request?: ApiRequest): Promise<T>;
+  /** Supabase Storage: /storage/v1/<path>, with raw bytes in and out (undefined for an empty answer). */
+  storage(path: string, request?: StorageRequest): Promise<Uint8Array | undefined>;
+};
+
+export type StorageRequest = {
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  bytes?: Uint8Array; // sent as the body with `contentType`
+  contentType?: string;
+  headers?: Readonly<Record<string, string>>;
 };
 
 export type ApiOptions = {
@@ -67,41 +76,58 @@ export function createApi(config: BackendConfig, options: ApiOptions = {}): Api 
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  async function send<T>(base: string, path: string, request: ApiRequest = {}): Promise<T> {
+  /** Sends a request with the key and the user token; returns the response or throws an ApiError. */
+  async function request(base: string, path: string, init: { method: string; query?: ApiRequest["query"]; headers?: ApiRequest["headers"]; body?: BodyInit; contentType?: string }) {
     const url = new URL(`${config.url}/${base}/${path.replace(/^\/+/, "")}`);
-    for (const [name, value] of Object.entries(request.query ?? {})) url.searchParams.set(name, value);
+    for (const [name, value] of Object.entries(init.query ?? {})) url.searchParams.set(name, value);
 
     // The publishable key goes into `apikey` only; `Authorization` carries a user JWT or nothing.
-    const headers: Record<string, string> = { apikey: config.key, ...request.headers };
+    const headers: Record<string, string> = { apikey: config.key, ...init.headers };
     const token = await options.accessToken?.();
     if (token) headers.Authorization = `Bearer ${token}`;
-    if (request.body !== undefined) headers["Content-Type"] = "application/json";
+    if (init.contentType) headers["Content-Type"] = init.contentType;
 
     let response: Response;
     try {
-      response = await doFetch(url, {
-        method: request.method ?? (request.body === undefined ? "GET" : "POST"),
-        headers,
-        body: request.body === undefined ? undefined : JSON.stringify(request.body),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+      response = await doFetch(url, { method: init.method, headers, body: init.body, signal: AbortSignal.timeout(timeoutMs) });
     } catch (error) {
       if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
         throw new ApiError("timeout", 0);
       }
       throw new ApiError("offline", 0, error instanceof Error ? error.message : undefined);
     }
+    if (!response.ok) throw errorFromResponse(response.status, parseJson(await response.text()));
+    return response;
+  }
 
+  async function send<T>(base: string, path: string, req: ApiRequest = {}): Promise<T> {
+    const response = await request(base, path, {
+      method: req.method ?? (req.body === undefined ? "GET" : "POST"),
+      query: req.query,
+      headers: req.headers,
+      body: req.body === undefined ? undefined : JSON.stringify(req.body),
+      contentType: req.body === undefined ? undefined : "application/json",
+    });
     const text = await response.text();
-    const body = parseJson(text);
-    if (!response.ok) throw errorFromResponse(response.status, body);
-    return (text === "" ? undefined : body) as T;
+    return (text === "" ? undefined : parseJson(text)) as T;
+  }
+
+  async function storage(path: string, req: StorageRequest = {}): Promise<Uint8Array | undefined> {
+    const response = await request("storage/v1", path, {
+      method: req.method ?? (req.bytes === undefined ? "GET" : "POST"),
+      headers: req.headers,
+      body: req.bytes === undefined ? undefined : new Blob([new Uint8Array(req.bytes)]),
+      contentType: req.bytes === undefined ? undefined : (req.contentType ?? "application/octet-stream"),
+    });
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return bytes.length === 0 ? undefined : bytes;
   }
 
   return {
     rest: (path, request) => send("rest/v1", path, request),
     auth: (path, request) => send("auth/v1", path, request),
     functions: (name, request) => send("functions/v1", name, request),
+    storage,
   };
 }
 

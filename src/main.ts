@@ -51,6 +51,7 @@ import { IDLE_TIMER, elapsedMs, isRunning, pauseTimer, resumeTimer, startTimer }
 import type { LeaderboardModel, LeaderboardViewer } from "./ui/components/leaderboard.ts";
 import { decodeDocument, encodeDocument } from "./core/share.ts";
 import { copyRecord, memoryStorage, newPuzzleId, openStorage, progressKey, recordSolve } from "./core/storage.ts";
+import { createSyncApi, mergeProgress, ownerDecision, readSyncMeta, syncOnce } from "./core/sync.ts";
 import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
 import { createStore } from "./core/store.ts";
 import { imageProblem, imageKey, publishedImageUrl, sniffImageType, toBase64 } from "./core/images.ts";
@@ -61,7 +62,7 @@ import { examples, registry } from "./puzzles/index.ts";
 import type { PublishDialogModel } from "./ui/components/publish-dialog.ts";
 import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
 import { accountView } from "./ui/views/account.ts";
-import type { AccountMessage, AccountViewModel } from "./ui/views/account.ts";
+import type { AccountMessage, AccountViewModel, SyncViewModel } from "./ui/views/account.ts";
 import { editorView } from "./ui/views/editor.ts";
 import { galleryView } from "./ui/views/gallery.ts";
 import { chainView } from "./ui/views/chain.ts";
@@ -129,6 +130,7 @@ type AppState = {
 const SOLVE_LIMITS = { maxNodes: 200_000 };
 const SOLVE_DELAY_MS = 250;
 const SAVE_DELAY_MS = 400;
+const SYNC_DELAY_MS = 3000; // after a local change, so a burst of edits is sent once
 
 const app = document.getElementById("app");
 if (!app) throw new Error("#app not found");
@@ -185,6 +187,7 @@ const store = createStore<AppState>({
     editingPublication: null,
     confirmWithdraw: null,
     panel: null,
+    sync: { status: "off", lastSync: null, error: null, rejected: 0 },
   },
   gallery: null,
   newest: [],
@@ -1367,6 +1370,7 @@ let lastSaved = ""; // JSON of the last saved editor document, to skip identical
 async function save(write: (s: Storage) => Promise<void>): Promise<boolean> {
   try {
     await write(await storage);
+    requestSync(SYNC_DELAY_MS);
     return true;
   } catch (error) {
     console.error(error);
@@ -1531,6 +1535,7 @@ const localImages: ImageSource = {
     localImageUrls.set(key, "loading");
     storage
       .then((s) => s.getImage(key))
+      .then((record) => record ?? downloadSyncedImage(key))
       .then((record) => rememberImage(key, record), () => rememberImage(key, null))
       .finally(() => store.set((state) => ({ ...state }))); // re-render with the picture
     return "loading";
@@ -1617,6 +1622,147 @@ async function removeUnusedImages(items: readonly LibraryItem[]) {
   }
 }
 
+/** A picture of a synced puzzle that is not on this device yet (M27): loaded when it is first shown. */
+async function downloadSyncedImage(key: string) {
+  const user = store.get().account.user;
+  if (!syncApi || !user || !/^[0-9a-f]{64}$/.test(key)) return null;
+  try {
+    const bytes = await syncApi.downloadImage(user.id, key);
+    const type = sniffImageType(bytes);
+    if (!type || imageProblem(key, bytes)) return null;
+    const record = { key, type, bytes };
+    await (await storage).putImage(record);
+    return record;
+  } catch (error) {
+    // Not found: a picture of a share link or of a puzzle whose pictures were never uploaded.
+    if (!(error instanceof ApiError) || error.status >= 500 || error.status === 0) console.warn("synced image", error);
+    return null;
+  }
+}
+
+// --- Sync (M27) ---
+
+const syncApi = api ? createSyncApi(api) : null;
+const OWNER_KEY = "owner"; // the account this device's data last synced with
+let syncTimer: ReturnType<typeof setTimeout> | undefined;
+let syncRunning = false;
+let syncAgain = false;
+
+function setSync(change: Partial<SyncViewModel>) {
+  store.set((state) => ({ ...state, account: { ...state.account, sync: { ...state.account.sync, ...change } } }));
+}
+
+/** Syncs soon (or right away); several requests in a row lead to one run. */
+function requestSync(delayMs = 0) {
+  if (!syncApi || !store.get().account.user) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => void runSync(), delayMs);
+}
+
+/** Whether the document can be kept: readable as a draft, or made by a newer app version (shown after updating). */
+function acceptSynced(doc: unknown) {
+  try {
+    loadDocument(doc, registry, { draft: true });
+    return true;
+  } catch (error) {
+    return error instanceof DocumentError && (error.code === "unsupported" || error.code === "unknown-type");
+  }
+}
+
+function imageKeysOf(doc: PuzzleDocument) {
+  try {
+    const { type, doc: checked } = loadDocument(doc, registry, { draft: true });
+    return type.imageKeys?.(checked.data) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function hasLocalData(s: Storage) {
+  return (await s.listPuzzles()).length > 0 || (await s.listProgress()).length > 0 || (await s.listTombstones()).length > 0;
+}
+
+/** The device's data goes into `userId`'s account: everything is sent, and everything is pulled again. */
+async function takeOver(s: Storage, userId: string) {
+  await s.markAllDirty();
+  await s.putMeta(`sync:${userId}`, { ...(await readSyncMeta(s, userId)), cursor: 0 });
+  await s.putMeta(OWNER_KEY, userId);
+}
+
+async function runSync() {
+  const user = store.get().account.user;
+  if (!syncApi || !user) return;
+  if (syncRunning) {
+    syncAgain = true;
+    return;
+  }
+  syncRunning = true;
+  clearTimeout(syncTimer);
+  try {
+    const s = await storage;
+    const owner = await s.getMeta(OWNER_KEY);
+    const decision = ownerDecision(typeof owner === "string" ? owner : null, user.id, await hasLocalData(s));
+    if (decision === "ask") {
+      setSync({ status: "choice" });
+      return;
+    }
+    if (decision === "adopt") await takeOver(s, user.id);
+    setSync({ status: "running" });
+    if (saveTimer !== undefined) await saveEditor(); // pending edits go along
+    const outcome = await syncOnce({ api: syncApi, storage: s, userId: user.id, accept: acceptSynced, imageKeys: imageKeysOf, now });
+    if (store.get().account.user?.id !== user.id) return; // signed out or switched meanwhile
+    const { lastSync } = await readSyncMeta(s, user.id);
+    setSync({ status: "idle", lastSync, error: null, rejected: outcome.rejected });
+    if (outcome.changed) await reloadLocal(false);
+  } catch (error) {
+    console.warn("sync", error);
+    if (store.get().account.user?.id === user.id) setSync({ status: "error", error: apiErrorText(error) });
+  } finally {
+    syncRunning = false;
+    if (syncAgain) {
+      syncAgain = false;
+      requestSync();
+    }
+  }
+}
+
+/** Shows what sync changed: the library (if loaded) and the progress. `replace` drops progress kept in memory. */
+async function reloadLocal(replace: boolean) {
+  if (store.get().library !== null) await loadLibrary();
+  const records = await (await storage).listProgress();
+  store.set((state) => {
+    const progress = new Map(replace ? [] : state.progress);
+    for (const record of records) progress.set(record.key, mergeProgress(progress.get(record.key), record));
+    return { ...state, progress };
+  });
+}
+
+async function resolveSync(choice: "merge" | "replace") {
+  const user = store.get().account.user;
+  if (!user) return;
+  try {
+    const s = await storage;
+    if (choice === "merge") {
+      await takeOver(s, user.id);
+    } else {
+      flushSave();
+      await s.clearLocal();
+      await s.putMeta(`sync:${user.id}`, { ...(await readSyncMeta(s, user.id)), cursor: 0 });
+      await s.putMeta(OWNER_KEY, user.id);
+      for (const url of localImageUrls.values()) if (url && url !== "loading") URL.revokeObjectURL(url);
+      localImageUrls.clear();
+      patch({ editor: null, progress: new Map() });
+      await reloadLocal(true);
+      setAccount({ message: { tone: "ok", text: "syncReplaced" } });
+    }
+    setSync({ status: "idle" });
+    await runSync();
+  } catch (error) {
+    console.error(error);
+    patch({ notice: "storageFailed" });
+  }
+}
+
 // --- Library ---
 
 async function loadLibrary() {
@@ -1649,7 +1795,7 @@ const libraryActions = {
   },
   remove: async (id: string) => {
     if (store.get().editor?.id === id) patch({ editor: null });
-    if (await save((s) => s.deletePuzzle(id))) await loadLibrary();
+    if (await save((s) => s.deletePuzzle(id, now()))) await loadLibrary();
   },
 };
 
@@ -1766,6 +1912,10 @@ function onSession(session: Session | null) {
   }
   if (route.name === "home" || route.name === "daily") void loadDaily(); // solved and streak are the user's
   if (user) void flushScoreQueue();
+  // Signing out keeps the device's data; it stays with that account until another one signs in (ownerDecision).
+  setSync({ status: "off", lastSync: null, error: null, rejected: 0 });
+  if (user) requestSync();
+  else clearTimeout(syncTimer);
 }
 
 async function loadProfile(userId: string) {
@@ -1861,9 +2011,13 @@ const accountActions = {
       return { tone: "ok", text: "myPublicationsWithdrawn" };
     }),
   openPanel: (panel: AccountViewModel["panel"]) => setAccount({ panel, message: null, editingPublication: null, confirmWithdraw: null }),
+  syncNow: () => void runSync(),
+  resolveSync: (choice: "merge" | "replace") => void resolveSync(choice),
   deleteAccount: () =>
     void accountTask(async () => {
       await deleteAccount(api!);
+      // The device's data is no one's now: the next account to sign in takes it over without asking.
+      await (await storage).putMeta(OWNER_KEY, null).catch(() => {});
       auth!.forget();
       return { tone: "ok", text: "accountDeleted" };
     }),
@@ -1912,7 +2066,7 @@ function view(state: AppState) {
       }
       return state.moderation ? moderationView(state.moderation, registry, moderationActions) : nothing;
     case "library":
-      return html`${libraryView(state.library, libraryActions)} ${siteFooter()}`;
+      return html`${libraryView(state.library, libraryActions, syncApi !== null && state.account.user !== null)} ${siteFooter()}`;
     case "imprint":
       return imprintView();
     case "privacy":
@@ -2085,14 +2239,19 @@ store.subscribe(scheduleRender);
 // Save pending edits before the page is hidden (tab switch, app switch, closing).
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") flushSave();
+  else requestSync();
   onVisibility();
 });
-window.addEventListener("online", () => void flushScoreQueue());
+window.addEventListener("online", () => {
+  void flushScoreQueue();
+  requestSync();
+});
 if (auth) {
   auth.subscribe(onSession);
   const user = store.get().account.user;
   if (user) void loadProfile(user.id);
   void flushScoreQueue();
+  requestSync();
   handleAuthCallback();
   // Another tab signed in or out.
   window.addEventListener("storage", (e) => {

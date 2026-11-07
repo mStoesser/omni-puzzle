@@ -72,7 +72,7 @@ src/
     editor-session.ts     # Editor-Session (rein): Titel, Undo/Redo, readiness (probespielen/teilen)
     document.ts           # Hülle prüfen, loadDocument: Hülle → Typ → migrate → validate
     share.ts              # encode/decode PuzzleDocument <-> URL-Code
-    storage.ts            # IndexedDB-Wrapper (+ In-Memory-Variante für Tests/Fallback), Fortschritt
+    storage.ts            # IndexedDB-Wrapper (+ In-Memory-Variante für Tests/Fallback), Fortschritt, Sync-Markierungen
     grid.ts               # Richtungen, Koordinaten, Raster-Hilfen, Wisch-/Tastenrichtung, Linien (rein)
     search.ts             # generische Breitensuche für Solver (Rush Hour, Eis-Rutschen, Sokoban, Klotski)
     hash.ts               # synchrones SHA-256, Normalisierung von Freitext-Antworten
@@ -87,10 +87,11 @@ src/
     chains.ts             # Rätsel-Ketten: Laden, Fortschritt/Schlösser, Entwurf, Veröffentlichen (M24)
     scores.ts             # Ranglisten: Lösung nachspielen (auch in der Edge Function), laden, Warteschlange (M25)
     daily.ts, day.ts      # Rätsel des Tages: laden, Tagesrangliste, Serie, Planung; Kalendertage rechnen (M26)
+    sync.ts               # Bibliothek und Fortschritt mit dem Konto abgleichen: Zusammenführen, Holen, Senden (M27)
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
-    cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“
+    cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“ (quiz-images und user-images)
     score-handler.ts      # Request-Handler der Edge Function „submit-score“ (M25)
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts, chain.ts, chain-editor.ts …
@@ -807,6 +808,51 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   (`mod_unplan_daily`). Künftige Pläne sind nicht öffentlich: Beide Tabellen sind nur über die Funktionen erreichbar.
   `mod_clear_scores` leert jetzt auch die Tagesranglisten eines Spielers.
 
+### Synchronisierung von Bibliothek und Fortschritt (M27)
+- **Was:** eigene Rätsel und Entwürfe (mit Löschungen), deren Bilder und der Fortschritt (gelöst, beste Züge, beste
+  Zeit je `progressKey`). Nicht: Teilen-Warteschlange, Serie ohne Konto, Einstellungen.
+- **Zusammenführen** (`core/sync.ts`, rein und getestet) Eintrag für Eintrag: Bei Rätseln gewinnt die neuere Änderung
+  (`updatedAt`, gesetzt vom Gerät, das geändert hat; bei Gleichstand bleibt die lokale). Löschen hinterlässt lokal einen
+  Grabstein mit Zeitpunkt, der wie eine Änderung zählt: Eine spätere Bearbeitung auf einem anderen Gerät holt das Rätsel
+  zurück. Beim Fortschritt zählt „irgendwo gelöst“ und, unabhängig voneinander, die wenigsten Züge und die beste Zeit.
+- **Ablauf eines Syncs** (`syncOnce`): erst alles holen, was sich seit dem Cursor geändert hat (`sync_pull`, Seiten zu
+  100), dann die eigenen Änderungen senden (`sync_push`, je 50 Rätsel und 500 Fortschritte, Löschungen zuerst). Vorher
+  lädt er die Bilder der Rätsel hoch, die noch nicht im Konto sind; scheitert ein Upload, wartet das Rätsel auf den
+  nächsten Sync.
+- **Cursor:** Statt `changed_at` vergibt der Server eine Änderungsnummer pro Konto (`sync_state.rev`, `rev` in jeder
+  Zeile). Zeitstempel kommen bei gleichzeitigen Transaktionen nicht in Commit-Reihenfolge an, eine Nummer unter
+  Zeilensperre schon; falsch gehende Geräte-Uhren spielen für den Cursor keine Rolle. `sync_push(known, …)` liefert die
+  neue Nummer als Cursor zurück, wenn das Gerät vorher alles kannte (`known`), sonst `known` – dann holt der nächste Sync
+  auch die eigenen Änderungen noch einmal (ohne Wirkung).
+- **Server** (`0012_sync.sql`): `sync_push` (security definer) setzt nur neuere Stände durch, kappt `updated_at` auf die
+  Server-Zeit (eine vorgehende Uhr gewinnt sonst für immer), überspringt unveränderte Dokumente und unbekannte Löschungen
+  und prüft die Grenzen. Rätsel über einer Grenze kommen als `rejected` zurück und bleiben auf dem Gerät markiert. Lesen
+  nur die eigenen Zeilen (RLS), schreiben nur über die Funktion. Konto löschen entfernt alles per `on delete cascade`.
+- **IndexedDB-Version 3:** Stores `tombstones`, `dirty` („geändert seit dem letzten Sync“, Schlüssel `p:<id>` bzw.
+  `g:<key>` mit einem Stempel) und `meta` (Cursor, letzter Sync und hochgeladene Bilder je Konto unter `sync:<uid>`,
+  dazu `owner`). Lokale Änderungen setzen die Markierung in derselben Transaktion; `clearDirty` entfernt nur
+  Markierungen, deren Stempel sich seit dem Senden nicht geändert hat. Was vom Server kommt, geht durch `applyRemote`
+  (eine Transaktion, ohne Markierung) und vorher durch `loadDocument(…, { draft: true })`; Dokumente einer neueren
+  App-Version werden gespeichert und nach dem Update angezeigt.
+- **Wann:** beim Start, nach der Anmeldung, beim Sichtbarwerden der Seite, bei `online`, 3 s nach dem Speichern und mit
+  „Jetzt synchronisieren“ im Profil (dort auch „zuletzt synchronisiert“, Fehler und abgelehnte Rätsel). Es läuft immer
+  nur ein Sync; Anfragen währenddessen führen zu genau einem weiteren.
+- **Welche Daten zu welchem Konto gehören** (`ownerDecision`): Das Gerät merkt sich das Konto des letzten Syncs. Beim
+  Abmelden bleibt alles auf dem Gerät. Dasselbe Konto synchronisiert einfach weiter; ein Gerät ohne Sync (oder nach dem
+  Löschen des Kontos) übernimmt seine Daten ohne Rückfrage ins Konto. Meldet sich ein anderes Konto an und liegen Daten
+  auf dem Gerät, fragt das Profil: „In mein Konto übernehmen“ oder „Vom Gerät entfernen“ (dann wird das Konto geladen).
+  Bis zur Antwort wird nicht synchronisiert.
+- **Bilder** liegen privat in `user-images/<uid>/<key>` (Storage-Policies: nur der eigene Ordner, lesen, hochladen,
+  ersetzen; höchstens 100 Dateien über `user_image_count()`). Hochgeladen wird mit `x-upsert`, weil gleicher Schlüssel
+  gleiche Bytes heißt. Geladen wird ein Bild erst, wenn es angezeigt wird und lokal fehlt. `cleanup-images` löscht
+  täglich die Ordner gelöschter Konten und Bilder, die keins der synchronisierten Rätsel mehr benutzt und die älter als
+  ein Tag sind. Lässt sich ein Dokument dabei nicht lesen, bleiben alle Bilder dieses Kontos.
+- **Free-Tier** (500 MB Datenbank, 1 GB Storage): Ein Rätsel ist meist 0,5–5 KB groß, ein Fortschritt etwa 150 Byte. Mit
+  typisch 20 Rätseln und 200 Fortschritten sind das rund 100 KB pro Konto, also Platz für einige Tausend Konten. Die
+  Grenzen deckeln den schlimmsten Fall pro Konto: 500 Rätsel × 64 KB = 32 MB Datenbank (2 000 Zeilen mit Grabsteinen,
+  5 000 Fortschritte) und 100 Bilder × 200 KB = 20 MB Storage. Ein Dutzend Konten am Limit würde den Free-Tier sprengen;
+  dann im Dashboard nachsehen (`sync_puzzles` nach Nutzer summieren) und die Grenzen senken.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -835,6 +881,9 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 | `daily` | `day` (Primärschlüssel), `puzzle_id` (null nach Zurückziehen), `planned_by` (null = automatisch), `created_at` | `daily_puzzle()` beim ersten Aufruf des Tages, Moderatoren über `mod_plan_daily` |
 | `daily_scores` | `day`, `user_id` (Primärschlüssel aus beiden), `puzzle_id`, `moves`, `time_ms`, `achieved_at` | Edge Function `submit-score` über `submit_daily`, nur die erste Lösung des Tages |
 | `reports` | `id`, `puzzle_id` oder `chain_id`, `reporter_id`, `reason`, `comment`, `resolved`, `created_at` | angemeldete Nutzer, eine Meldung pro Rätsel bzw. Kette |
+| `sync_state` | `user_id` (Primärschlüssel), `rev` (letzte Änderungsnummer des Kontos) | `sync_push` |
+| `sync_puzzles` | `user_id`, `id` (Primärschlüssel aus beiden), `doc` (null wenn gelöscht), `updated_at` (vom Gerät), `deleted`, `rev`, `changed_at` | `sync_push`, nur neuere Stände; lesen nur der Nutzer selbst |
+| `sync_progress` | `user_id`, `key` (Primärschlüssel aus beiden), `solved`, `best_moves`, `best_time_ms`, `rev`, `changed_at` | `sync_push`, nur bessere Werte; lesen nur der Nutzer selbst |
 
 Zähler (`like_count`, `rating_*`, `report_count`) pflegen Trigger, sodass die Galerie ohne Aggregation sortieren kann.
 Der Spielzähler wird über eine Datenbankfunktion (`register_play`) erhöht, die auch anonym aufrufbar ist.

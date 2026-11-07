@@ -10,6 +10,7 @@ import { segment, sheet, stat } from "../components/ui.ts";
 import { icon } from "../icons.ts";
 import type { IconName } from "../icons.ts";
 import type { ThemeChoice } from "../theme.ts";
+import { timeAgo } from "../time.ts";
 
 export type AccountMode = "signIn" | "signUp" | "reset" | "newPassword";
 
@@ -27,6 +28,18 @@ export type AccountViewModel = {
   editingPublication: string | null; // id (puzzle or chain) with the open edit form
   confirmWithdraw: string | null; // id (puzzle or chain) waiting for confirmation
   panel: AccountPanel | null; // open settings sheet
+  sync: SyncViewModel;
+};
+
+/**
+ * Sync with the account (M27). "choice": another account's data is on this device, nothing syncs until the user
+ * decides. `rejected`: puzzles the server did not take (limits) in the last run.
+ */
+export type SyncViewModel = {
+  status: "off" | "idle" | "running" | "error" | "choice";
+  lastSync: string | null;
+  error: MessageKey | null;
+  rejected: number;
 };
 
 /** Settings that open in a sheet. */
@@ -60,6 +73,9 @@ export type AccountActions = {
   saveChain(id: string, title: string, description: string): Promise<boolean>;
   withdrawChain(id: string): void;
   openPanel(panel: AccountPanel | null): void;
+  syncNow(): void;
+  /** Answer to "choice": take the device's data into the account, or remove it from the device. */
+  resolveSync(choice: "merge" | "replace"): void;
 };
 
 const TITLE: Record<AccountMode, MessageKey> = {
@@ -83,7 +99,11 @@ export function accountView(model: AccountViewModel | null, actions: AccountActi
             ${message(model)} ${authForm(model, actions)}`
       : html`<header class="page-head"><h1>${t("navProfile")}</h1></header>
           <p class="info-box">${icon("info", 18)}<span>${t("accountUnavailable")}</span></p>`}
-    ${signedIn ? html`${message(model)} ${profileSettings(model, actions!)}` : nothing}
+    ${signedIn
+      ? model.sync.status === "choice"
+        ? html`${message(model)} ${syncSection(model, actions!)} ${profileSettings(model, actions!)}`
+        : html`${message(model)} ${profileSettings(model, actions!)} ${syncSection(model, actions!)}`
+      : nothing}
 
     <p class="label settings-label" id="settings-look">${t("profileLook")}</p>
     ${segment(
@@ -152,6 +172,40 @@ function profileSettings(model: AccountViewModel, actions: AccountActions) {
       <li>${row({ text: t("myChains"), value: model.chains?.length ?? "…", onClick: () => actions.openPanel("chains") })}</li>
       ${profile?.isModerator ? html`<li>${row({ text: t("moderationLink"), href: "#/moderation", icon: "shield" })}</li>` : nothing}
     </ul>`;
+}
+
+function syncSection(model: AccountViewModel, actions: AccountActions) {
+  const { sync } = model;
+  if (sync.status === "off") return nothing;
+  if (sync.status === "choice") {
+    return html`<p class="label settings-label">${t("syncTitle")}</p>
+      <section class="box sync-box" aria-label=${t("syncTitle")}>
+        <p class="info-box" role="alert">${icon("info", 18)}<span>${t("syncChoice")}</span></p>
+        <div class="account-actions">
+          <button type="button" @click=${() => actions.resolveSync("merge")}>${t("syncChoiceMerge")}</button>
+          <button type="button" class="secondary danger" @click=${() => actions.resolveSync("replace")}>${t("syncChoiceReplace")}</button>
+        </div>
+        <p class="hint">${t("syncChoiceReplaceHint")}</p>
+      </section>`;
+  }
+  const running = sync.status === "running";
+  return html`<p class="label settings-label">${t("syncTitle")}</p>
+    <section class="box sync-box" aria-label=${t("syncTitle")}>
+      <p class="hint">${t("syncIntro")}</p>
+      <p class="sync-status" role="status">
+        ${icon("refresh", 18)}
+        <span>${running ? t("syncRunning") : lastSyncText(sync.lastSync, Date.now())}</span>
+      </p>
+      ${sync.status === "error" && sync.error ? html`<p class="notice" role="alert">${t("syncFailed", { reason: t(sync.error) })}</p>` : nothing}
+      ${sync.rejected > 0 ? html`<p class="notice">${t("syncRejected", { count: sync.rejected })}</p>` : nothing}
+      <button type="button" class="secondary" ?disabled=${running} @click=${actions.syncNow}>${t("syncNow")}</button>
+    </section>`;
+}
+
+export function lastSyncText(lastSync: string | null, now: number): string {
+  if (lastSync === null) return t("syncNever");
+  if (now - Date.parse(lastSync) < 60_000) return t("syncJustNow");
+  return t("syncLast", { time: timeAgo(lastSync, now) });
 }
 
 function accountActions(model: AccountViewModel, actions: AccountActions) {

@@ -3740,3 +3740,26 @@ a.daily-card:hover {
     margin-top: 1.6rem;
   }
 }
+
+/* Sync with the account (M27) */
+.sync-box {
+  display: grid;
+  gap: var(--kk-space-3);
+  justify-items: start;
+}
+
+.sync-box p {
+  margin: 0;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  font-weight: 600;
+}
+
+.sync-status svg {
+  flex: none;
+  color: var(--kk-muted);
+}
