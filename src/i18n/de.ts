@@ -552,7 +552,7 @@ export const de = {
   imageUnreadable: "Diese Datei lässt sich nicht als Bild lesen.",
   imageTooLarge: "Das Bild lässt sich nicht klein genug speichern (höchstens 200 KB).",
   imageStoreFailed: "Das Bild konnte nicht gespeichert werden.",
-  storageBlocked: "Die App ist noch in einem anderen Fenster oder Tab geöffnet (ältere Version). Bitte schließe es, sonst kann hier nichts gespeichert werden – auch keine Bilder.",
+  storageBlocked: "Die App ist noch in einem anderen Tab oder als installierte App geöffnet (ältere Version). Bitte schließe sie dort – auf dem Handy auch in der Übersicht der geöffneten Apps. Bis dahin kann hier nichts geladen oder gespeichert werden.",
   storageOutdated: "Die App wurde in einem anderen Fenster aktualisiert. Bitte lade diese Seite neu, damit deine Änderungen gespeichert werden.",
   // App shell (design 2026-11)
   navMain: "Hauptnavigation",

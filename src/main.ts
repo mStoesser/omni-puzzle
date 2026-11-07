@@ -106,7 +106,9 @@ type AppState = {
   route: Route;
   pending: boolean; // route content is loading (storage, share link)
   error: ErrorInfo | null; // route content could not be loaded
-  notice: MessageKey | null; // e.g. saving failed
+  notice: MessageKey | null; // e.g. saving failed; cleared when navigating
+  // The database is held by another app instance: stays on every page until resolved, since nothing loads or saves.
+  storageNotice: "storageBlocked" | "storageOutdated" | null;
   play: PlayViewModel | null; // play route or test play from the editor
   editor: EditorState | null; // kept while navigating, so undo history survives test play and back/forward
   share: ShareDialogModel | null;
@@ -168,6 +170,7 @@ const store = createStore<AppState>({
   pending: false,
   error: null,
   notice: null,
+  storageNotice: null,
   play: null,
   editor: null,
   share: null,
@@ -202,11 +205,11 @@ const store = createStore<AppState>({
 });
 
 const storage: Promise<Storage> = openStorage({
-  blocked: () => patch({ notice: "storageBlocked" }),
-  versionChange: () => patch({ notice: "storageOutdated" }),
+  blocked: () => patch({ storageNotice: "storageBlocked" }),
+  versionChange: () => patch({ storageNotice: "storageOutdated" }),
 })
   .then((opened) => {
-    if (store.get().notice === "storageBlocked") patch({ notice: null });
+    if (store.get().storageNotice === "storageBlocked") patch({ storageNotice: null });
     return opened;
   })
   .catch((error: unknown) => {
@@ -2189,6 +2192,7 @@ const navActions = {
 function page(state: AppState) {
   const section = navSection(state.route);
   const content = html`
+    ${state.storageNotice ? html`<p class="notice page-notice" role="alert">${t(state.storageNotice)}</p>` : nothing}
     ${state.notice ? html`<p class="notice page-notice" role="alert">${t(state.notice)}</p>` : nothing}
     ${view(state)}
   `;
