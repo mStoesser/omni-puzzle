@@ -565,8 +565,8 @@ Format unverändert gültig bleibt.
   (Vortag zählt noch, danach abgelaufen), ausgeblendetes Tagesrätsel, leere Galerie, eigenes Rätsel, Planen, Ersetzen,
   Entfernen, ungeeignetes Rätsel.)
 - [x] Datenschutzerklärung ergänzen: Tagesranglisten, Serie, gelöste Tage im `localStorage`.
-- [ ] Migration `0011_daily.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue `submit-score`.
-- [ ] Live testen (Tageswechsel simulieren, leere Galerie, ausgeblendetes Tagesrätsel), Handy-Test.
+- [x] Migration `0011_daily.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue `submit-score`.
+- [x] Live testen (Tageswechsel simulieren, leere Galerie, ausgeblendetes Tagesrätsel), Handy-Test.
 
 ### M27 – Synchronisierung von Bibliothek und Fortschritt
 - [ ] **Entscheidung im Meilenstein:** Was passiert beim Abmelden mit den lokalen Daten (behalten oder vom Gerät löschen)?
