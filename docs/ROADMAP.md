@@ -626,6 +626,55 @@ Format unverändert gültig bleibt.
   Mail-Vorlagen aus `supabase/templates/` im Dashboard eintragen (Betreff mit `{{ if … }}` per Testmail prüfen).
 - [x] Englische Texte gegenlesen (die Texte schreibe ich, du prüfst sie), Handy-Test in beiden Sprachen.
 
+### M29 – Rätsel-Themes: Rollen und vorgefertigte Themes
+Ein Rätsel-Theme (Farben und später Icons des Spielfelds) wählt der **Autor pro Rätsel**; ein geteiltes Rätsel sieht
+bei allen gleich aus. Nicht zu verwechseln mit dem App-Theme hell/dunkel. Themes sind reine Darstellung: Logik, Solver
+und Regeln bleiben unberührt.
+- [ ] Gemeinsame Rollen für alle Typen (z. B. Brett, Linie, Hindernis, Figur, bewegliches Teil, Ziel, erledigt, Akzent);
+  jeder Typ ordnet seine Teile den Rollen zu und nutzt nur die, die er hat. So passt ein Theme auf jeden Typ.
+  Rollen und Zuordnung in `docs/ARCHITEKTUR.md` festhalten.
+- [ ] Plugin-Schnittstelle: Typen melden ihre Rollen (bewusste Core-Erweiterung, Regel 5). Alle 9 Renderer auf
+  Rollen-Paletten umstellen; das `<style>` wird aus der Palette erzeugt statt dreimal pro Typ ausgeschrieben.
+- [ ] Ohne Theme bleibt alles wie heute (Standard, folgt hell/dunkel). Ein gewähltes Theme sieht **immer gleich aus**,
+  auch im Dunkelmodus – wie ein echtes Spielbrett; nur die App drumherum wechselt.
+- [ ] `meta.theme` (optional) in der Hülle, enthält das vollständige Theme (Farben pro Rolle), nicht nur eine ID,
+  damit spätere eigene Themes ohne Formatwechsel dazukommen. Unbekanntes oder Ungültiges fällt still auf den Standard
+  zurück; `format` und `typeVersion` bleiben. Der Inhaltsschlüssel ignoriert `meta`: dasselbe Rätsel in anderem Theme
+  ist ein Duplikat, der Fortschritt bleibt.
+- [ ] Prüfung (rein, getestet): Farbformat, bekannte Rollen, Größe; `server/publish-handler` und `rules.ts` nutzen sie.
+  Keine Migration, die Galerie filtert nicht nach Theme.
+- [ ] Kontrastprüfung (rein, getestet): wichtige Paare (z. B. Ziel/Brett, Teil/Brett, erledigt/Teil) brauchen einen
+  Mindestkontrast. Ein Test prüft damit alle vorgefertigten Themes. Farbe bleibt nie der einzige Unterschied.
+- [ ] Laserfarben (Rot, Grün, Blau) gehören zu den Regeln und werden vorgelesen; sie sind nicht themebar.
+- [ ] 4–6 vorgefertigte Themes, die auf allen Typen funktionieren (z. B. Garten, Nacht, Weltraum, Pastell).
+- [ ] Editor: Auswahl „Theme“ mit kleiner Vorschau im Prüf-Panel. Spiel, Galerie-Karte, Ketten und Tagesrätsel
+  übernehmen das Theme; ein Remix behält es.
+- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, App hell und dunkel.
+- [ ] Live testen: Rätsel mit Theme teilen und veröffentlichen, auf dem Handy öffnen.
+
+### M30 – Eigene Themes im Editor
+- [ ] Theme-Editor: Farbwahl pro Rolle (natives `<input type="color">`), Live-Vorschau am aktuellen Rätsel,
+  ausgehend von einem vorgefertigten Theme.
+- [ ] Kontrastwarnungen live (z. B. „Kiste kaum vom Boden zu unterscheiden“); unter dem Mindestwert ist
+  Veröffentlichen gesperrt, Teilen per Link mit Hinweis.
+- [ ] „Als Theme speichern“: eigene Themes als Vorlagen, zunächst nur auf dem Gerät (IndexedDB); umbenennen, löschen.
+  Die vorgefertigten Themes erscheinen in derselben Liste.
+- [ ] **Entscheidung im Meilenstein:** Eigene Themes synchronisieren (wie M27, bräuchte eine Migration) oder nicht.
+- [ ] Texte in `de.ts` und `en.ts`; Handy-Test.
+
+### M31 – Icon-Katalog
+- [ ] Icons als SVG-Dateien (`src/icons/pieces/<id>.svg`), per Vite `?raw` eingebunden (kein neues Paket, offline da).
+  Regeln: einheitliche `viewBox`, nur Formen, Farben nur „Haupt“ und „Detail“ (färbt das Theme); ein Test prüft jede
+  Datei. Icon-IDs bleiben stabil, der Katalog wächst nur; unbekannte IDs zeigen das Standard-Icon.
+- [ ] Icon-Rollen nur dort, wo die Form keine Spielinformation ist: Sokoban (Figur, Kiste, Ziel), Eis-Rutschen (Figur,
+  Fels, Ziel), Lights Out (Lampe), eventuell Laser-Ziele. Rohre, Spiegel, Nonogramm, Klotski und Ausparken bekommen nur
+  Farben.
+- [ ] `meta.theme` um Icon-IDs pro Icon-Rolle erweitern; die Prüfung kennt den Katalog.
+- [ ] Erste 10–15 Icons; Lizenzen prüfen (z. B. MIT/ISC, bei CC BY Namensnennung im Impressum).
+- [ ] Theme-Editor: Icon-Raster pro Icon-Rolle; vorgefertigte Themes bekommen passende Icons.
+- [ ] Kein Hochladen eigener SVGs (Skripte, Prüfung, Moderation); Rätsel enthalten nur IDs aus dem Katalog.
+- [ ] Ansichten bei 390 und 1280 px, Handy-Test.
+
 ## Phase 4: Ideen aus dem Redesign
 Funktionen aus dem Entwurf (`docs/design-handoff/`), die in M15 bewusst weggelassen wurden.
 Vor dem Umsetzen jeweils entscheiden, ob sie kommen sollen.
