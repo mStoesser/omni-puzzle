@@ -597,9 +597,9 @@ Format unverändert gültig bleibt.
   (Der Aufräumjob löscht außerdem Bilder, die keins der synchronisierten Rätsel mehr benutzt.)
 - [x] Free-Tier abschätzen (500 MB Datenbank, 1 GB Storage) und Grenzen danach festlegen.
   (Rechnung in `docs/ARCHITEKTUR.md`, Abschnitt M27.)
-- [ ] Migration `0012_sync.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue
+- [x] Migration `0012_sync.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue
   `cleanup-images`.
-- [ ] Live testen mit zwei Geräten: gleichzeitige Änderungen, offline ändern, löschen auf einem Gerät, erstes Anmelden
+- [x] Live testen mit zwei Geräten: gleichzeitige Änderungen, offline ändern, löschen auf einem Gerät, erstes Anmelden
   mit vorhandenen lokalen Daten.
 
 ### M28 – Englisch und Sprache pro Rätsel
