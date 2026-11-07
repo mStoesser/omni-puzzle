@@ -21,6 +21,7 @@ import {
   updatePublication,
   withdrawPublication,
 } from "./core/published.ts";
+import type { PublishedPuzzle } from "./core/published.ts";
 import {
   fetchModerationQueue,
   hasReportedChain,
@@ -35,6 +36,8 @@ import {
 } from "./core/moderation.ts";
 import type { ModerationItem } from "./core/moderation.ts";
 import * as chains from "./core/chains.ts";
+import * as dailies from "./core/daily.ts";
+import type { Daily } from "./core/daily.ts";
 import type { ChainDraft } from "./core/chains.ts";
 import type { ReportReason } from "./core/moderation.ts";
 import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
@@ -66,9 +69,10 @@ import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
 import { chainEditorView } from "./ui/views/chain-editor.ts";
 import type { ChainEditorModel } from "./ui/views/chain-editor.ts";
 import { moderationView } from "./ui/views/moderation.ts";
-import type { ModerationViewModel } from "./ui/views/moderation.ts";
+import type { DailyPlanModel, ModerationViewModel } from "./ui/views/moderation.ts";
 import type { GalleryViewModel } from "./ui/views/gallery.ts";
 import { homeView, siteFooter } from "./ui/views/home.ts";
+import type { HomeDaily } from "./ui/views/home.ts";
 import { imprintView } from "./ui/views/imprint.ts";
 import { libraryView } from "./ui/views/library.ts";
 import type { LibraryItem } from "./ui/views/library.ts";
@@ -118,6 +122,8 @@ type AppState = {
   buildSheet: boolean; // type choice for a new puzzle is open
   typeSheet: string | null; // home: type whose levels are shown in a sheet
   theme: ThemeChoice;
+  daily: Daily | "loading" | "failed"; // the puzzle of the day (M26), loaded on the home page and #/daily
+  dailyDays: readonly string[]; // days whose puzzle was solved on this device (streak when signed out)
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -152,6 +158,7 @@ const browserStore: KeyValueStore = {
   },
 };
 const auth = backend ? createAuth(backend, { store: browserStore }) : null;
+const DAILY_DAYS_KEY = "raetsel-daily-days";
 const api = backend && auth ? createApi(backend, { accessToken: auth.accessToken }) : null;
 
 const store = createStore<AppState>({
@@ -187,6 +194,8 @@ const store = createStore<AppState>({
   buildSheet: false,
   typeSheet: null,
   theme: readTheme(),
+  daily: "loading",
+  dailyDays: dailies.parseLocalDays(browserStore.get(DAILY_DAYS_KEY)),
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -224,6 +233,10 @@ function enterRoute(route: Route) {
   switch (route.name) {
     case "home":
       void loadNewest();
+      void loadDaily();
+      break;
+    case "daily":
+      void openDaily(route);
       break;
     case "gallery":
       void openGallery(route);
@@ -342,7 +355,7 @@ function startPlay(
   route: Route,
   raw: unknown,
   origin: PlayOrigin,
-  extra: Pick<PlayViewModel, "localId" | "published" | "backHref"> & { title?: string; images?: ImageSource } = {},
+  extra: Pick<PlayViewModel, "localId" | "published" | "backHref" | "daily"> & { title?: string; images?: ImageSource } = {},
 ): boolean {
   let loaded: { type: AnyPuzzleType; doc: PuzzleDocument };
   try {
@@ -372,6 +385,7 @@ function startPlay(
   if (extra.localId !== undefined) play.localId = extra.localId;
   if (extra.published !== undefined) play.published = extra.published;
   if (extra.backHref !== undefined) play.backHref = extra.backHref;
+  if (extra.daily !== undefined) play.daily = extra.daily;
   patch({ pending: false, play });
   return true;
 }
@@ -383,20 +397,7 @@ async function openPublished(route: Route & { name: "published" }) {
     const puzzle = await fetchPublished(api, route.id);
     if (!isCurrent(route)) return;
     if (!puzzle) return fail(route, { text: "publishedNotFound" });
-    const published: PublishedInfo = {
-      id: puzzle.id,
-      author: puzzle.author,
-      authorId: puzzle.authorId,
-      description: puzzle.description,
-      hidden: puzzle.hidden,
-      likeCount: puzzle.likeCount,
-      ratingSum: puzzle.ratingSum,
-      ratingCount: puzzle.ratingCount,
-      me: null,
-      busy: false,
-      report: null,
-      leaderboard: null,
-    };
+    const published = publishedInfoOf(puzzle);
     // Back to the gallery with the filter the player came from.
     const gallery = store.get().gallery;
     const backHref = formatRoute({ name: "gallery", filter: gallery?.filter ?? DEFAULT_FILTER });
@@ -410,6 +411,82 @@ async function openPublished(route: Route & { name: "published" }) {
     console.warn(error);
     fail(route, { text: apiErrorText(error) });
   }
+}
+
+function publishedInfoOf(puzzle: PublishedPuzzle): PublishedInfo {
+  return {
+    id: puzzle.id,
+    author: puzzle.author,
+    authorId: puzzle.authorId,
+    description: puzzle.description,
+    hidden: puzzle.hidden,
+    likeCount: puzzle.likeCount,
+    ratingSum: puzzle.ratingSum,
+    ratingCount: puzzle.ratingCount,
+    me: null,
+    busy: false,
+    report: null,
+    leaderboard: null,
+  };
+}
+
+// --- Puzzle of the day (M26) ---
+
+/** Loads today's puzzle for the home card; a loaded one stays visible while reloading. */
+async function loadDaily(): Promise<Daily | null> {
+  if (!api) return null;
+  try {
+    const daily = await dailies.fetchDaily(api);
+    patch({ daily });
+    return daily;
+  } catch (error) {
+    console.warn("daily", error);
+    if (typeof store.get().daily === "string") patch({ daily: "failed" });
+    return null;
+  }
+}
+
+/** #/daily plays today's puzzle in place, with the leaderboard of the day. */
+async function openDaily(route: Route & { name: "daily" }) {
+  if (!api) return fail(route, { text: "publishedUnavailable" });
+  patch({ pending: true });
+  try {
+    const daily = await loadDaily();
+    if (!isCurrent(route)) return;
+    if (!daily) return fail(route, { text: "dailyFailed" });
+    const puzzle = daily.puzzle ? await fetchPublished(api, daily.puzzle.id) : null;
+    if (!isCurrent(route)) return;
+    if (!puzzle || puzzle.hidden) return fail(route, { text: "dailyNone", action: { href: "#/gallery", label: "gallery" } });
+    const extra = { title: puzzle.title, published: publishedInfoOf(puzzle), images: publishedImages(puzzle.id), daily: { day: daily.day } };
+    if (startPlay(route, puzzle.doc, "published", extra)) {
+      countPlayOnce(puzzle.id);
+      void loadReaction();
+      openLeaderboard();
+    }
+  } catch (error) {
+    console.warn("daily", error);
+    fail(route, { text: apiErrorText(error) });
+  }
+}
+
+/** Remembers a solved day on this device (the streak when signed out, and until the server knows). */
+function rememberDailyDay(day: string) {
+  const days = dailies.addLocalDay(store.get().dailyDays, day);
+  if (days === store.get().dailyDays) return;
+  patch({ dailyDays: days });
+  browserStore.set(DAILY_DAYS_KEY, JSON.stringify(days));
+}
+
+/** Streak and solved state of today, combining the server and this device. */
+function dailyNow(state: AppState) {
+  return typeof state.daily === "string" ? null : { day: state.daily.day, ...dailies.dailyStatus(state.daily, state.dailyDays) };
+}
+
+function homeDaily(state: AppState): HomeDaily | null {
+  if (!api || state.daily === "failed") return null;
+  if (state.daily === "loading") return { status: "loading" };
+  const now = dailyNow(state)!;
+  return state.daily.puzzle ? { status: "ready", puzzle: state.daily.puzzle, solved: now.solved, streak: now.streak } : { status: "none" };
 }
 
 // --- Likes and ratings ---
@@ -509,11 +586,43 @@ function setModeration(change: Partial<ModerationViewModel>) {
 
 async function openModeration(route: Route & { name: "moderation" }) {
   if (!api) return fail(route, { text: "accountUnavailable" });
-  patch({ moderation: { status: "loading", items: [], message: null, busy: false, confirmDelete: null } });
+  const plan: DailyPlanModel = { status: "loading", days: [], busy: false, message: null };
+  patch({ moderation: { status: "loading", items: [], message: null, busy: false, confirmDelete: null, plan } });
   const { account } = store.get();
   if (account.user && !account.profile) await loadProfile(account.user.id);
   if (!isCurrent(route) || !store.get().account.profile?.isModerator) return;
-  await loadModerationQueue();
+  await Promise.all([loadModerationQueue(), loadDailyPlan()]);
+}
+
+// Puzzle of the day (M26): moderators plan today and the next 14 days.
+
+function setPlan(change: Partial<DailyPlanModel>) {
+  store.set((state) => (state.moderation ? { ...state, moderation: { ...state.moderation, plan: { ...state.moderation.plan, ...change } } } : state));
+}
+
+async function loadDailyPlan() {
+  try {
+    setPlan({ status: "idle", days: await dailies.fetchDailyPlan(api!) });
+  } catch (error) {
+    console.warn("daily plan", error);
+    setPlan({ status: "error", message: { tone: "error", text: apiErrorText(error) } });
+  }
+}
+
+/** Runs one planning action, then reloads the plan. */
+async function planTask(action: () => Promise<void>): Promise<boolean> {
+  if (!api || store.get().moderation?.plan.busy) return false;
+  setPlan({ busy: true, message: null });
+  try {
+    await action();
+    await loadDailyPlan();
+    setPlan({ busy: false, message: { tone: "ok", text: "moderationDone" } });
+    return true;
+  } catch (error) {
+    console.warn("daily plan", error);
+    setPlan({ busy: false, message: { tone: "error", text: dailies.planErrorText(error) } });
+    return false;
+  }
 }
 
 async function loadModerationQueue() {
@@ -550,6 +659,15 @@ const moderationActions = {
   resetName: (userId: string) => void moderate(() => resetUsername(api!, userId)),
   clearScores: (userId: string) => void moderate(() => scores.clearScores(api!, userId)),
   imageUrl: (puzzleId: string, key: string) => (backend ? publishedImageUrl(backend.url, puzzleId, key) : null),
+  planDaily: async (day: string, link: string) => {
+    const id = chains.puzzleIdFromLink(link);
+    if (!id) {
+      setPlan({ message: { tone: "error", text: "chainLinkInvalid" } });
+      return false;
+    }
+    return planTask(() => dailies.planDaily(api!, day, id));
+  },
+  unplanDaily: (day: string) => void planTask(() => dailies.unplanDaily(api!, day)),
 };
 
 // Plays are counted once per device and puzzle; the ids are remembered in localStorage.
@@ -594,7 +712,8 @@ function updateSession(change: (s: AnyPlaySession) => AnyPlaySession, options: {
     const record = recordSolve(state.progress.get(play.progressKey), play.progressKey, session.moveCount(next), timeMs);
     patch({ play, progress: new Map(state.progress).set(record.key, record) });
     void save(async (s) => s.putProgress(record));
-    if (play.published?.leaderboard) void submitResult(play.published.id, session.path(next), timeMs);
+    if (play.daily) rememberDailyDay(play.daily.day);
+    if (play.published?.leaderboard) void submitResult(play.published.id, session.path(next), timeMs, play.daily?.day);
     return;
   }
   patch({ play });
@@ -655,20 +774,31 @@ function setLeaderboard(change: Partial<LeaderboardModel>, puzzleId: string) {
   });
 }
 
-/** After a published puzzle was opened: a leaderboard if its type has one. */
+/** After a published puzzle was opened: a leaderboard if its type has one; the day's one for the puzzle of the day. */
 function openLeaderboard() {
   const play = store.get().play;
   const ranking = play?.session.type.ranking;
   if (!play?.published || !ranking) return;
-  const leaderboard: LeaderboardModel = { ranking, board: null, error: null, submit: { status: "idle" }, confirmClear: null, busy: false };
+  const leaderboard: LeaderboardModel = {
+    ranking,
+    day: play.daily?.day ?? null,
+    board: null,
+    error: null,
+    submit: { status: "idle" },
+    confirmClear: null,
+    busy: false,
+  };
   setPublished({ leaderboard }, play.published.id);
   void loadLeaderboard(play.published.id);
 }
 
+/** (Re)loads the leaderboard shown for the open puzzle. */
 async function loadLeaderboard(puzzleId: string) {
-  if (!api) return;
+  const published = store.get().play?.published;
+  if (!api || published?.id !== puzzleId || !published.leaderboard) return;
+  const { day } = published.leaderboard;
   try {
-    const board = await scores.fetchLeaderboard(api, puzzleId);
+    const board = day ? await dailies.fetchDailyLeaderboard(api, day) : await scores.fetchLeaderboard(api, puzzleId);
     setLeaderboard({ board, error: null }, puzzleId);
   } catch (error) {
     console.warn("leaderboard", error);
@@ -683,17 +813,21 @@ function leaderboardViewer(published: PublishedInfo, state: AppState): Leaderboa
   return profile?.isModerator ? "moderator" : "player";
 }
 
-/** Sends a solution of the open puzzle; offline it waits in the queue. Signed out and own puzzles only get a hint. */
-async function submitResult(puzzleId: string, moves: unknown[], timeMs: number) {
+/**
+ * Sends a solution of the open puzzle; offline it waits in the queue. Signed out and own puzzles only get a hint;
+ * the author's solution of the puzzle of the day is still sent, for the streak.
+ */
+async function submitResult(puzzleId: string, moves: unknown[], timeMs: number, daily: string | undefined) {
   const state = store.get();
   const published = state.play?.published;
   const user = state.account.user;
-  if (!api || !published || !user || published.authorId === user.id) return;
+  if (!api || !published || !user || (published.authorId === user.id && !daily)) return;
   const request: scores.ScoreRequest = { puzzle: puzzleId, moves, timeMs };
+  if (daily) request.daily = daily;
   setLeaderboard({ submit: { status: "sending" } }, puzzleId);
   try {
-    const { improved } = await scores.submitScore(api, request);
-    setLeaderboard({ submit: { status: "done", improved } }, puzzleId);
+    const result = await scores.submitScore(api, request);
+    setLeaderboard({ submit: submitDone(result) }, puzzleId);
     await loadLeaderboard(puzzleId);
   } catch (error) {
     console.warn("submit score", error);
@@ -718,6 +852,10 @@ function writeQueue(queue: scores.PendingScore[]) {
   else browserStore.set(SCORE_QUEUE_KEY, JSON.stringify(queue));
 }
 
+function submitDone(result: scores.ScoreResult): LeaderboardModel["submit"] {
+  return result.daily ? { status: "done", improved: result.improved, daily: result.daily } : { status: "done", improved: result.improved };
+}
+
 let flushing = false;
 async function flushScoreQueue() {
   const user = store.get().account.user;
@@ -725,9 +863,10 @@ async function flushScoreQueue() {
   flushing = true;
   try {
     for (const item of readQueue().filter((q) => q.userId === user.id)) {
-      let improved = false;
+      let result: scores.ScoreResult = { improved: false };
       try {
-        ({ improved } = await scores.submitScore(api, { puzzle: item.puzzle, moves: item.moves, timeMs: item.timeMs }));
+        const { userId: _, ...request } = item;
+        result = await scores.submitScore(api, request);
       } catch (error) {
         if (scores.isRetryable(error)) return; // still offline: try again later
         console.warn("queued score refused", error); // dropped, like a refused direct submission
@@ -736,7 +875,7 @@ async function flushScoreQueue() {
       writeQueue(readQueue().filter((q) => JSON.stringify(q) !== sent));
       const published = store.get().play?.published;
       if (published?.id === item.puzzle && published.leaderboard) {
-        if (published.leaderboard.submit.status === "queued") setLeaderboard({ submit: { status: "done", improved } }, item.puzzle);
+        if (published.leaderboard.submit.status === "queued") setLeaderboard({ submit: submitDone(result) }, item.puzzle);
         void loadLeaderboard(item.puzzle);
       }
     }
@@ -945,20 +1084,7 @@ async function openChainStep(route: Route & { name: "chain" }, model: ChainViewM
   const puzzle = await fetchPublished(api!, step.puzzle);
   if (!isCurrent(route)) return;
   if (!puzzle || puzzle.hidden) return back();
-  const published: PublishedInfo = {
-    id: puzzle.id,
-    author: puzzle.author,
-    authorId: puzzle.authorId,
-    description: puzzle.description,
-    hidden: puzzle.hidden,
-    likeCount: puzzle.likeCount,
-    ratingSum: puzzle.ratingSum,
-    ratingCount: puzzle.ratingCount,
-    me: null,
-    busy: false,
-    report: null,
-    leaderboard: null,
-  };
+  const published = publishedInfoOf(puzzle);
   const extra = { title: puzzle.title, published, backHref: chainOverview(route.id), images: publishedImages(puzzle.id) };
   if (!startPlay(route, puzzle.doc, "published", extra)) return;
   // After solving: the next available step, or the closing screen on the overview.
@@ -1638,6 +1764,7 @@ function onSession(session: Session | null) {
     void loadReaction();
     if (published.leaderboard) void loadLeaderboard(published.id); // "is me" depends on the user
   }
+  if (route.name === "home" || route.name === "daily") void loadDaily(); // solved and streak are the user's
   if (user) void flushScoreQueue();
 }
 
@@ -1772,6 +1899,7 @@ function view(state: AppState) {
         solvedExamples: new Set(solved.map((e) => e.id)),
         account: { ...navAccount(state), username: state.account.user ? (state.account.profile?.username ?? null) : null },
         gallery,
+        daily: homeDaily(state),
         typeSheet: state.typeSheet,
       };
       return homeView(model, homeActions);
@@ -1805,15 +1933,21 @@ function view(state: AppState) {
     // falls through
     case "play":
     case "shared":
-    case "published": {
+    case "published":
+    case "daily": {
       if (!state.play) return messageView(t("puzzleNotFound"));
-      const { published } = state.play;
+      const { published, daily } = state.play;
       let play = published
         ? {
             ...state.play,
             published: { ...published, access: reactionAccess(published, state.account.user), viewer: leaderboardViewer(published, state) },
           }
         : state.play;
+      if (daily) {
+        // The streak only shows for today's puzzle; after midnight the open puzzle may be yesterday's.
+        const now = dailyNow(state);
+        play = { ...play, daily: now?.day === daily.day ? { ...daily, streak: now.streak } : daily };
+      }
       if (play.origin === "example" && state.route.name === "play") play = { ...play, levels: exampleLevels(state, state.route.id) };
       return playView(play, playStats(state), playActions);
     }
@@ -1863,6 +1997,7 @@ function navSection(route: Route): NavSection | "focus" {
     case "play":
     case "shared":
     case "published":
+    case "daily":
     case "new":
     case "edit":
       return "focus";

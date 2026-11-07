@@ -2,11 +2,12 @@ import { html, nothing } from "lit-html";
 import { formatRoute } from "../../core/router.ts";
 import { DEFAULT_FILTER } from "../../core/gallery.ts";
 import type { GalleryItem } from "../../core/gallery.ts";
+import type { DailyPuzzle } from "../../core/daily.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { galleryTile } from "../components/gallery-card.ts";
 import { avatar } from "../components/nav.ts";
 import type { NavAccount } from "../components/nav.ts";
-import { sheet, typeTile, typeVars } from "../components/ui.ts";
+import { sheet, statusBadge, typeBadge, typeTile, typeVars } from "../components/ui.ts";
 import { icon, logo } from "../icons.ts";
 import { t } from "../../i18n/t.ts";
 import type { Example } from "../../puzzles/index.ts";
@@ -17,12 +18,19 @@ export type HomeAccount = NavAccount & { username: string | null };
 /** The newest published puzzles (empty while loading or on errors); `solved` checks local progress by content key. */
 export type HomeGallery = { newest: readonly GalleryItem[]; solved(contentKey: string): boolean };
 
+/** The puzzle of the day (M26); `solved` and `streak` from the server or this device (dailyStatus). */
+export type HomeDaily =
+  | { status: "loading" }
+  | { status: "none" } // nothing to choose from (empty gallery)
+  | { status: "ready"; puzzle: DailyPuzzle; solved: boolean; streak: number };
+
 export type HomeViewModel = {
   types: readonly AnyPuzzleType[];
   examples: readonly Example[];
   solvedExamples: ReadonlySet<string>; // ids of solved examples
   account: HomeAccount;
   gallery: HomeGallery | null; // null = no backend
+  daily: HomeDaily | null; // null = no backend, or it could not be loaded (offline)
   typeSheet: string | null; // type whose levels are shown in a sheet (phones)
 };
 
@@ -46,7 +54,7 @@ export function homeView(model: HomeViewModel, actions: HomeViewActions) {
       <h1>${t("homeHeadline")}</h1>
     </div>
 
-    <div class="home-top">${buildCard(types, actions)}</div>
+    <div class="home-top ${model.daily ? "with-daily" : ""}">${model.daily ? dailyCard(model.daily, types) : nothing}${buildCard(types, actions)}</div>
 
     <section aria-labelledby="home-types">
       <div class="section-head">
@@ -73,6 +81,38 @@ export function homeView(model: HomeViewModel, actions: HomeViewActions) {
 
 function examplesOf(type: AnyPuzzleType, examples: readonly Example[]) {
   return examples.filter((e) => e.doc.type === type.id);
+}
+
+/** The puzzle of the day: type, level, solved, and the streak. The whole card leads to #/daily. */
+function dailyCard(daily: HomeDaily, types: readonly AnyPuzzleType[]) {
+  const head = html`<span class="daily-card-kicker">${icon("calendar", 16)}${t("dailyTitle")}</span>`;
+  if (daily.status !== "ready") {
+    return html`<section class="daily-card" aria-label=${t("dailyTitle")}>
+      ${head}
+      <p class="daily-card-text" role=${daily.status === "loading" ? "status" : nothing}>
+        ${t(daily.status === "loading" ? "loading" : "dailyNone")}
+      </p>
+    </section>`;
+  }
+  const { puzzle, solved, streak } = daily;
+  const type = types.find((x) => x.id === puzzle.type);
+  return html`<a class="daily-card typed" style=${typeVars(type)} href="#/daily">
+    ${head}
+    <span class="daily-card-main">
+      ${typeTile(type)}
+      <span class="daily-card-body">
+        <span class="daily-card-title">${puzzle.title}</span>
+        <span class="daily-card-badges">
+          ${typeBadge(type, puzzle.type, false)}${puzzle.level ? html`<span class="badge">${t(`level${puzzle.level}`)}</span>` : nothing}
+          ${solved ? statusBadge("solved") : nothing}
+        </span>
+      </span>
+    </span>
+    <span class="daily-card-foot">
+      <span class="daily-card-streak">${streak > 0 ? html`${icon("flame", 16)}${t(streak === 1 ? "dailyStreakOne" : "dailyStreak", { count: streak })}` : t("dailyStreakNone")}</span>
+      <span class="daily-card-go">${t(solved ? "dailyAgain" : "dailyPlay")}${icon("chevronRight", 16)}</span>
+    </span>
+  </a>`;
 }
 
 /** "Build your own": banner on phones (opens the type choice), card with type chips on desktop. */

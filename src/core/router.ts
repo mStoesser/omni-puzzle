@@ -9,6 +9,7 @@ export type Route =
   | { name: "privacy" }
   | { name: "account" }
   | { name: "moderation" }
+  | { name: "daily" } // the puzzle of the day (M26), whichever it is today
   | { name: "shared"; code: string }
   | { name: "new"; type: string }
   | { name: "edit"; id: string }
@@ -45,6 +46,7 @@ export function parseRoute(hash: string): Route {
     if (head === "datenschutz") return { name: "privacy" };
     if (head === "account") return { name: "account" };
     if (head === "moderation") return { name: "moderation" };
+    if (head === "daily") return { name: "daily" };
     return HOME;
   }
   switch (head) {
@@ -83,6 +85,8 @@ export function formatRoute(route: Route): string {
       return "#/account";
     case "moderation":
       return "#/moderation";
+    case "daily":
+      return "#/daily";
     case "shared":
       return `#/p/${route.code}`;
     case "new":

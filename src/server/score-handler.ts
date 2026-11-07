@@ -1,10 +1,13 @@
 import { DocumentError, loadDocument } from "../core/document.ts";
 import { SCORE, ScoreError, checkSolution, parseScoreRequest } from "../core/scores.ts";
+import type { DailyOutcome } from "../core/scores.ts";
 import { rulesRegistry } from "../puzzles/rules.ts";
 
 // Request handler of the Edge Function "submit-score" (supabase/functions/submit-score/index.ts), runtime-neutral like
 // publish-handler.ts. It replays the moves of a solution on the published puzzle, counts them itself and stores the
 // result via submit_score() (supabase/migrations/0010_scores.sql). The time is only checked for plausibility.
+// Solutions of the puzzle of the day (M26, `daily` in the request) also go to submit_daily() (0011_daily.sql); authors
+// get no leaderboard entry there either, but their streak goes on.
 
 export type ScoreEnv = {
   url: string;
@@ -19,7 +22,7 @@ export type ScoreFailure =
   | "unauthorized"
   | "too-large"
   | "not-found" // unknown or hidden puzzle
-  | "own" // authors do not enter their own leaderboards
+  | "own" // authors do not enter their own leaderboards (except the streak of the puzzle of the day)
   | "no-ranking" // the type has no leaderboard (quiz)
   | "banned"
   | "server";
@@ -85,7 +88,8 @@ async function handle(request: Request, env: ScoreEnv): Promise<Response> {
   if (!puzzleResponse.ok) throw new Error(`puzzle lookup ${puzzleResponse.status}`);
   const puzzle = ((await puzzleResponse.json()) as PuzzleRow[])[0];
   if (!puzzle || puzzle.hidden) return failure(404, "not-found");
-  if (puzzle.author_id === user.id) return failure(403, "own");
+  const own = puzzle.author_id === user.id;
+  if (own && score.daily === undefined) return failure(403, "own");
 
   let loaded;
   try {
@@ -106,19 +110,37 @@ async function handle(request: Request, env: ScoreEnv): Promise<Response> {
     throw error;
   }
 
-  const insert = await doFetch(`${env.url}/rest/v1/rpc/submit_score`, {
-    method: "POST",
-    headers: { ...service, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      player: user.id,
-      puzzle: score.puzzle,
-      move_count: type.ranking === "moves" ? moves : null, // ranked by time only: moves say nothing
-      duration_ms: score.timeMs,
-    }),
-  });
-  if (insert.ok) return json(200, { improved: (await insert.json()) === true });
-  const body = (await insert.json().catch(() => ({}))) as { code?: unknown };
-  if (body.code === "PT403") return failure(403, "banned");
-  console.error("submit_score failed", insert.status, body);
-  return failure(500, "server");
+  const result = {
+    player: user.id,
+    puzzle: score.puzzle,
+    move_count: type.ranking === "moves" ? moves : null, // ranked by time only: moves say nothing
+    duration_ms: score.timeMs,
+  };
+  const rpc = async (name: string, body: Record<string, unknown>): Promise<{ value: unknown } | Response> => {
+    const response = await doFetch(`${env.url}/rest/v1/rpc/${name}`, {
+      method: "POST",
+      headers: { ...service, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (response.ok) return { value: await response.json() };
+    const error = (await response.json().catch(() => ({}))) as { code?: unknown };
+    if (error.code === "PT403") return failure(403, "banned");
+    console.error(`${name} failed`, response.status, error);
+    return failure(500, "server");
+  };
+
+  let daily: DailyOutcome | undefined;
+  if (score.daily !== undefined) {
+    const stored = await rpc("submit_daily", { ...result, for_day: score.daily });
+    if (stored instanceof Response) return stored;
+    if (stored.value !== "recorded" && stored.value !== "repeat" && stored.value !== "expired") {
+      throw new Error(`submit_daily returned ${JSON.stringify(stored.value)}`);
+    }
+    daily = stored.value;
+  }
+  if (own) return json(200, { improved: false, daily });
+
+  const stored = await rpc("submit_score", result);
+  if (stored instanceof Response) return stored;
+  return json(200, daily === undefined ? { improved: stored.value === true } : { improved: stored.value === true, daily });
 }

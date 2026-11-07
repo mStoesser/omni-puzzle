@@ -86,6 +86,7 @@ src/
     gallery.ts            # Galerie-Abfragen: Filter, Sortierung, Keyset-Pagination, Filter in der Route
     chains.ts             # Rätsel-Ketten: Laden, Fortschritt/Schlösser, Entwurf, Veröffentlichen (M24)
     scores.ts             # Ranglisten: Lösung nachspielen (auch in der Edge Function), laden, Warteschlange (M25)
+    daily.ts, day.ts      # Rätsel des Tages: laden, Tagesrangliste, Serie, Planung; Kalendertage rechnen (M26)
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
@@ -776,6 +777,36 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   (`raetsel-score-queue`, höchstens 10) und wird beim Start, bei `online` und nach der Anmeldung gesendet – nur für das
   Konto, mit dem gelöst wurde.
 
+### Rätsel des Tages (M26)
+- **Welcher Tag:** Der Tag wechselt um Mitternacht deutscher Zeit (`daily_today()`, Europe/Berlin), für alle gleich. Die
+  App rechnet nie mit der Uhr des Geräts, sondern übernimmt den Tag aus der Antwort des Servers.
+- **Auswahl ohne Cron-Job** (`0011_daily.sql`): `daily_puzzle()` (anonym aufrufbar, per POST, weil sie schreibt) liefert
+  das Rätsel des heutigen Tags und wählt beim ersten Aufruf des Tages eins (`pick_daily`): sichtbar, Autor nicht gesperrt,
+  ein Typ mit Rangliste (die Typen ohne stehen als Liste im SQL, ein Test vergleicht sie mit `rules.ts`). Zuerst Rätsel,
+  die noch nie dran waren, dann solche eines anderen Typs als gestern, dann die meistgelikten und meistgespielten. Sind
+  alle schon dran gewesen, kommt das zurück, dessen Tag am längsten her ist. Gleichzeitige erste Aufrufe sind über den
+  Primärschlüssel `day` abgesichert (`on conflict do nothing`). Ist das heutige Rätsel ausgeblendet oder zurückgezogen
+  (`puzzle_id` wird dann `null`), wählt der nächste Aufruf neu; ersetzt wird nur, wenn niemand dazwischen ersetzt hat.
+  In einer leeren Galerie liefert die Funktion eine Zeile ohne Rätsel.
+- **Tagesrangliste:** Lösungen unter `#/daily` schickt die App mit `daily: <Tag>` an `submit-score`. Die Function spielt
+  sie wie in M25 nach und ruft zusätzlich `submit_daily` auf: Nur die erste Lösung des Tages zählt (`repeat` danach). Der
+  Vortag zählt noch, damit wer kurz vor Mitternacht anfängt, nicht leer ausgeht; älter oder ein inzwischen ersetztes
+  Rätsel gibt `expired`. Das Ergebnis geht außerdem in die normale Rangliste. Autoren bekommen bei ihrem eigenen Rätsel
+  des Tages keinen Ranglisten-Eintrag, die Serie zählt aber. `daily_leaderboard(day)` wie `leaderboard()`, nur für die
+  Ergebnisse zum aktuellen Rätsel des Tages.
+- **Serie:** Tage am Stück mit Eintrag in `daily_scores`, bis heute oder – solange heute noch offen ist – bis gestern
+  (`daily_streak`, mitgeliefert von `daily_puzzle()`). Ohne Konto zählen die auf dem Gerät gelösten Tage
+  (`localStorage` `raetsel-daily-days`, höchstens 400). Angemeldet zählt der Server; eine heutige Lösung, die noch in der
+  Warteschlange steckt, rechnet `dailyStatus` dazu.
+- **Ansichten:** Karte „Rätsel des Tages“ auf der Startseite (Typ, Stufe, gelöst, Serie). `#/daily` spielt das heutige
+  Rätsel an Ort und Stelle (die Route bleibt, ein Neuladen holt das Rätsel des Tages neu) mit der Tagesrangliste daneben
+  und der Serie im Gelöst-Dialog.
+- **Moderation:** Oben in der Moderationsansicht heute und die nächsten 14 Tage (`mod_daily_plan`). Ein Galerie-Link
+  plant ein Rätsel für einen Tag (`mod_plan_daily`); heute zu planen ersetzt das heutige Rätsel. Ergebnisse zum alten
+  bleiben für die Serie erhalten, verschwinden aber aus der Tagesrangliste. Geplante künftige Tage lassen sich entfernen
+  (`mod_unplan_daily`). Künftige Pläne sind nicht öffentlich: Beide Tabellen sind nur über die Funktionen erreichbar.
+  `mod_clear_scores` leert jetzt auch die Tagesranglisten eines Spielers.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -801,6 +832,8 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 | `ratings` | `user_id`, `puzzle_id`, `value` 1–5 | angemeldete Nutzer, nicht für eigene Rätsel |
 | `chains` | `id`, `author_id`, `title`, `description`, `steps` (jsonb), `outro`, `hidden`, `play_count`, `report_count`, `published_at` | Funktion `publish_chain`; Autor nur Titel/Beschreibung/Löschen |
 | `scores` | `puzzle_id`, `user_id` (Primärschlüssel aus beiden), `moves` (null bei Rangliste nach Zeit), `time_ms`, `achieved_at` | Edge Function `submit-score` über `submit_score`, nur bessere Ergebnisse |
+| `daily` | `day` (Primärschlüssel), `puzzle_id` (null nach Zurückziehen), `planned_by` (null = automatisch), `created_at` | `daily_puzzle()` beim ersten Aufruf des Tages, Moderatoren über `mod_plan_daily` |
+| `daily_scores` | `day`, `user_id` (Primärschlüssel aus beiden), `puzzle_id`, `moves`, `time_ms`, `achieved_at` | Edge Function `submit-score` über `submit_daily`, nur die erste Lösung des Tages |
 | `reports` | `id`, `puzzle_id` oder `chain_id`, `reporter_id`, `reason`, `comment`, `resolved`, `created_at` | angemeldete Nutzer, eine Meldung pro Rätsel bzw. Kette |
 
 Zähler (`like_count`, `rating_*`, `report_count`) pflegen Trigger, sodass die Galerie ohne Aggregation sortieren kann.
@@ -819,6 +852,7 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/c/<id>` | Kette: Übersicht mit Schritten, Abschluss |
 | `#/c/<id>/<n>` | Schritt n einer Kette spielen |
 | `#/chain/new` | Ketten-Editor (angemeldet) |
+| `#/daily` | das heutige Rätsel des Tages mit Tagesrangliste (M26) |
 
 ### Rechtliches
 Vor dem Livegang mit Backend: Datenschutzerklärung (Hosting, Supabase mit AV-Vertrag, Mailanbieter, gespeicherte Daten,

@@ -13,8 +13,13 @@ const solution = (rulesRegistry.get("rushhour")!.solve!(rushHour.data, { maxNode
 type Call = { url: string; init: RequestInit };
 type Row = { type: string; doc: unknown; author_id: string; hidden: boolean };
 
-/** Fake Supabase: Auth knows the token "good" (user u1), the puzzle lookup returns `rows`, the RPC answers with `rpc`. */
-function backend(rows: Row[], rpc: { status: number; body: unknown } = { status: 200, body: true }, calls: Call[] = []): typeof fetch {
+type Answer = { status: number; body: unknown };
+
+/**
+ * Fake Supabase: Auth knows the token "good" (user u1), the puzzle lookup returns `rows`, the RPCs answer with `rpc`
+ * (or what it returns for the function's name).
+ */
+function backend(rows: Row[], rpc: Answer | ((name: string) => Answer) = { status: 200, body: true }, calls: Call[] = []): typeof fetch {
   return (async (url: string | URL, init: RequestInit = {}) => {
     calls.push({ url: String(url), init });
     if (String(url).endsWith("/auth/v1/user")) {
@@ -22,7 +27,8 @@ function backend(rows: Row[], rpc: { status: number; body: unknown } = { status:
       return auth === "Bearer good" ? Response.json({ id: "u1" }) : Response.json({ msg: "bad jwt" }, { status: 401 });
     }
     if (String(url).includes("/rest/v1/puzzles?")) return Response.json(rows);
-    return Response.json(rpc.body, { status: rpc.status });
+    const answer = typeof rpc === "function" ? rpc(String(url).split("/rpc/")[1]!) : rpc;
+    return Response.json(answer.body, { status: answer.status });
   }) as typeof fetch;
 }
 
@@ -108,4 +114,55 @@ test("answers CORS preflights and refuses other methods", async () => {
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get("Access-Control-Allow-Methods"), "POST, OPTIONS");
   assert.equal((await handleScore(new Request(URL_, { method: "GET" }), env(backend([])))).status, 405);
+});
+
+// --- Puzzle of the day (M26) ---
+
+const daily = (outcome: unknown) => (name: string): Answer =>
+  name === "submit_daily" ? { status: 200, body: outcome } : { status: 200, body: true };
+
+test("a solution of the puzzle of the day goes to submit_daily and to the normal leaderboard", async () => {
+  const calls: Call[] = [];
+  const response = await handleScore(
+    post({ puzzle: PUZZLE, moves: solution, timeMs: 4200, daily: "2026-11-07" }),
+    env(backend([row()], daily("recorded"), calls)),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { improved: true, daily: "recorded" });
+  const rpcs = calls.filter((c) => c.url.includes("/rpc/"));
+  assert.deepEqual(rpcs.map((c) => c.url.split("/rpc/")[1]), ["submit_daily", "submit_score"]);
+  assert.deepEqual(JSON.parse(String(rpcs[0]!.init.body)), {
+    player: "u1",
+    puzzle: PUZZLE,
+    move_count: solution.length,
+    duration_ms: 4200,
+    for_day: "2026-11-07",
+  });
+});
+
+test("the author of the puzzle of the day keeps the streak, but enters no leaderboard", async () => {
+  const calls: Call[] = [];
+  const response = await handleScore(
+    post({ puzzle: PUZZLE, moves: solution, timeMs: 4200, daily: "2026-11-07" }),
+    env(backend([row({ author_id: "u1" })], daily("recorded"), calls)),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { improved: false, daily: "recorded" });
+  assert.ok(!calls.some((c) => c.url.endsWith("/rpc/submit_score")));
+});
+
+test("checks the day of the puzzle of the day and the answer of submit_daily", async () => {
+  const send = async (body: unknown, rpc: Answer | ((name: string) => Answer)) => {
+    const response = await handleScore(post(body), env(backend([row()], rpc)));
+    return `${response.status} ${JSON.stringify(await response.json())}`;
+  };
+  const ok = { puzzle: PUZZLE, moves: solution, timeMs: 1000 };
+  assert.equal(await send({ ...ok, daily: "2026-02-30" }, daily("recorded")), '400 {"error":"invalid-request"}');
+  assert.equal(await send({ ...ok, daily: "heute" }, daily("recorded")), '400 {"error":"invalid-request"}');
+  assert.equal(await send({ ...ok, daily: "2026-11-06" }, daily("expired")), '200 {"improved":true,"daily":"expired"}');
+  assert.equal(await send({ ...ok, daily: "2026-11-06" }, daily("strange")), '500 {"error":"server"}');
+  assert.equal(
+    await send({ ...ok, daily: "2026-11-06" }, { status: 403, body: { code: "PT403", message: "banned" } }),
+    '403 {"error":"banned"}',
+  );
 });

@@ -33,6 +33,8 @@ export type PlayViewModel = {
   level?: { index: number; total: number }; // position among the examples of its type (1-based)
   next?: { href: string; title: string; label?: string }; // the following example or chain step; `label` replaces the button text
   chain?: { story: string }; // a step of a chain: the text before the puzzle
+  /** Played as the puzzle of `day` (M26); `streak` (days in a row) is computed when rendering. */
+  daily?: { day: string; streak?: number };
   levels?: readonly PlayLevel[]; // all examples of the type, shown beside the board on desktop
   timer: Timer; // play time of this attempt
 };
@@ -97,7 +99,7 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
         : iconButton({ label: t("back"), icon: "chevronLeft", href: model.backHref ?? (model.origin === "own" ? "#/library" : "#/") })}
       <div class="play-title typed" style=${typeVars(type)}>
         <span class="play-kicker"
-          >${model.chain ? `${t("chainKicker")} · ` : nothing}${t(type.name)}${level
+          >${model.chain ? `${t("chainKicker")} · ` : nothing}${model.daily ? `${t("dailyKicker")} · ` : nothing}${t(type.name)}${level
             ? html` · <span class="level-short">${level.index} / ${level.total}</span
                 ><span class="level-long">${t(model.chain ? "chainStepOf" : "playLevelOf", { index: level.index, total: level.total })}</span>`
             : nothing}</span
@@ -263,6 +265,10 @@ function rating(info: PublishedInfo, actions: PlayViewActions) {
   </fieldset>`;
 }
 
+export function streakLine(days: number) {
+  return html`<p class="daily-streak">${icon("flame", 18)}${t(days === 1 ? "dailyStreakOne" : "dailyStreak", { count: days })}</p>`;
+}
+
 function solvedSubline(moves: number | null, minMoves: number | null) {
   if (moves === null) return t("solvedText");
   if (minMoves !== null) return moves <= minMoves ? t("solvedOptimal") : t("solvedNotOptimal", { moves, min: minMoves });
@@ -302,6 +308,7 @@ function solvedSheet(moves: number | null, model: PlayViewModel, stats: PlayStat
               ${test ? nothing : stat(t("playBestTime"), formatDuration(Math.min(stats.bestTimeMs ?? stats.timeMs, stats.timeMs)))}
             </div>`
           : nothing}
+      ${model.daily?.streak ? streakLine(model.daily.streak) : nothing}
       ${info?.leaderboard ? leaderboardOutcome(info.leaderboard, info.viewer ?? "signed-out", actions.leaderboard) : nothing}
       ${info
         ? html`<div class="like-row box">

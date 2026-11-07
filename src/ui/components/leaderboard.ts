@@ -1,6 +1,6 @@
 import { html, nothing } from "lit-html";
 import { myEntry } from "../../core/scores.ts";
-import type { Leaderboard, LeaderboardEntry } from "../../core/scores.ts";
+import type { DailyOutcome, Leaderboard, LeaderboardEntry } from "../../core/scores.ts";
 import { formatDuration } from "../../core/timer.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
@@ -9,12 +9,13 @@ import type { MessageKey } from "../../i18n/t.ts";
 export type SubmitState =
   | { status: "idle" } // not solved yet in this session
   | { status: "sending" }
-  | { status: "done"; improved: boolean }
+  | { status: "done"; improved: boolean; daily?: DailyOutcome } // `daily`: played as the puzzle of the day
   | { status: "queued" } // offline: sent later
   | { status: "error"; text: MessageKey };
 
 export type LeaderboardModel = {
   ranking: "moves" | "time";
+  day: string | null; // M26: the leaderboard of this day (puzzle of the day, first solutions only); null = all time
   board: Leaderboard | null; // null = loading or failed
   error: MessageKey | null;
   submit: SubmitState;
@@ -78,8 +79,10 @@ function hint(viewer: LeaderboardViewer) {
 /** Beside the board: the leaderboard of the puzzle. */
 export function leaderboardSection(model: LeaderboardModel, viewer: LeaderboardViewer, actions: LeaderboardActions) {
   return html`<section class="box leaderboard" aria-labelledby="leaderboard-title">
-    <h2 id="leaderboard-title">${t("leaderboardTitle")}</h2>
-    <p class="hint">${t(model.ranking === "time" ? "leaderboardByTime" : "leaderboardByMoves")}</p>
+    <h2 id="leaderboard-title">${t(model.day ? "dailyLeaderboardTitle" : "leaderboardTitle")}</h2>
+    <p class="hint">
+      ${t(model.ranking === "time" ? "leaderboardByTime" : "leaderboardByMoves")}${model.day ? html` ${t("dailyFirstOnly")}` : nothing}
+    </p>
     ${model.board
       ? entries(model, model.board, viewer, actions)
       : model.error
@@ -102,12 +105,20 @@ export function leaderboardOutcome(model: LeaderboardModel, viewer: LeaderboardV
           ? html`<p class="hint">${t("leaderboardQueued")}</p>`
           : submit.status === "error"
             ? html`<p class="notice">${t(submit.text)}</p>`
-            : submit.status === "done" && me && board
-              ? html`<p class="leaderboard-place-line">
-                  <strong>${t("leaderboardPlace", { place: me.place, total: board.total })}</strong>
-                  ${submit.improved ? nothing : html`<span class="hint">${t("leaderboardNotImproved")}</span>`}
-                </p>`
-              : nothing;
+            : submit.status === "done" && submit.daily === "expired"
+              ? html`<p class="hint">${t("dailyExpired")}</p>`
+              : submit.status === "done" && me && board
+                ? html`<p class="leaderboard-place-line">
+                    <strong>${t(model.day ? "dailyPlace" : "leaderboardPlace", { place: me.place, total: board.total })}</strong>
+                    ${model.day
+                      ? submit.daily === "repeat"
+                        ? html`<span class="hint">${t("dailyRepeat")}</span>`
+                        : nothing
+                      : submit.improved
+                        ? nothing
+                        : html`<span class="hint">${t("leaderboardNotImproved")}</span>`}
+                  </p>`
+                : nothing;
   return html`<div class="leaderboard-outcome box" aria-live="polite">
     ${status}
     ${board && board.entries.length > 0

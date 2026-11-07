@@ -3419,7 +3419,8 @@ a.button.compact {
   min-width: 0;
 }
 
-.chain-add select {
+.chain-add select,
+.daily-plan-form select {
   min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--control-border);
@@ -3551,4 +3552,191 @@ a.button.compact {
   align-items: center;
   cursor: pointer;
   font-weight: 600;
+}
+
+/* Puzzle of the day (M26) */
+.daily-card {
+  display: grid;
+  gap: var(--kk-space-3);
+  padding: var(--kk-space-4);
+  border: 1px solid var(--kk-line);
+  border-left: 4px solid var(--type, var(--kk-brand));
+  border-radius: var(--kk-radius-2xl);
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  text-decoration: none;
+}
+
+a.daily-card:hover {
+  border-color: var(--type, var(--kk-brand));
+}
+
+.daily-card-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  color: var(--kk-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.daily-card-text {
+  margin: 0;
+  color: var(--kk-muted);
+}
+
+.daily-card-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--kk-space-3);
+}
+
+.daily-card-body {
+  display: grid;
+  gap: var(--kk-space-1);
+  min-width: 0;
+}
+
+.daily-card-title {
+  overflow: hidden;
+  font-family: var(--kk-font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kk-space-1);
+}
+
+.daily-card-badges .badge:not([class*="badge-"]) {
+  border-color: var(--kk-line);
+  color: var(--kk-muted);
+}
+
+.daily-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-2);
+  min-height: var(--kk-tap-min);
+  padding-top: var(--kk-space-2);
+  border-top: 1px solid var(--kk-line);
+}
+
+.daily-card-streak,
+.daily-card-go,
+.daily-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kk-space-1);
+}
+
+.daily-card-streak {
+  color: var(--kk-muted);
+  font-size: 0.875rem;
+}
+
+.daily-card-streak .icon,
+.daily-streak .icon {
+  color: var(--kk-danger);
+}
+
+.daily-card-go {
+  color: var(--kk-brand-ink);
+  font-weight: 600;
+}
+
+.daily-streak {
+  justify-content: center;
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (min-width: 900px) {
+  .home-top.with-daily {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .daily-card {
+    align-content: start;
+    padding: var(--kk-space-6);
+  }
+
+  .daily-card-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* Moderation: plan of the puzzle of the day */
+.daily-plan {
+  display: grid;
+  gap: var(--kk-space-3);
+  margin-bottom: var(--kk-space-6);
+}
+
+.daily-plan h2,
+.daily-plan p {
+  margin: 0;
+}
+
+.daily-plan-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.daily-plan-row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--kk-space-2);
+  min-height: var(--kk-tap-min);
+  padding: var(--kk-space-1) 0;
+}
+
+.daily-plan-row + .daily-plan-row {
+  border-top: 1px solid var(--kk-line);
+}
+
+.daily-plan-row.today .daily-plan-day {
+  color: var(--kk-brand-ink);
+}
+
+.daily-plan-day {
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-plan-puzzle {
+  display: grid;
+  min-width: 0;
+}
+
+.daily-plan-puzzle a {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-plan-form {
+  display: grid;
+  gap: var(--kk-space-3);
+}
+
+@media (min-width: 700px) {
+  .daily-plan-form {
+    grid-template-columns: 12rem minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .daily-plan-form button {
+    margin-top: 1.6rem;
+  }
 }

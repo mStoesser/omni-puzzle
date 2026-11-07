@@ -538,16 +538,34 @@ Format unverändert gültig bleibt.
 - [x] Live testen: gefälschte Zugfolgen, zu kurze Zugfolgen, nicht gelöste Endstellung, Handy-Test.
 
 ### M26 – Tägliches Rätsel
-- [ ] Migration: Tabelle `daily` (Tag als Schlüssel, `puzzle_id`, geplant von). Die Funktion `daily_puzzle()`
+- [x] Migration: Tabelle `daily` (Tag als Schlüssel, `puzzle_id`, geplant von). Die Funktion `daily_puzzle()`
   (security definer) liefert das Rätsel des heutigen Tags (Zeitzone Europe/Berlin). Gibt es noch keins, wählt sie eins,
   ohne Cron-Job: sichtbar, noch nie täglich, gut bewertet bzw. beliebt, nicht derselbe Typ wie gestern.
   Gleichzeitige Aufrufe sind über den Schlüssel abgesichert.
-- [ ] Wird das heutige Rätsel ausgeblendet oder zurückgezogen, wählt die Funktion neu.
-- [ ] Tagesrangliste: Tabelle `daily_scores`; nur der **erste** Lösungsversuch des Tages zählt. Geprüft wird über
+  (`0011_daily.sql`. „Beliebt“ heißt: meiste Likes, dann meiste Aufrufe; die Bewertungen in M12 messen die Schwierigkeit,
+  nicht die Qualität. Nur Typen mit Rangliste, also kein Quiz (ein Test hält die Liste im SQL mit `rules.ts` gleich), und
+  keine Rätsel gesperrter Autoren. Sind alle schon dran gewesen, kommt das zurück, dessen Tag am längsten her ist. Lokal in
+  einem Wegwerf-Postgres geprüft: Rechte, Auswahl und Reihenfolge, leere Galerie, gleichzeitige erste Aufrufe.)
+- [x] Wird das heutige Rätsel ausgeblendet oder zurückgezogen, wählt die Funktion neu.
+- [x] Tagesrangliste: Tabelle `daily_scores`; nur der **erste** Lösungsversuch des Tages zählt. Geprüft wird über
   `submit-score` aus M25.
-- [ ] Startseite: Karte „Rätsel des Tages“ (Typ, Stufe, gelöst?); Route `#/daily` führt zum heutigen Rätsel.
-- [ ] Serie (Tage am Stück gelöst): angemeldet aus `daily_scores`, sonst lokal gespeichert.
-- [ ] Moderationsansicht: die nächsten 14 Tage planen, das heutige Rätsel ersetzen.
+  (Die App schickt `daily: <Tag>` mit, die Function ruft dann zusätzlich `submit_daily` auf. Gezählt wird die erste
+  *Lösung*; abgebrochene Versuche kennt der Server nicht. Der Vortag zählt noch, damit wer kurz vor Mitternacht anfängt,
+  nicht leer ausgeht. Das Ergebnis geht außerdem in die normale Rangliste. Bei eigenen Rätseln zählt nur die Serie.)
+- [x] Startseite: Karte „Rätsel des Tages“ (Typ, Stufe, gelöst?); Route `#/daily` führt zum heutigen Rätsel.
+  (`#/daily` spielt das Rätsel an Ort und Stelle mit der Tagesrangliste daneben; auf dem Desktop steht die Karte neben „Bau
+  dein eigenes Rätsel“. In einer leeren Galerie zeigt sie einen Hinweis.)
+- [x] Serie (Tage am Stück gelöst): angemeldet aus `daily_scores`, sonst lokal gespeichert.
+  (Auf der Karte und im Gelöst-Dialog. Lokal im `localStorage` `raetsel-daily-days`. Die Serie läuft bis gestern weiter,
+  solange heute noch offen ist.)
+- [x] Moderationsansicht: die nächsten 14 Tage planen, das heutige Rätsel ersetzen.
+  (Oben in der Moderationsansicht: heute und die nächsten 14 Tage, planen per Galerie-Link, geplante Tage entfernen. Pläne
+  sind nicht öffentlich. Im Browser gegen ein nachgebautes Backend mit dem echten Handler geprüft (Headless Chrome, 390 px
+  und 1280 px, hell und dunkel): Karte abgemeldet und angemeldet, Lösen, Tagesrangliste, Wiederholung, Serie, Tageswechsel
+  (Vortag zählt noch, danach abgelaufen), ausgeblendetes Tagesrätsel, leere Galerie, eigenes Rätsel, Planen, Ersetzen,
+  Entfernen, ungeeignetes Rätsel.)
+- [x] Datenschutzerklärung ergänzen: Tagesranglisten, Serie, gelöste Tage im `localStorage`.
+- [ ] Migration `0011_daily.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue `submit-score`.
 - [ ] Live testen (Tageswechsel simulieren, leere Galerie, ausgeblendetes Tagesrätsel), Handy-Test.
 
 ### M27 – Synchronisierung von Bibliothek und Fortschritt

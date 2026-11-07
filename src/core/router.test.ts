@@ -12,6 +12,8 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute("#/datenschutz"), { name: "privacy" });
   assert.deepEqual(parseRoute("#/account"), { name: "account" });
   assert.deepEqual(parseRoute("#/moderation"), { name: "moderation" });
+  assert.deepEqual(parseRoute("#/daily"), { name: "daily" });
+  assert.deepEqual(parseRoute("#/daily/x"), { name: "home" });
   assert.deepEqual(parseRoute("#/gallery"), { name: "gallery", filter: { view: "puzzles", type: null, level: null, sort: "new" } });
   assert.deepEqual(parseRoute("#/gallery?type=laser&sort=likes"), {
     name: "gallery",
@@ -60,6 +62,7 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "privacy" },
     { name: "account" },
     { name: "moderation" },
+    { name: "daily" },
     { name: "gallery", filter: { view: "puzzles", type: null, level: null, sort: "new" } },
     { name: "gallery", filter: { view: "puzzles", type: "quiz", level: 2, sort: "plays" } },
     { name: "gallery", filter: { view: "chains", type: null, level: null, sort: "plays" } },

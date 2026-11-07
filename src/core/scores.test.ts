@@ -40,6 +40,9 @@ test("parseScoreRequest checks the id, the moves list and a plausible time", () 
   assert.equal(code(() => parseScoreRequest({ puzzle: id, moves: [], timeMs: 0 })), "invalid-time");
   assert.equal(code(() => parseScoreRequest({ puzzle: id, moves: [], timeMs: 1.5 })), "invalid-time");
   assert.equal(code(() => parseScoreRequest({ puzzle: id, moves: [], timeMs: SCORE.maxTimeMs + 1 })), "invalid-time");
+  assert.deepEqual(parseScoreRequest({ puzzle: id, moves: [], timeMs: 5, daily: "2026-11-07" }), { puzzle: id, moves: [], timeMs: 5, daily: "2026-11-07" });
+  assert.equal(code(() => parseScoreRequest({ puzzle: id, moves: [], timeMs: 5, daily: "2026-11-31" })), "invalid-request");
+  assert.equal(code(() => parseScoreRequest({ puzzle: id, moves: [], timeMs: 5, daily: null })), "invalid-request");
 });
 
 test("fetchLeaderboard maps the rows; the own entry may be below the top 10", async () => {

@@ -1,5 +1,6 @@
 import { ApiError, apiErrorText } from "./api.ts";
 import type { Api } from "./api.ts";
+import { isDay } from "./day.ts";
 import { PUBLISHED_ID } from "./published.ts";
 import type { AnyPuzzleRules } from "./types.ts";
 import type { MessageKey } from "../i18n/t.ts";
@@ -15,8 +16,20 @@ export const SCORE = {
   queueSize: 10, // results waiting for a connection
 } as const;
 
-/** What the app sends: the puzzle, the moves of the solution (see session.path) and the measured time. */
-export type ScoreRequest = { puzzle: string; moves: unknown[]; timeMs: number };
+/**
+ * What the app sends: the puzzle, the moves of the solution (see session.path) and the measured time.
+ * `daily` (M26): solved as the puzzle of that day, so it also enters the day's leaderboard and the streak.
+ */
+export type ScoreRequest = { puzzle: string; moves: unknown[]; timeMs: number; daily?: string };
+
+/**
+ * For the puzzle of the day: "recorded" = first solution of the day, now on the day's leaderboard; "repeat" = only
+ * the first solution counts; "expired" = it is no longer that day's puzzle (or the day is over).
+ */
+export type DailyOutcome = "recorded" | "repeat" | "expired";
+
+/** `improved` false: not better than the stored result (always false for own puzzles of the day). */
+export type ScoreResult = { improved: boolean; daily?: DailyOutcome };
 
 export type ScoreErrorCode =
   | "invalid-request"
@@ -48,8 +61,11 @@ export function parseScoreRequest(input: unknown): ScoreRequest {
   if (!Number.isInteger(timeMs) || (timeMs as number) < 1 || (timeMs as number) > SCORE.maxTimeMs) {
     throw new ScoreError("invalid-time");
   }
+  if (input.daily !== undefined && !isDay(input.daily)) throw new ScoreError("invalid-request");
   if (input.moves.length > SCORE.maxMoves) throw new ScoreError("too-many-moves");
-  return { puzzle: input.puzzle, moves: input.moves, timeMs: timeMs as number };
+  const request: ScoreRequest = { puzzle: input.puzzle, moves: input.moves, timeMs: timeMs as number };
+  if (input.daily !== undefined) request.daily = input.daily;
+  return request;
 }
 
 /**
@@ -92,7 +108,7 @@ export type LeaderboardEntry = {
 /** `entries`: the top 10, plus the own entry if it is further down. `total`: all ranked players. */
 export type Leaderboard = { entries: LeaderboardEntry[]; total: number };
 
-type LeaderboardRow = {
+export type LeaderboardRow = {
   place: number;
   user_id: string;
   username: string;
@@ -104,7 +120,11 @@ type LeaderboardRow = {
 };
 
 export async function fetchLeaderboard(api: Api, puzzleId: string): Promise<Leaderboard> {
-  const rows = await api.rest<LeaderboardRow[]>("rpc/leaderboard", { body: { puzzle: puzzleId } });
+  return toLeaderboard(await api.rest<LeaderboardRow[]>("rpc/leaderboard", { body: { puzzle: puzzleId } }));
+}
+
+/** Rows of leaderboard() or daily_leaderboard(). */
+export function toLeaderboard(rows: readonly LeaderboardRow[]): Leaderboard {
   return {
     entries: rows.map((r) => ({
       place: r.place,
@@ -124,9 +144,8 @@ export function myEntry(board: Leaderboard): LeaderboardEntry | null {
   return board.entries.find((e) => e.isMe) ?? null;
 }
 
-/** `improved` false: the result is not better than the stored one. */
-export async function submitScore(api: Api, request: ScoreRequest): Promise<{ improved: boolean }> {
-  return api.functions<{ improved: boolean }>("submit-score", { body: request });
+export async function submitScore(api: Api, request: ScoreRequest): Promise<ScoreResult> {
+  return api.functions<ScoreResult>("submit-score", { body: request });
 }
 
 /** Moderators: removes all entries of a user from every leaderboard. */
