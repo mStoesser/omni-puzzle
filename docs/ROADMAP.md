@@ -622,9 +622,9 @@ Format unverändert gültig bleibt.
   Impressum und Datenschutz nur auf Deutsch mit englischem Hinweis oder übersetzt.
   (Mails je nach `user_metadata.lang`, ohne Angabe Deutsch. Impressum und Datenschutz übersetzt, mit dem Hinweis,
   dass nur die deutsche Fassung verbindlich ist. Begründung in `docs/ARCHITEKTUR.md`.)
-- [ ] Migration `0013_lang.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue `publish`.
+- [x] Migration `0013_lang.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue `publish`.
   Mail-Vorlagen aus `supabase/templates/` im Dashboard eintragen (Betreff mit `{{ if … }}` per Testmail prüfen).
-- [ ] Englische Texte gegenlesen (die Texte schreibe ich, du prüfst sie), Handy-Test in beiden Sprachen.
+- [x] Englische Texte gegenlesen (die Texte schreibe ich, du prüfst sie), Handy-Test in beiden Sprachen.
 
 ## Phase 4: Ideen aus dem Redesign
 Funktionen aus dem Entwurf (`docs/design-handoff/`), die in M15 bewusst weggelassen wurden.
