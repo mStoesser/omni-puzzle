@@ -4,7 +4,7 @@ import type { PlannedDay } from "../../core/daily.ts";
 import type { ModerationItem } from "../../core/moderation.ts";
 import { loadDocument } from "../../core/document.ts";
 import type { Registry } from "../../core/registry.ts";
-import { t } from "../../i18n/t.ts";
+import { locale, t, tn } from "../../i18n/t.ts";
 import { backHeader } from "../components/ui.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { REASON_TEXT } from "../components/report-dialog.ts";
@@ -42,7 +42,7 @@ export type ModerationViewActions = {
   unplanDaily(day: string): void;
 };
 
-const date = (iso: string) => new Date(iso).toLocaleDateString("de-DE");
+const date = (iso: string) => new Date(iso).toLocaleDateString(locale());
 
 export function moderationView(model: ModerationViewModel, registry: Registry, actions: ModerationViewActions) {
   return html`
@@ -73,9 +73,9 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
   return html`<li class="publication">
     <h2 class="moderation-title"><a href=${item.kind === "chain" ? `#/c/${item.id}` : `#/g/${item.id}`}>${item.title}</a></h2>
     <p class="hint">
-      ${item.kind === "chain" ? t("moderationChain", { count: item.stepCount }) : type ? t(type.name) : item.type} · ${date(item.publishedAt)} ·
+      ${item.kind === "chain" ? t("moderationChain", { steps: tn("chainSteps", item.stepCount) }) : type ? t(type.name) : item.type} · ${date(item.publishedAt)} ·
       <strong>${item.hidden ? t("moderationHidden") : t("moderationVisible")}</strong>
-      ${item.reports.length > 0 ? html` · ${t("moderationReports", { count: item.reports.length })}` : nothing}
+      ${item.reports.length > 0 ? html` · ${tn("moderationReports", item.reports.length)}` : nothing}
     </p>
     <p>
       ${t("moderationAuthor", { author: author?.username ?? t("galleryByUnknown") })}

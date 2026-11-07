@@ -1,6 +1,17 @@
 import type { SVGTemplateResult, TemplateResult } from "lit-html";
 import type { MessageKey } from "../i18n/t.ts";
 
+/** Language of a puzzle's texts (M28); also what the gallery filters by. */
+export type PuzzleLang = "de" | "en";
+export const PUZZLE_LANGS: readonly PuzzleLang[] = ["de", "en"];
+
+export function isPuzzleLang(value: unknown): value is PuzzleLang {
+  return value === "de" || value === "en";
+}
+
+/** Title of an example puzzle in every language (M28). */
+export type ExampleTitle = Record<PuzzleLang, string>;
+
 export type PuzzleMeta = {
   title: string;
   author?: string;
@@ -8,6 +19,7 @@ export type PuzzleMeta = {
   createdAt: string; // ISO date
   verified?: boolean; // solved by its creator
   minMoves?: number; // determined by the solver
+  lang?: PuzzleLang; // M28; optional, so older app versions (which drop unknown fields) still read the document
 };
 
 /** Envelope shared by all puzzle types. */

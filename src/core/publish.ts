@@ -5,7 +5,7 @@ import type { Level } from "./difficulty.ts";
 import { DocumentError, loadDocument } from "./document.ts";
 import type { Registry } from "./registry.ts";
 import { progressKey } from "./storage.ts";
-import type { AnyPuzzleRules, PuzzleDocument, PuzzleMeta } from "./types.ts";
+import type { AnyPuzzleRules, PuzzleDocument, PuzzleLang, PuzzleMeta } from "./types.ts";
 
 // Shared by the app and the publish function on the server; DOM-free.
 export const PUBLISH = {
@@ -53,6 +53,7 @@ export type Publication = {
   description: string;
   minMoves: number | null; // null = no solver or the search limit was reached
   difficulty: Level | null; // from minMoves; null = unknown (ratings decide later)
+  lang: PuzzleLang | null; // M28: column puzzles.lang, for the gallery filter
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -96,6 +97,7 @@ export function preparePublication(input: unknown, registry: Registry<AnyPuzzleR
   // Author and description are columns of their own; the document keeps only what describes the puzzle.
   const meta: PuzzleMeta = { title: cleanTitle, createdAt: doc.meta.createdAt, verified: true };
   if (minMoves !== null) meta.minMoves = minMoves;
+  if (doc.meta.lang) meta.lang = doc.meta.lang;
   const published: PuzzleDocument = { format: 1, type: doc.type, typeVersion: doc.typeVersion, meta, data: doc.data };
   return {
     type: doc.type,
@@ -106,6 +108,7 @@ export function preparePublication(input: unknown, registry: Registry<AnyPuzzleR
     description: description.trim(),
     minMoves,
     difficulty: minMoves === null ? null : levelFromMoves(type, minMoves),
+    lang: doc.meta.lang ?? null,
   };
 }
 

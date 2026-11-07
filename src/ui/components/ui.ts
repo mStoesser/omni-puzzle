@@ -1,8 +1,8 @@
 import { html, nothing } from "lit-html";
 import type { TemplateResult } from "lit-html";
 import { ref } from "lit-html/directives/ref.js";
-import type { AnyPuzzleType } from "../../core/types.ts";
-import { t } from "../../i18n/t.ts";
+import type { AnyPuzzleType, PuzzleLang } from "../../core/types.ts";
+import { LANG_NAMES, t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { ICONS, icon, iconSvg } from "../icons.ts";
 import type { IconName } from "../icons.ts";
@@ -27,6 +27,13 @@ export function typeBadge(type: AnyPuzzleType | undefined, fallbackName: string,
   return html`<span class="badge badge-type typed" style=${typeVars(type)}>
     ${withIcon ? iconSvg(type?.icon ?? ICONS.puzzle, 14) : nothing}${type ? t(type.name) : fallbackName}
   </span>`;
+}
+
+/** Language of a puzzle (M28) as a short code; the full name is read out. */
+export function langBadge(lang: PuzzleLang) {
+  return html`<span class="badge badge-lang"><abbr title=${LANG_NAMES[lang]} aria-label=${t("langBadge", { language: LANG_NAMES[lang] })}
+      >${lang.toUpperCase()}</abbr
+    ></span>`;
 }
 
 export type StatusKind = "solved" | "gallery" | "link" | "draft" | "saved" | "ready";
@@ -66,7 +73,8 @@ export function iconButton(o: IconButtonOptions) {
   </button>`;
 }
 
-export type SegmentOption<V extends string> = { value: V; label: string; icon?: IconName };
+/** `lang`: language of the label if it differs from the page (a language name in itself). */
+export type SegmentOption<V extends string> = { value: V; label: string; icon?: IconName; lang?: string };
 
 /** Segment control as a radio group (exactly one option active). */
 export function segment<V extends string>(label: string, options: readonly SegmentOption<V>[], value: V, select: (value: V) => void) {
@@ -74,6 +82,7 @@ export function segment<V extends string>(label: string, options: readonly Segme
     ${options.map(
       (o) => html`<button
         role="radio"
+        lang=${o.lang ?? nothing}
         aria-checked=${o.value === value ? "true" : "false"}
         tabindex=${o.value === value ? "0" : "-1"}
         @click=${() => select(o.value)}

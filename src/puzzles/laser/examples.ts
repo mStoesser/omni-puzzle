@@ -1,4 +1,4 @@
-import type { PuzzleDocument } from "../../core/types.ts";
+import type { ExampleTitle, PuzzleDocument } from "../../core/types.ts";
 import type { Dir } from "../../core/grid.ts";
 import { minVersion } from "./logic.ts";
 import type { Color, LaserCell, LaserData, PlacedCell } from "./logic.ts";
@@ -54,28 +54,28 @@ function parseCell(token: string): LaserCell | null {
   return { kind: "mirror", orientation, rotatable: token[0] === "*" };
 }
 
-function example(id: string, title: string, minMoves: number, rows: readonly string[], inventory?: number) {
+function example(id: string, title: ExampleTitle, minMoves: number, rows: readonly string[], inventory?: number) {
   const data = parseRows(rows);
   if (inventory) data.inventory = inventory;
   const doc: PuzzleDocument<LaserData> = {
     format: 1,
     type: "laser",
     typeVersion: minVersion(data),
-    meta: { title, createdAt: inventory || minVersion(data) > 1 ? "2026-11-06T00:00:00.000Z" : "2026-10-30T00:00:00.000Z", verified: true, minMoves },
+    meta: { title: title.de, createdAt: inventory || minVersion(data) > 1 ? "2026-11-06T00:00:00.000Z" : "2026-10-30T00:00:00.000Z", verified: true, minMoves },
     data,
   };
-  return { id, doc };
+  return { id, doc, title };
 }
 
 export const laserExamples = [
-  example("laser-1", "Erster Strahl", 2, [
+  example("laser-1", { de: "Erster Strahl", en: "First Beam" }, 2, [
     " . . . .##",
     " > . .*/ .",
     "*\\ . .*/ O",
     " . . . . .",
     " . . . .##",
   ]),
-  example("laser-2", "Um die Ecke", 3, [
+  example("laser-2", { de: "Um die Ecke", en: "Around the Corner" }, 3, [
     " . . . .*\\ .",
     " . .*\\*/*\\ .",
     " > .*\\ O . .",
@@ -83,7 +83,7 @@ export const laserExamples = [
     "## . . .## .",
     " . . . O## .",
   ]),
-  example("laser-3", "Spiegelkabinett", 4, [
+  example("laser-3", { de: "Spiegelkabinett", en: "Hall of Mirrors" }, 4, [
     " . . O . . .*/",
     " .## . . . . .",
     " . .*\\ . . .*\\",
@@ -92,7 +92,7 @@ export const laserExamples = [
     " > .*\\ . . . .",
     " .*\\*\\ . \\ .*\\",
   ]),
-  example("laser-4", "Lichtlabyrinth", 5, [
+  example("laser-4", { de: "Lichtlabyrinth", en: "Light Maze" }, 5, [
     " . . . . .##*\\",
     " . .*\\ . . .*/",
     "##*\\ . O . .*\\",
@@ -104,7 +104,7 @@ export const laserExamples = [
   // M23 extensions, one example each: mirrors to place, beam splitters, colors.
   example(
     "laser-5",
-    "Selbst gesetzt",
+    { de: "Selbst gesetzt", en: "Place Your Own" },
     6,
     [
       "*\\ . \\ . . . .",
@@ -117,7 +117,7 @@ export const laserExamples = [
     ],
     2,
   ),
-  example("laser-6", "Geteiltes Licht", 6, [
+  example("laser-6", { de: "Geteiltes Licht", en: "Split Light" }, 6, [
     " . . . . O . .",
     " . \\ .*/%\\ O .",
     " .## . . / . .",
@@ -126,7 +126,7 @@ export const laserExamples = [
     " .*/*\\ . . . .",
     " . . . . . . .",
   ]),
-  example("laser-7", "Farbenspiel", 6, [
+  example("laser-7", { de: "Farbenspiel", en: "Play of Colors" }, 6, [
     " . . .gv . . .",
     "rO .=\\*/*/## .",
     " . .*/ .gO*/ .",

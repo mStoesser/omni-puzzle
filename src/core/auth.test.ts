@@ -175,3 +175,21 @@ test("jwtClaims and sessionFromTokens", () => {
   const fromExpiresIn = sessionFromTokens({ access_token: jwt({ sub: "u1" }), refresh_token: "r", expires_in: 100 }, NOW_S);
   assert.equal(fromExpiresIn?.expiresAt, NOW_S + 100);
 });
+
+test("the mail language goes into the user metadata at sign-up and later", async () => {
+  const calls: Call[] = [];
+  const access = jwt({ sub: "u1", exp: NOW_S + 3600, user_metadata: { username: "fan", lang: "en" } });
+  const auth = createAuth(CONFIG, {
+    store: memoryStore({ [SESSION_KEY]: JSON.stringify({ ...SESSION, accessToken: access }) }),
+    fetch: scriptedFetch([{ status: 200, body: { id: "u2" } }, { status: 200, body: { id: "u1" } }], calls),
+    now: () => NOW_S * 1000,
+  });
+  assert.equal(auth.sessionLanguage(), "en");
+  await auth.signUp("c@d.de", "geheim123", "neu", "https://x/", "en");
+  assert.deepEqual(JSON.parse(String(calls[0]!.init.body)).data, { username: "neu", lang: "en" });
+  await auth.updateLanguage("de");
+  assert.equal(calls[1]!.url, "https://abc123.supabase.co/auth/v1/user");
+  assert.equal(calls[1]!.init.method, "PUT");
+  assert.deepEqual(JSON.parse(String(calls[1]!.init.body)), { data: { lang: "de" } });
+  assert.equal(createAuth(CONFIG, { store: memoryStore({ [SESSION_KEY]: JSON.stringify(SESSION) }), fetch: scriptedFetch([]) }).sessionLanguage(), null);
+});

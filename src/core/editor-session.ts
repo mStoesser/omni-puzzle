@@ -1,4 +1,4 @@
-import type { PuzzleDocument, PuzzleMeta, SolveResult } from "./types.ts";
+import type { PuzzleDocument, PuzzleLang, PuzzleMeta, SolveResult } from "./types.ts";
 
 /** Editor state managed by the core: title and data history for undo/redo. */
 export type EditorSession<D> = {
@@ -77,9 +77,10 @@ export function readiness(check: EditorCheck): { canTest: boolean; canShare: boo
 /** The document for saving or sharing the current editor state. */
 export function toDocument<D>(
   session: EditorSession<D>,
-  info: { type: string; typeVersion: number; createdAt: string; verified: boolean; solve: SolveResult<unknown> | null },
+  info: { type: string; typeVersion: number; createdAt: string; lang?: PuzzleLang; verified: boolean; solve: SolveResult<unknown> | null },
 ): PuzzleDocument<D> {
   const meta: PuzzleMeta = { title: session.title, createdAt: info.createdAt };
+  if (info.lang) meta.lang = info.lang;
   if (info.verified) meta.verified = true;
   if (info.solve?.status === "solved") meta.minMoves = info.solve.moves.length;
   return { format: 1, type: info.type, typeVersion: info.typeVersion, meta, data: currentData(session) };

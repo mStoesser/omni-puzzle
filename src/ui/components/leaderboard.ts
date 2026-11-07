@@ -2,7 +2,7 @@ import { html, nothing } from "lit-html";
 import { myEntry } from "../../core/scores.ts";
 import type { DailyOutcome, Leaderboard, LeaderboardEntry } from "../../core/scores.ts";
 import { formatDuration } from "../../core/timer.ts";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 
 /** Sending the own result after solving. */
@@ -34,7 +34,7 @@ export type LeaderboardActions = {
 function result(entry: LeaderboardEntry, ranking: LeaderboardModel["ranking"]) {
   const time = formatDuration(entry.timeMs);
   if (ranking === "time" || entry.moves === null) return time;
-  return t(entry.moves === 1 ? "leaderboardResultOne" : "leaderboardResult", { moves: entry.moves, time });
+  return tn("leaderboardResult", entry.moves, { time });
 }
 
 /** The top 10, and the own entry below a gap if it is further down (the server then sends it as 11th row). */

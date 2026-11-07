@@ -47,6 +47,7 @@ test("publishes a checked puzzle via the service-role RPC", async () => {
   assert.equal(args.author, "u1");
   assert.equal(args.min_moves, 3);
   assert.equal(args.difficulty, 1);
+  assert.equal(args.lang, null); // the example has no language
   assert.match(args.content_key, /^[0-9a-f]{64}$/);
 });
 

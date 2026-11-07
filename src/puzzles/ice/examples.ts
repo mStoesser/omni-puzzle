@@ -1,4 +1,4 @@
-import type { PuzzleDocument } from "../../core/types.ts";
+import type { ExampleTitle, PuzzleDocument } from "../../core/types.ts";
 import type { IceCell, IceData } from "./logic.ts";
 
 // Original puzzles, generated with the solver: random boards with exactly this minimal number of slides,
@@ -20,19 +20,19 @@ function parseRows(rows: readonly string[]): IceData {
   return { width: rows[0]!.length, height: rows.length, cells };
 }
 
-function example(id: string, title: string, minMoves: number, rows: readonly string[]) {
+function example(id: string, title: ExampleTitle, minMoves: number, rows: readonly string[]) {
   const doc: PuzzleDocument<IceData> = {
     format: 1,
     type: "ice",
     typeVersion: 1,
-    meta: { title, createdAt: "2026-11-03T00:00:00.000Z", verified: true, minMoves },
+    meta: { title: title.de, createdAt: "2026-11-03T00:00:00.000Z", verified: true, minMoves },
     data: parseRows(rows),
   };
-  return { id, doc };
+  return { id, doc, title };
 }
 
 export const iceExamples = [
-  example("ice-1", "Erste Schritte", 3, [
+  example("ice-1", { de: "Erste Schritte", en: "First Steps" }, 3, [
     "..#G..", //
     "..#...",
     "#...##",
@@ -40,7 +40,7 @@ export const iceExamples = [
     "......",
     "..S...",
   ]),
-  example("ice-2", "Glatteis", 5, [
+  example("ice-2", { de: "Glatteis", en: "Black Ice" }, 5, [
     "..#...G", //
     ".###..#",
     "#....#.",
@@ -49,7 +49,7 @@ export const iceExamples = [
     "S..#.#.",
     "....#..",
   ]),
-  example("ice-3", "Sandbank", 8, [
+  example("ice-3", { de: "Sandbank", en: "Sandbank" }, 8, [
     ".:#.:...", //
     ".G......",
     "##.#.#..",
@@ -59,7 +59,7 @@ export const iceExamples = [
     ".:......",
     "........",
   ]),
-  example("ice-4", "Gletscherspalte", 12, [
+  example("ice-4", { de: "Gletscherspalte", en: "Crevasse" }, 12, [
     ".##S.....", //
     "#...#..:#",
     "#..#....#",

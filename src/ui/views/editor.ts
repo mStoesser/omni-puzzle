@@ -1,8 +1,9 @@
 import { html, nothing } from "lit-html";
 import { canRedoEdit, canUndoEdit, currentData, readiness } from "../../core/editor-session.ts";
 import type { EditorSession } from "../../core/editor-session.ts";
-import type { AnyPuzzleType, EditorContext, SolveResult } from "../../core/types.ts";
-import { t } from "../../i18n/t.ts";
+import { PUZZLE_LANGS } from "../../core/types.ts";
+import type { AnyPuzzleType, EditorContext, PuzzleLang, SolveResult } from "../../core/types.ts";
+import { LANG_NAMES, t, tn } from "../../i18n/t.ts";
 import { publishDialog } from "../components/publish-dialog.ts";
 import type { PublishDialogActions, PublishDialogModel } from "../components/publish-dialog.ts";
 import { shareDialog } from "../components/share-dialog.ts";
@@ -23,6 +24,7 @@ export type EditorViewModel = {
   username: string | null; // signed-in author, for the publish checklist
   publish: PublishDialogModel | null; // open publish dialog
   images: EditorContext<unknown>["images"];
+  lang: PuzzleLang; // language of the puzzle's texts (M28), preset to the UI language
   /** Test play inside the editor frame (segment "Probespielen"); null = building. */
   testPlay: TemplateResult | null;
 };
@@ -32,6 +34,7 @@ export type EditorViewActions = {
   undo(): void;
   redo(): void;
   setTitle(title: string): void;
+  setLanguage(lang: PuzzleLang): void;
   testPlay(): void;
   backToEditor(): void;
   openShare(): void;
@@ -51,9 +54,15 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
     <h2 id="editor-check-title" class="desktop-only">${t("editorCheck")}</h2>
     ${checkLine(model, hasSolver)}
     ${model.solve?.status === "solved"
-      ? html`<p class="check-fact desktop-only"><span>${t("editorShortest")}</span><strong>${(model.solve.moves.length === 1 ? t("oneMove") : t("homeLevelMoves", { moves: model.solve.moves.length }))}</strong></p>`
+      ? html`<p class="check-fact desktop-only"><span>${t("editorShortest")}</span><strong>${tn("homeLevelMoves", model.solve.moves.length)}</strong></p>`
       : nothing}
     ${!canTest || model.verified || model.testPlay ? nothing : html`<p class="editor-hint">${t("statusNotVerified")}</p>`}
+    <label class="editor-lang">
+      <span>${t("editorLanguage")}</span>
+      <select @change=${(e: Event) => actions.setLanguage((e.target as HTMLSelectElement).value as PuzzleLang)}>
+        ${PUZZLE_LANGS.map((lang) => html`<option value=${lang} lang=${lang} ?selected=${lang === model.lang}>${LANG_NAMES[lang]}</option>`)}
+      </select>
+    </label>
   </section>`;
   return html`
     <header class="editor-head">
@@ -138,7 +147,7 @@ function solveLine(solve: SolveResult<unknown> | null): [string, string] {
   if (!solve) return ["", t("statusChecking")];
   switch (solve.status) {
     case "solved":
-      return ["ok", solve.moves.length === 1 ? t("checkSolvableOne") : t("checkSolvable", { moves: solve.moves.length })];
+      return ["ok", tn("checkSolvable", solve.moves.length)];
     case "unsolvable":
       return ["problem", t("statusUnsolvable")];
     case "aborted":

@@ -1,6 +1,17 @@
-<!-- Supabase → Authentication → Emails → "Confirm sign up". Subject: Bitte bestätige dein Konto bei der Knobelkiste -->
+<!-- Supabase → Authentication → Emails → "Confirm sign up".
+     Language from user_metadata.lang (set by the app since M28); accounts without one get German.
+     Subject: {{ if eq .Data.lang "en" }}Please confirm your Knobelkiste account{{ else }}Bitte bestätige dein Konto bei der Knobelkiste{{ end }}
+     If the subject shows the braces literally, use: Bitte bestätige dein Konto / Please confirm your account – Knobelkiste -->
+{{ if eq .Data.lang "en" }}
+<h2>Welcome to the Knobelkiste!</h2>
+<p>Hello {{ .Data.username }},</p>
+<p>Please confirm your email address to activate your account:</p>
+<p><a href="{{ .ConfirmationURL }}">Confirm account</a></p>
+<p>If you did not sign up, you can simply ignore this email.</p>
+{{ else }}
 <h2>Willkommen in der Knobelkiste!</h2>
 <p>Hallo {{ .Data.username }},</p>
 <p>bitte bestätige deine E-Mail-Adresse, um dein Konto zu aktivieren:</p>
 <p><a href="{{ .ConfirmationURL }}">Konto bestätigen</a></p>
 <p>Wenn du dich nicht registriert hast, kannst du diese Mail einfach ignorieren.</p>
+{{ end }}

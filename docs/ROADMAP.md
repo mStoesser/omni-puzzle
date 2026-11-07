@@ -603,18 +603,27 @@ Format unverändert gültig bleibt.
   mit vorhandenen lokalen Daten.
 
 ### M28 – Englisch und Sprache pro Rätsel
-- [ ] `i18n/en.ts` mit Typ `Record<MessageKey, string>`; ein Test prüft, dass beide Sprachen dieselben Schlüssel und
+- [x] `i18n/en.ts` mit Typ `Record<MessageKey, string>`; ein Test prüft, dass beide Sprachen dieselben Schlüssel und
   Platzhalter haben. Mehrzahl über `Intl.PluralRules`, wo nötig.
-- [ ] Aktive Sprache: aus `navigator.languages`, änderbar unter Profil › Darstellung, gespeichert im `localStorage`;
+  (`tn(key, count)` nimmt `<key>One`; die bisherigen Einzahl-Paare heißen jetzt einheitlich so, neue z. B. für Likes.)
+- [x] Aktive Sprache: aus `navigator.languages`, änderbar unter Profil › Darstellung, gespeichert im `localStorage`;
   `<html lang>` und `document.title` folgen. Ein Wechsel rendert neu, ohne die Seite neu zu laden.
-- [ ] Alle fest verdrahteten `de-DE`-Formate (`ui/time.ts`, Quiz-Zahlen, Datenschutz-Datum) nutzen die aktive Sprache.
-- [ ] Beispielrätsel: Titel übersetzen; ein englisches Beispiel-Quiz zusätzlich zum deutschen.
-- [ ] `meta.lang` (`de` | `en`, optional) in der Hülle. Alte App-Versionen verwerfen unbekannte Meta-Felder, also bleibt
+  (Eigene Überschrift „Sprache“ mit „Automatisch · Deutsch · English“; ohne passende Browsersprache gilt Englisch.)
+- [x] Alle fest verdrahteten `de-DE`-Formate (`ui/time.ts`, Quiz-Zahlen, Datenschutz-Datum) nutzen die aktive Sprache.
+  (Auch Ø-Bewertung und Datumsangaben in Profil und Moderation; die Antwort-Normalisierung im Quiz bleibt `de-DE`.)
+- [x] Beispielrätsel: Titel übersetzen; ein englisches Beispiel-Quiz zusätzlich zum deutschen.
+  (Startseite und Levelliste zeigen nur das Quiz der eigenen Sprache, per Link bleiben beide spielbar.)
+- [x] `meta.lang` (`de` | `en`, optional) in der Hülle. Alte App-Versionen verwerfen unbekannte Meta-Felder, also bleibt
   `format: 1`. Der Inhaltsschlüssel ändert sich nicht. Im Editor ist die Oberflächensprache voreingestellt.
-- [ ] Migration: Spalte `puzzles.lang`, `publish` übernimmt sie; Galerie-Filter `lang` in der Route (Standard: alle),
-  Sprach-Badge auf der Karte.
-- [ ] **Entscheidung im Meilenstein:** Mail-Vorlagen zweisprachig in einer Mail oder je nach `user_metadata.lang`;
+  (Auswahl „Sprache des Rätsels“ im Prüf-Panel; ein Remix behält die Sprache.)
+- [x] Migration: Spalte `puzzles.lang`, `publish` übernimmt sie; Galerie-Filter `lang` in der Route (Standard: alle),
+  Sprach-Badge auf der Karte. (`0013_lang.sql`)
+- [x] **Entscheidung im Meilenstein:** Mail-Vorlagen zweisprachig in einer Mail oder je nach `user_metadata.lang`;
   Impressum und Datenschutz nur auf Deutsch mit englischem Hinweis oder übersetzt.
+  (Mails je nach `user_metadata.lang`, ohne Angabe Deutsch. Impressum und Datenschutz übersetzt, mit dem Hinweis,
+  dass nur die deutsche Fassung verbindlich ist. Begründung in `docs/ARCHITEKTUR.md`.)
+- [ ] Migration `0013_lang.sql` auf `dev` und `prod` einspielen; nach dem Push deployt der Workflow die neue `publish`.
+  Mail-Vorlagen aus `supabase/templates/` im Dashboard eintragen (Betreff mit `{{ if … }}` per Testmail prüfen).
 - [ ] Englische Texte gegenlesen (die Texte schreibe ich, du prüfst sie), Handy-Test in beiden Sprachen.
 
 ## Phase 4: Ideen aus dem Redesign

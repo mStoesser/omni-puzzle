@@ -14,6 +14,13 @@ test("validateEnvelope accepts a valid document and strips unknown fields", () =
   assert.deepEqual(doc, { ...counterDocument(3), meta: { ...counterDocument(3).meta, verified: true } });
 });
 
+test("validateEnvelope keeps a known language and drops other values, like unknown fields", () => {
+  const withLang = (lang: unknown) => validateEnvelope({ ...counterDocument(3), meta: { ...counterDocument(3).meta, lang } }).meta;
+  assert.equal(withLang("en").lang, "en");
+  assert.equal(withLang("de").lang, "de");
+  for (const other of ["fr", "EN", 1, null]) assert.equal("lang" in withLang(other), false, String(other));
+});
+
 test("validateEnvelope rejects malformed envelopes", () => {
   const good = counterDocument(3);
   const bad: unknown[] = [

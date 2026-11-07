@@ -25,13 +25,20 @@ export type Auth = {
   session(): Session | null;
   /** A valid access token, refreshed shortly before it expires; null when signed out. */
   accessToken(): Promise<string | null>;
-  /** Without email confirmation the user is signed in right away (returns true). */
-  signUp(email: string, password: string, username: string, redirectTo: string): Promise<boolean>;
+  /**
+   * Without email confirmation the user is signed in right away (returns true). `lang` goes into the user's
+   * metadata, where the mail templates read it (M28).
+   */
+  signUp(email: string, password: string, username: string, redirectTo: string, lang?: string): Promise<boolean>;
   signIn(email: string, password: string): Promise<void>;
   /** Always ends signed out locally, even if the server cannot be reached. */
   signOut(): Promise<void>;
   requestPasswordReset(email: string, redirectTo: string): Promise<void>;
   updatePassword(password: string): Promise<void>;
+  /** Sets the language of the account's mails (user_metadata.lang). */
+  updateLanguage(lang: string): Promise<void>;
+  /** user_metadata.lang of the current session's token; it is only updated with the next token. */
+  sessionLanguage(): string | null;
   /** Parses a fragment like "#access_token=…" or "#error=…"; null if it is no auth callback. */
   handleCallback(fragment: string): AuthCallback | null;
   /** Re-reads the stored session (another tab signed in or out). */
@@ -112,10 +119,10 @@ export function createAuth(
 
     accessToken,
 
-    async signUp(email, password, username, redirectTo) {
+    async signUp(email, password, username, redirectTo, lang) {
       const response = await api.auth<TokenResponse>("signup", {
         query: { redirect_to: redirectTo },
-        body: { email, password, data: { username } },
+        body: { email, password, data: lang ? { username, lang } : { username } },
       });
       if (!response?.access_token) return false;
       set(fromTokens(response));
@@ -149,6 +156,19 @@ export function createAuth(
       const token = await accessToken();
       if (!token) throw new ApiError("unauthorized", 401);
       await api.auth("user", { method: "PUT", headers: bearer(token), body: { password } });
+    },
+
+    async updateLanguage(lang) {
+      const token = await accessToken();
+      if (!token) throw new ApiError("unauthorized", 401);
+      // Supabase merges `data` into the existing metadata, so the username stays.
+      await api.auth("user", { method: "PUT", headers: bearer(token), body: { data: { lang } } });
+    },
+
+    sessionLanguage() {
+      const metadata = current ? jwtClaims(current.accessToken)?.user_metadata : null;
+      const lang = typeof metadata === "object" && metadata !== null ? (metadata as Record<string, unknown>).lang : null;
+      return typeof lang === "string" ? lang : null;
     },
 
     handleCallback(fragment) {

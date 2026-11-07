@@ -1,7 +1,7 @@
 import { html, nothing } from "lit-html";
 import type { Chain, ChainProgress, StepPuzzle } from "../../core/chains.ts";
 import type { Registry } from "../../core/registry.ts";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { reportDialog } from "../components/report-dialog.ts";
 import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
@@ -42,7 +42,7 @@ export function chainView(
     <header class="back-head chain-head">
       ${iconButton({ label: t("back"), icon: "chevronLeft", href: backHref })}
       <div>
-        <p class="play-kicker">${t("chainKicker")} · ${t("chainSteps", { count: chain.steps.length })}</p>
+        <p class="play-kicker">${t("chainKicker")} · ${tn("chainSteps", chain.steps.length)}</p>
         <h1>${chain.title}</h1>
       </div>
     </header>
@@ -50,7 +50,7 @@ export function chainView(
     ${chain.hidden ? html`<p class="notice">${t("chainHidden")}</p>` : nothing}
     <p class="hint">
       ${chain.author === null ? t("publishedByUnknown") : t("chainBy", { author: chain.author })} ·
-      ${t("galleryPlays", { count: chain.playCount })}
+      ${tn("galleryPlays", chain.playCount)}
     </p>
     ${chain.description ? html`<p class="published-description">${chain.description}</p>` : nothing}
 

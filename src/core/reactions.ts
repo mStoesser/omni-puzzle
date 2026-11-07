@@ -1,3 +1,4 @@
+import { locale } from "../i18n/t.ts";
 import type { Api } from "./api.ts";
 
 /** Averages are shown from this many ratings on (also the threshold in supabase/migrations/0006_ratings.sql). */
@@ -50,9 +51,9 @@ export function averageRating(sum: number, count: number): number | null {
   return count >= MIN_RATINGS ? sum / count : null;
 }
 
-/** "3,4" — one decimal, German format. */
+/** "3,4" — one decimal, in the format of the active language. */
 export function formatAverage(average: number): string {
-  return average.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return average.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 /** Counters after changing the own rating from `previous` (null = none) to `value`, for optimistic updates. */

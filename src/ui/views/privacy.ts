@@ -1,18 +1,19 @@
 import { html } from "lit-html";
-import { t } from "../../i18n/t.ts";
+import { perLocale, t } from "../../i18n/t.ts";
 import { backHeader } from "../components/ui.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { imprint } from "../../imprint.ts";
 import { privacy } from "../../privacy.ts";
 
-const DATE_FORMAT = new Intl.DateTimeFormat("de-DE", { dateStyle: "long" });
+const dateFormat = perLocale((tag) => new Intl.DateTimeFormat(tag, { dateStyle: "long" }));
 
 /** `withBackend` adds the sections about accounts and community features. */
 export function privacyView(withBackend: boolean) {
   const section = (heading: MessageKey, text: string) => html`<h2>${t(heading)}</h2><p>${text}</p>`;
   return html`
     ${backHeader("#/", t("privacyTitle"))}
-    <p class="hint">${t("privacyUpdated", { date: DATE_FORMAT.format(new Date(privacy.updated)) })}</p>
+    ${t("legalTranslation") ? html`<p class="hint">${t("legalTranslation")}</p>` : null}
+    <p class="hint">${t("privacyUpdated", { date: dateFormat().format(new Date(privacy.updated)) })}</p>
     <h2>${t("privacyControllerHeading")}</h2>
     <p>${t("privacyController")}</p>
     <address class="imprint">

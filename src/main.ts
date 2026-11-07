@@ -55,10 +55,11 @@ import { createSyncApi, mergeProgress, ownerDecision, readSyncMeta, syncOnce } f
 import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
 import { createStore } from "./core/store.ts";
 import { imageProblem, imageKey, publishedImageUrl, sniffImageType, toBase64 } from "./core/images.ts";
-import type { AnyPuzzleType, ImageSource, PuzzleDocument, SolveResult } from "./core/types.ts";
-import { t } from "./i18n/t.ts";
+import type { AnyPuzzleType, ImageSource, PuzzleDocument, PuzzleLang, SolveResult } from "./core/types.ts";
+import { language, t, tn } from "./i18n/t.ts";
 import type { MessageKey } from "./i18n/t.ts";
-import { examples, registry } from "./puzzles/index.ts";
+import { examples, examplesIn, registry } from "./puzzles/index.ts";
+import type { Example } from "./puzzles/index.ts";
 import type { PublishDialogModel } from "./ui/components/publish-dialog.ts";
 import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
 import { accountView } from "./ui/views/account.ts";
@@ -86,11 +87,14 @@ import { buildSheet, tabBar, topNav } from "./ui/components/nav.ts";
 import type { NavSection } from "./ui/components/nav.ts";
 import { applyTheme, readTheme, setTheme, watchSystemTheme } from "./ui/theme.ts";
 import type { ThemeChoice } from "./ui/theme.ts";
+import { applyLanguage, readLanguageChoice, storeLanguageChoice, watchSystemLanguage } from "./ui/language.ts";
+import type { LanguageChoice } from "./ui/language.ts";
 import type { EncodeError } from "./ui/image-encode.ts";
 
 type EditorState = {
   id: string; // library id; a new puzzle is saved under it on its first change
   createdAt: string;
+  lang: PuzzleLang; // M28: the UI language for new puzzles and old ones without a language
   type: AnyPuzzleType;
   session: EditorSession<unknown>;
   /** Data the creator solved in test play; compared by reference, so undo can restore "verified". */
@@ -125,6 +129,7 @@ type AppState = {
   buildSheet: boolean; // type choice for a new puzzle is open
   typeSheet: string | null; // home: type whose levels are shown in a sheet
   theme: ThemeChoice;
+  language: LanguageChoice; // M28; the language in effect is language() from i18n/t.ts
   daily: Daily | "loading" | "failed"; // the puzzle of the day (M26), loaded on the home page and #/daily
   dailyDays: readonly string[]; // days whose puzzle was solved on this device (streak when signed out)
 };
@@ -165,6 +170,9 @@ const auth = backend ? createAuth(backend, { store: browserStore }) : null;
 const DAILY_DAYS_KEY = "raetsel-daily-days";
 const api = backend && auth ? createApi(backend, { accessToken: auth.accessToken }) : null;
 
+// Before anything is rendered or formatted: texts follow the chosen language from the start.
+applyLanguage(readLanguageChoice());
+
 const store = createStore<AppState>({
   route: parseRoute(location.hash),
   pending: false,
@@ -200,6 +208,7 @@ const store = createStore<AppState>({
   buildSheet: false,
   typeSheet: null,
   theme: readTheme(),
+  language: readLanguageChoice(),
   daily: "loading",
   dailyDays: dailies.parseLocalDays(browserStore.get(DAILY_DAYS_KEY)),
 });
@@ -288,7 +297,7 @@ function fail(route: Route, error: ErrorInfo) {
 // --- Play ---
 
 async function openPlay(route: Route & { name: "play" }) {
-  const example = examples.find((e) => e.id === route.id);
+  const example = exampleById(route.id);
   if (example) return startPlay(route, example.doc, "example");
 
   patch({ pending: true });
@@ -329,11 +338,22 @@ function linkErrorText(error: unknown): MessageKey {
   }
 }
 
+/** An example by id, with its title in the app's language; also one written in another language. */
+function exampleById(id: string): Example | undefined {
+  return examplesIn(language(), "all").find((e) => e.id === id);
+}
+
+/** The examples of the same type and in the same language as `current`, in their order. */
+function sameKindExamples(current: Example): Example[] {
+  const lang = current.lang ?? language();
+  return examplesIn(language(), "all").filter((e) => e.doc.type === current.doc.type && (!e.lang || e.lang === lang));
+}
+
 /** All examples of the same type with their progress, for the level list beside the board. */
 function exampleLevels(state: AppState, id: string): PlayLevel[] {
-  const current = examples.find((e) => e.id === id);
-  return examples
-    .filter((e) => e.doc.type === current?.doc.type)
+  const current = exampleById(id);
+  if (!current) return [];
+  return sameKindExamples(current)
     .map((e) => ({
       href: formatRoute({ name: "play", id: e.id }),
       title: e.doc.meta.title,
@@ -346,9 +366,9 @@ function exampleLevels(state: AppState, id: string): PlayLevel[] {
 /** Level position and the following example of the same type. */
 function exampleNeighbours(route: Route): Pick<PlayViewModel, "level" | "next"> {
   if (route.name !== "play") return {};
-  const current = examples.find((e) => e.id === route.id);
+  const current = exampleById(route.id);
   if (!current) return {};
-  const own = examples.filter((e) => e.doc.type === current.doc.type);
+  const own = sameKindExamples(current);
   const index = own.indexOf(current);
   const next = own[index + 1];
   return {
@@ -383,6 +403,7 @@ function startPlay(
     showSolved: false,
     origin,
     progressKey: progressKey(doc),
+    ...(doc.meta.lang ? { lang: doc.meta.lang } : {}),
     images: extra.images ?? localImages,
     minMoves: doc.meta.minMoves ?? null,
     timer: IDLE_TIMER,
@@ -933,7 +954,7 @@ const playActions = {
     if (play.published) await downloadImages(play.published.id, type.imageKeys?.(data) ?? []);
     const record: PuzzleRecord = {
       id: newPuzzleId(),
-      doc: { format: 1, type: type.id, typeVersion: type.version, meta: { title: play.title, createdAt: now() }, data },
+      doc: { format: 1, type: type.id, typeVersion: type.version, meta: { title: play.title, createdAt: now(), lang: play.lang ?? language() }, data },
       updatedAt: now(),
     };
     if (await save((s) => s.putPuzzle(record))) location.hash = formatRoute({ name: "edit", id: record.id });
@@ -987,7 +1008,7 @@ async function loadGalleryPage(route: Route & { name: "gallery" }) {
         hasMore: next !== null,
         status: "idle",
         error: null,
-        announcement: more ? t(route.filter.view === "chains" ? "galleryChainsLoaded" : "galleryLoaded", { count }) : "",
+        announcement: more ? tn(route.filter.view === "chains" ? "galleryChainsLoaded" : "galleryLoaded", count) : "",
       },
     });
   } catch (error) {
@@ -1262,6 +1283,7 @@ function newEditor(typeId: string) {
   const editor: EditorState = {
     id: newPuzzleId(),
     createdAt: now(),
+    lang: language(),
     type,
     session: editing.createEditorSession(type.createDefault(), t("untitled")),
     verifiedData: undefined,
@@ -1282,6 +1304,7 @@ async function openEditor(route: Route & { name: "edit" }) {
     const editor: EditorState = {
       id: record.id,
       createdAt: doc.meta.createdAt,
+      lang: doc.meta.lang ?? language(),
       type,
       session: editing.createEditorSession(doc.data, doc.meta.title),
       verifiedData: doc.meta.verified ? doc.data : undefined,
@@ -1313,6 +1336,7 @@ function editorDocument(editor: EditorState): PuzzleDocument {
     type: editor.type.id,
     typeVersion: editor.type.version,
     createdAt: editor.createdAt,
+    lang: editor.lang,
     verified: isVerified(editor),
     solve: cachedSolve(editing.currentData(editor.session)),
   });
@@ -1497,6 +1521,12 @@ const editorActions = {
   undo: () => updateEditor(editing.undoEdit),
   redo: () => updateEditor(editing.redoEdit),
   setTitle: (title: string) => updateEditor((s) => editing.setTitle(s, title)),
+  setLanguage: (lang: PuzzleLang) => {
+    const editor = store.get().editor;
+    if (!editor || editor.lang === lang) return;
+    patch({ editor: { ...editor, lang } });
+    editorChanged();
+  },
   testPlay: () => {
     const editor = store.get().editor;
     if (!editor || !editing.readiness(editorCheck(editor)).canTest) return;
@@ -1897,6 +1927,7 @@ function onSession(session: Session | null) {
   if (user?.id === account.user?.id) return;
   setAccount({ user, profile: null, confirmDelete: false, publications: null, chains: null, editingPublication: null, confirmWithdraw: null, panel: null });
   if (user) void loadProfile(user.id);
+  if (user) void updateMailLanguage();
   const { route } = store.get();
   if (user && route.name === "account") void loadPublications();
   // The draft belongs to the account that started it.
@@ -1919,6 +1950,27 @@ function onSession(session: Session | null) {
   setSync({ status: "off", lastSync: null, error: null, rejected: 0 });
   if (user) requestSync();
   else clearTimeout(syncTimer);
+}
+
+// The account's mails (confirmation, password reset) are written in user_metadata.lang (M28).
+let mailLanguageSent: string | null = null; // "<user id>:<lang>"; the token knows it only after its next refresh
+
+async function updateMailLanguage() {
+  const user = store.get().account.user;
+  if (!auth || !user) return;
+  const lang = language();
+  const key = `${user.id}:${lang}`;
+  if (mailLanguageSent === key) return;
+  if (!mailLanguageSent?.startsWith(`${user.id}:`) && auth.sessionLanguage() === lang) {
+    mailLanguageSent = key;
+    return;
+  }
+  try {
+    await auth.updateLanguage(lang);
+    mailLanguageSent = key;
+  } catch (error) {
+    console.warn("mail language", error); // tried again with the next session or language change
+  }
 }
 
 async function loadProfile(userId: string) {
@@ -1944,7 +1996,7 @@ const accountActions = {
       checkUsername(name);
       checkPassword(password);
       if (!(await usernameAvailable(api!, name))) throw new InputProblem("usernameTaken");
-      if (await auth!.signUp(email.trim(), password, name, authRedirect())) return { tone: "ok", text: "accountSignedIn" };
+      if (await auth!.signUp(email.trim(), password, name, authRedirect(), language())) return { tone: "ok", text: "accountSignedIn" };
       setAccount({ mode: "signIn" });
       return { tone: "ok", text: "accountCheckMail" };
     }),
@@ -2048,11 +2100,12 @@ function view(state: AppState) {
   if (state.error) return messageView(t(state.error.text), state.error.action, state.error.reload);
   switch (state.route.name) {
     case "home": {
-      const solved = examples.filter((e) => state.progress.get(state.exampleKeys.get(e.id) ?? "")?.solved);
+      const listed = examplesIn(language());
+      const solved = listed.filter((e) => state.progress.get(state.exampleKeys.get(e.id) ?? "")?.solved);
       const gallery = api ? { newest: state.newest, solved: isSolved } : null;
       const model = {
         types: registry.all(),
-        examples,
+        examples: listed,
         solvedExamples: new Set(solved.map((e) => e.id)),
         account: { ...navAccount(state), username: state.account.user ? (state.account.profile?.username ?? null) : null },
         gallery,
@@ -2077,6 +2130,7 @@ function view(state: AppState) {
     case "account": {
       const extras = {
         theme: state.theme,
+        language: state.language,
         stats: { solved: [...state.progress.values()].filter((r) => r.solved).length, built: state.library?.length ?? 0 },
       };
       return accountView(auth ? state.account : null, auth ? accountActions : null, extras, profileActions);
@@ -2123,6 +2177,7 @@ function view(state: AppState) {
           username: state.account.profile?.username ?? null,
           publish: state.publish,
           images: editorImages,
+          lang: editor.lang,
           testPlay: state.play?.origin === "test" ? playView(state.play, playStats(state), playActions, { embedded: true }) : null,
           ...editorCheck(editor),
         },
@@ -2175,6 +2230,12 @@ const profileActions = {
   setTheme: (theme: ThemeChoice) => {
     setTheme(theme);
     patch({ theme });
+  },
+  setLanguage: (choice: LanguageChoice) => {
+    storeLanguageChoice(choice);
+    applyLanguage(choice);
+    patch({ language: choice }); // renders everything again in the new language
+    void updateMailLanguage();
   },
 };
 
@@ -2239,6 +2300,11 @@ function scheduleRender() {
 
 applyTheme(readTheme());
 watchSystemTheme();
+watchSystemLanguage(() => {
+  applyLanguage("system");
+  store.set((state) => ({ ...state })); // render again in the new language
+  void updateMailLanguage();
+});
 store.subscribe(scheduleRender);
 // Save pending edits before the page is hidden (tab switch, app switch, closing).
 document.addEventListener("visibilitychange", () => {
@@ -2254,6 +2320,7 @@ if (auth) {
   auth.subscribe(onSession);
   const user = store.get().account.user;
   if (user) void loadProfile(user.id);
+  void updateMailLanguage();
   void flushScoreQueue();
   requestSync();
   handleAuthCallback();

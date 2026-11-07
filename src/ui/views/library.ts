@@ -1,7 +1,7 @@
 import { html, nothing } from "lit-html";
 import type { PuzzleRecord } from "../../core/storage.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import { thumb } from "../components/gallery-card.ts";
 import { popoverMenu, statusBadge, typeVars } from "../components/ui.ts";
 import type { MenuItem } from "../components/ui.ts";
@@ -54,7 +54,7 @@ function libraryEntry({ record, type, playable }: LibraryItem, actions: LibraryV
         <span class="library-card-sub">
           <span class="type-name typed" style=${typeVars(type)}>${t(type.name)}</span>
           ${updated ? html` · ${t("libraryEdited", { when: updated })}` : nothing}
-          ${meta.minMoves === undefined ? nothing : html` · ${(meta.minMoves === 1 ? t("galleryMinMovesOne") : t("galleryMinMoves", { moves: meta.minMoves }))}`}
+          ${meta.minMoves === undefined ? nothing : html` · ${tn("galleryMinMoves", meta.minMoves)}`}
         </span>
         <span>${statusBadge(meta.verified ? "ready" : "draft")}</span>
       </div>

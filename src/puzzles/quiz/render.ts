@@ -2,13 +2,13 @@ import { html, nothing } from "lit-html";
 import { keyed } from "lit-html/directives/keyed.js";
 import type { ImageRef } from "../../core/images.ts";
 import type { ImageSource, PlayContext } from "../../core/types.ts";
-import { t } from "../../i18n/t.ts";
+import { perLocale, t } from "../../i18n/t.ts";
 import { correctChoices, isCorrect, passed, score } from "./logic.ts";
 import type { QuizAnswer, QuizData, QuizMove, QuizQuestion, QuizState } from "./logic.ts";
 
 type Ctx = PlayContext<QuizData, QuizState, QuizMove>;
 
-const NUMBER_FORMAT = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 6 });
+const numberFormat = perLocale((tag) => new Intl.NumberFormat(tag, { maximumFractionDigits: 6 }));
 
 export function renderPlay(ctx: Ctx) {
   const { data, state } = ctx;
@@ -108,8 +108,8 @@ function solution(question: QuizQuestion): string {
       return t("quizSolution", { solution: correct.map((i) => question.options[i]).join(", ") });
     }
     case "number": {
-      const value = NUMBER_FORMAT.format(question.value);
-      const solution = question.tolerance > 0 ? `${value} (± ${NUMBER_FORMAT.format(question.tolerance)})` : value;
+      const value = numberFormat().format(question.value);
+      const solution = question.tolerance > 0 ? `${value} (± ${numberFormat().format(question.tolerance)})` : value;
       return t("quizSolution", { solution });
     }
     case "text":

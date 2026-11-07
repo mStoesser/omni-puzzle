@@ -14,8 +14,10 @@ test("galleryQuery: default is newest first, without hidden puzzles", () => {
 });
 
 test("galleryQuery: filters and keyset cursor", () => {
-  const q = galleryQuery({ view: "puzzles", type: "laser", level: 2, sort: "likes" }, { value: 5, id: "abc" }, 21);
+  const q = galleryQuery({ view: "puzzles", type: "laser", level: 2, lang: "en", sort: "likes" }, { value: 5, id: "abc" }, 21);
   assert.equal(q.type, "eq.laser");
+  assert.equal(q.lang, "eq.en");
+  assert.match(q.select!, /,lang,/);
   assert.equal(q.difficulty, "eq.2");
   assert.equal(q.order, "like_count.desc,id.desc");
   assert.equal(q.or, '(like_count.lt."5",and(like_count.eq."5",id.lt.abc))');
@@ -56,15 +58,16 @@ test("fetchGalleryPage detects the next page with one extra row", async () => {
 });
 
 test("gallery filters round-trip through the route; junk falls back to defaults", () => {
-  const filter = { view: "puzzles" as const, type: "laser", level: 3 as const, sort: "hardest" as const };
+  const filter = { view: "puzzles" as const, type: "laser", level: 3 as const, lang: "de" as const, sort: "hardest" as const };
   assert.deepEqual(parseGalleryFilter(formatGalleryFilter(filter)), filter);
   assert.equal(formatGalleryFilter(DEFAULT_FILTER), "");
-  assert.deepEqual(parseGalleryFilter("type=Bad Type&level=7&sort=evil"), DEFAULT_FILTER);
+  assert.equal(formatGalleryFilter(filter), "type=laser&level=3&lang=de&sort=hardest");
+  assert.deepEqual(parseGalleryFilter("type=Bad Type&level=7&lang=fr&sort=evil"), DEFAULT_FILTER);
 });
 
 test("the chain view keeps only its own sorts and drops type and level", () => {
-  const chains = parseGalleryFilter("view=chains&type=laser&level=2&sort=plays");
-  assert.deepEqual(chains, { view: "chains", type: null, level: null, sort: "plays" });
+  const chains = parseGalleryFilter("view=chains&type=laser&level=2&lang=en&sort=plays");
+  assert.deepEqual(chains, { view: "chains", type: null, level: null, lang: null, sort: "plays" });
   assert.equal(formatGalleryFilter(chains), "view=chains&sort=plays");
   assert.equal(parseGalleryFilter("view=chains&sort=likes").sort, "new");
   assert.equal(parseGalleryFilter("view=other").view, "puzzles");

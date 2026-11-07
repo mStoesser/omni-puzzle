@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { formatDay, timeAgo } from "./time.ts";
+import { setLanguage } from "../i18n/t.ts";
 
 const now = Date.parse("2026-11-03T12:00:00Z");
 
@@ -23,4 +24,17 @@ test("formatDay shows a calendar day with its weekday, independent of the time z
   assert.equal(formatDay("2026-11-07"), "Sa., 7.11.");
   assert.equal(formatDay("2026-03-29"), "So., 29.3.");
   assert.equal(formatDay("bad"), "bad");
+});
+
+test("times and days follow the active language", () => {
+  try {
+    setLanguage("en", "en-GB");
+    assert.equal(timeAgo("2026-11-03T10:00:00Z", now), "2 hr ago");
+    assert.equal(timeAgo("2026-11-02T11:00:00Z", now), "yesterday");
+    assert.equal(timeAgo("2026-10-01T12:00:00Z", now), "1 Oct 2026");
+    assert.equal(formatDay("2026-11-07"), "Sat 07/11");
+  } finally {
+    setLanguage("de");
+  }
+  assert.equal(formatDay("2026-11-07"), "Sa., 7.11.");
 });

@@ -4,7 +4,8 @@ import type { ChainItem } from "../../core/chains.ts";
 import { CHAIN_SORTS, DEFAULT_FILTER, GALLERY_SORTS } from "../../core/gallery.ts";
 import type { GalleryFilter, GalleryItem, GallerySort, GalleryView } from "../../core/gallery.ts";
 import type { Registry } from "../../core/registry.ts";
-import { t } from "../../i18n/t.ts";
+import { LANG_NAMES, t, tn } from "../../i18n/t.ts";
+import { isPuzzleLang, PUZZLE_LANGS } from "../../core/types.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { chainCard, galleryCard } from "../components/gallery-card.ts";
 import { chip, segment } from "../components/ui.ts";
@@ -42,11 +43,11 @@ export function galleryView(
 ) {
   const { filter } = model;
   const chains = filter.view === "chains";
-  const filtered = filter.type !== null || filter.level !== null;
+  const filtered = filter.type !== null || filter.level !== null || filter.lang !== null;
   const loaded = model.status !== "loading";
   const count = chains ? model.chains.length : model.items.length;
   const countKey: MessageKey = chains
-    ? model.hasMore ? "galleryChainCountMore" : count === 1 ? "galleryChainCountOne" : "galleryChainCount"
+    ? model.hasMore ? "galleryChainCountMore" : "galleryChainCount"
     : model.hasMore ? "galleryCountMore" : "galleryCount";
   return html`
     <header class="page-head">
@@ -78,12 +79,17 @@ export function galleryView(
 
     <div class="list-bar">
       <span class="list-count" role="status">
-        ${loaded && model.status !== "error" ? t(countKey, { count }) : nothing}
+        ${loaded && model.status !== "error" ? tn(countKey, count) : nothing}
       </span>
       ${chains
         ? nothing
         : select(t("galleryLevel"), String(filter.level ?? ""), [["", t("galleryAllLevels")], ...LEVELS.map((l) => [String(l), t(`level${l}`)] as const)], (value) =>
             actions.setFilter({ ...filter, level: value ? (Number(value) as GalleryFilter["level"]) : null }),
+          )}
+      ${chains
+        ? nothing
+        : select(t("galleryLanguage"), filter.lang ?? "", [["", t("galleryAllLanguages")], ...PUZZLE_LANGS.map((l) => [l, LANG_NAMES[l]] as const)], (value) =>
+            actions.setFilter({ ...filter, lang: isPuzzleLang(value) ? value : null }),
           )}
       ${select(t("gallerySort"), filter.sort, (chains ? CHAIN_SORTS : GALLERY_SORTS).map((s) => [s, t(SORT_TEXT[s])] as const), (value) =>
         actions.setFilter({ ...filter, sort: value as GallerySort }),

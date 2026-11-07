@@ -1134,6 +1134,16 @@ a.icon-button {
   color: var(--kk-muted);
 }
 
+.badge-lang {
+  border-color: var(--kk-line);
+  color: var(--kk-muted);
+  letter-spacing: 0.04em;
+}
+
+.badge-lang abbr {
+  text-decoration: none;
+}
+
 .type-tile-icon {
   display: inline-grid;
   flex: none;
@@ -2497,6 +2507,27 @@ a.icon-button {
 
 .editor-check .check-line {
   margin-top: var(--kk-space-3);
+}
+
+/* Language of the puzzle (M28): a quiet row under the check. */
+.editor-lang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-3);
+  margin-top: var(--kk-space-3);
+  font-size: 0.875rem;
+  color: var(--kk-muted);
+}
+
+.editor-lang select {
+  min-height: 44px;
+  padding: 0 var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  font: inherit;
 }
 
 .editor-tools-bar .icon-button {

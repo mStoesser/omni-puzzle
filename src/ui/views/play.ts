@@ -3,10 +3,10 @@ import { canRedo, canUndo, currentState, moveCount } from "../../core/session.ts
 import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
-import type { ImageSource } from "../../core/types.ts";
+import type { ImageSource, PuzzleLang } from "../../core/types.ts";
 import { formatDuration } from "../../core/timer.ts";
 import type { Timer } from "../../core/timer.ts";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import { leaderboardOutcome, leaderboardSection } from "../components/leaderboard.ts";
 import type { LeaderboardActions, LeaderboardModel, LeaderboardViewer } from "../components/leaderboard.ts";
 import { reportDialog } from "../components/report-dialog.ts";
@@ -30,6 +30,7 @@ export type PlayViewModel = {
   progressKey: string | null; // null = test play (no progress)
   images: ImageSource; // local pictures, or those of the published puzzle
   minMoves: number | null; // shortest solution, if known
+  lang?: PuzzleLang; // language of the puzzle's texts (M28); a remix keeps it
   level?: { index: number; total: number }; // position among the examples of its type (1-based)
   next?: { href: string; title: string; label?: string }; // the following example or chain step; `label` replaces the button text
   chain?: { story: string }; // a step of a chain: the text before the puzzle
@@ -104,7 +105,7 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
                 ><span class="level-long">${t(model.chain ? "chainStepOf" : "playLevelOf", { index: level.index, total: level.total })}</span>`
             : nothing}</span
         >
-        <h1>${model.title || t("untitled")}</h1>
+        <h1 lang=${model.lang ?? nothing}>${model.title || t("untitled")}</h1>
       </div>
       ${menu.length > 0
         ? popoverMenu(MENU_ID, t("playMenu"), menu)
@@ -174,7 +175,7 @@ function levelBox(levels: readonly PlayLevel[]) {
               : l.solved
                 ? html`<span class="level-status ok">${t("solvedMark")}</span>`
                 : l.minMoves !== null
-                  ? html`<span class="level-status">${t("homeLevelMoves", { moves: l.minMoves })}</span>`
+                  ? html`<span class="level-status">${tn("homeLevelMoves", l.minMoves)}</span>`
                   : nothing}
           </a>
         </li>`,
@@ -223,7 +224,7 @@ function likeButton(info: PublishedInfo, actions: PlayViewActions) {
     @click=${actions.toggleLike}
   >
     ${icon("heart", 18)} ${t("like")}
-    <span class="like-count" aria-label=${t("likeCount", { count: info.likeCount })}>${info.likeCount}</span>
+    <span class="like-count" aria-label=${tn("likeCount", info.likeCount)}>${info.likeCount}</span>
   </button>`;
 }
 
@@ -257,7 +258,7 @@ function rating(info: PublishedInfo, actions: PlayViewActions) {
     </div>
     <p class="hint">
       ${average !== null
-        ? t("ratingAverage", { average: formatAverage(average), count: info.ratingCount })
+        ? tn("ratingAverage", info.ratingCount, { average: formatAverage(average) })
         : info.ratingCount > 0
           ? t("ratingTooFew")
           : nothing}
@@ -266,13 +267,13 @@ function rating(info: PublishedInfo, actions: PlayViewActions) {
 }
 
 export function streakLine(days: number) {
-  return html`<p class="daily-streak">${icon("flame", 18)}${t(days === 1 ? "dailyStreakOne" : "dailyStreak", { count: days })}</p>`;
+  return html`<p class="daily-streak">${icon("flame", 18)}${tn("dailyStreak", days)}</p>`;
 }
 
 function solvedSubline(moves: number | null, minMoves: number | null) {
   if (moves === null) return t("solvedText");
   if (minMoves !== null) return moves <= minMoves ? t("solvedOptimal") : t("solvedNotOptimal", { moves, min: minMoves });
-  return moves === 1 ? t("solvedTextOne") : t("solvedTextOther", { moves });
+  return tn("solvedMoves", moves);
 }
 
 /** `moves` null = the type does not count moves. */

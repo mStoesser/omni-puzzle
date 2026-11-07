@@ -1,6 +1,6 @@
 import { html, svg } from "lit-html";
 import type { PlayContext } from "../../core/types.ts";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
 import { height, isCell, lightsOn, width } from "./logic.ts";
@@ -45,7 +45,7 @@ export function renderPlay(ctx: Ctx) {
     >
       ${boardLayers(data, state, { ctx })}
     </svg>
-    <p class="visually-hidden" aria-live="polite">${t("loLightsOn", { count: lightsOn(state) })}</p>
+    <p class="visually-hidden" aria-live="polite">${tn("loLightsOn", lightsOn(state))}</p>
   `;
 }
 

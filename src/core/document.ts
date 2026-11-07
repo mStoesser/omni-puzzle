@@ -1,5 +1,6 @@
 import type { Registry } from "./registry.ts";
 import type { AnyPuzzleRules, PuzzleDocument, PuzzleMeta } from "./types.ts";
+import { isPuzzleLang } from "./types.ts";
 
 export type DocumentErrorCode =
   | "invalid" // malformed or failed validation
@@ -68,6 +69,8 @@ export function validateEnvelope(raw: unknown): PuzzleDocument {
     }
     clean.minMoves = meta.minMoves as number;
   }
+  // A language this version does not know (from a newer app) is dropped like an unknown field, not an error.
+  if (isPuzzleLang(meta.lang)) clean.lang = meta.lang;
 
   return { format: 1, type: raw.type, typeVersion: raw.typeVersion as number, meta: clean, data: raw.data };
 }

@@ -9,7 +9,7 @@ import { avatar } from "../components/nav.ts";
 import type { NavAccount } from "../components/nav.ts";
 import { sheet, statusBadge, typeBadge, typeTile, typeVars } from "../components/ui.ts";
 import { icon, logo } from "../icons.ts";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import type { Example } from "../../puzzles/index.ts";
 
 /** The signed-in user's name for the greeting; null = signed out or no backend. */
@@ -109,7 +109,7 @@ function dailyCard(daily: HomeDaily, types: readonly AnyPuzzleType[]) {
       </span>
     </span>
     <span class="daily-card-foot">
-      <span class="daily-card-streak">${streak > 0 ? html`${icon("flame", 16)}${t(streak === 1 ? "dailyStreakOne" : "dailyStreak", { count: streak })}` : t("dailyStreakNone")}</span>
+      <span class="daily-card-streak">${streak > 0 ? html`${icon("flame", 16)}${tn("dailyStreak", streak)}` : t("dailyStreakNone")}</span>
       <span class="daily-card-go">${t(solved ? "dailyAgain" : "dailyPlay")}${icon("chevronRight", 16)}</span>
     </span>
   </a>`;
@@ -171,7 +171,7 @@ function levelList(own: readonly Example[], solved: ReadonlySet<string>) {
             ? html`<span class="level-status ok">${t("solvedMark")}</span>`
             : doc.meta.minMoves === undefined
               ? nothing
-              : html`<span class="level-status">${t("homeLevelMoves", { moves: doc.meta.minMoves })}</span>`}
+              : html`<span class="level-status">${tn("homeLevelMoves", doc.meta.minMoves)}</span>`}
         </a>
       </li>`,
     )}

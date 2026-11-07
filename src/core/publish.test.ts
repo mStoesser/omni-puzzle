@@ -26,6 +26,17 @@ test("a verified puzzle is published with minMoves computed by the solver", () =
   assert.equal(pub.contentKey, progressKey(doc));
 });
 
+test("the language is kept in the document and goes into its own column; it does not change the content key", () => {
+  const doc = docOf("rushhour-1");
+  const plain = preparePublication({ doc: structuredClone(doc), title: "T" }, rulesRegistry);
+  assert.equal(plain.lang, null);
+  doc.meta.lang = "en";
+  const pub = preparePublication({ doc, title: "T" }, rulesRegistry);
+  assert.equal(pub.lang, "en");
+  assert.equal(pub.doc.meta.lang, "en");
+  assert.equal(pub.contentKey, plain.contentKey);
+});
+
 test("every built-in example passes the server checks with the same minMoves and a difficulty level", () => {
   for (const { id, doc } of examples) {
     const pub = preparePublication({ doc: structuredClone(doc), title: doc.meta.title }, rulesRegistry);

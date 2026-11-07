@@ -1,6 +1,8 @@
 import type { Api } from "./api.ts";
 import { isLevel } from "./difficulty.ts";
 import type { Level } from "./difficulty.ts";
+import { isPuzzleLang } from "./types.ts";
+import type { PuzzleLang } from "./types.ts";
 
 export type GallerySort = "new" | "likes" | "plays" | "hardest";
 export const GALLERY_SORTS: readonly GallerySort[] = ["new", "likes", "plays", "hardest"];
@@ -10,8 +12,9 @@ export type GalleryView = "puzzles" | "chains";
 export const CHAIN_SORTS: readonly GallerySort[] = ["new", "plays"];
 
 /** What the gallery shows; part of the route, so back navigation and links keep it. */
-export type GalleryFilter = { view: GalleryView; type: string | null; level: Level | null; sort: GallerySort };
-export const DEFAULT_FILTER: GalleryFilter = { view: "puzzles", type: null, level: null, sort: "new" };
+/** `lang` (M28): null = all languages, including puzzles without one. */
+export type GalleryFilter = { view: GalleryView; type: string | null; level: Level | null; lang: PuzzleLang | null; sort: GallerySort };
+export const DEFAULT_FILTER: GalleryFilter = { view: "puzzles", type: null, level: null, lang: null, sort: "new" };
 
 export const PAGE_SIZE = 20;
 
@@ -24,6 +27,7 @@ export type GalleryItem = {
   contentKey: string;
   minMoves: number | null;
   level: Level | null;
+  lang: PuzzleLang | null;
   likeCount: number;
   playCount: number;
   ratingSum: number;
@@ -48,6 +52,7 @@ type Row = {
   content_key: string;
   min_moves: number | null;
   difficulty: number | null;
+  lang: string | null;
   like_count: number;
   play_count: number;
   rating_sum: number;
@@ -58,7 +63,7 @@ type Row = {
 };
 
 const SELECT =
-  "id,type,title,content_key,min_moves,difficulty,like_count,play_count,rating_sum,rating_count,published_at,hardness," +
+  "id,type,title,content_key,min_moves,difficulty,lang,like_count,play_count,rating_sum,rating_count,published_at,hardness," +
   "author:profiles!puzzles_author_id_fkey(username)";
 
 /** PostgREST query parameters for one page; pure, so it is tested without a server. */
@@ -72,6 +77,7 @@ export function galleryQuery(filter: GalleryFilter, cursor: GalleryCursor | null
   };
   if (filter.type) query.type = `eq.${filter.type}`;
   if (filter.level) query.difficulty = `eq.${filter.level}`;
+  if (filter.lang) query.lang = `eq.${filter.lang}`;
   if (cursor) query.or = afterCursor(column, cursor);
   return query;
 }
@@ -91,6 +97,7 @@ function toItem(row: Row): GalleryItem {
     contentKey: row.content_key,
     minMoves: row.min_moves,
     level: isLevel(row.difficulty) ? row.difficulty : null,
+    lang: isPuzzleLang(row.lang) ? row.lang : null,
     likeCount: row.like_count,
     playCount: row.play_count,
     ratingSum: row.rating_sum,
@@ -122,14 +129,16 @@ export function parseGalleryFilter(search: string): GalleryFilter {
   const params = new URLSearchParams(search);
   const sort = params.get("sort") as GallerySort | null;
   if (params.get("view") === "chains") {
-    return { view: "chains", type: null, level: null, sort: sort !== null && CHAIN_SORTS.includes(sort) ? sort : "new" };
+    return { view: "chains", type: null, level: null, lang: null, sort: sort !== null && CHAIN_SORTS.includes(sort) ? sort : "new" };
   }
   const type = params.get("type");
   const level = Number(params.get("level"));
+  const lang = params.get("lang");
   return {
     view: "puzzles",
     type: type !== null && /^[a-z0-9-]{1,32}$/.test(type) ? type : null,
     level: isLevel(level) ? level : null,
+    lang: isPuzzleLang(lang) ? lang : null,
     sort: sort !== null && GALLERY_SORTS.includes(sort) ? sort : "new",
   };
 }
@@ -140,6 +149,7 @@ export function formatGalleryFilter(filter: GalleryFilter): string {
   if (filter.view === "chains") params.set("view", "chains");
   if (filter.type) params.set("type", filter.type);
   if (filter.level) params.set("level", String(filter.level));
+  if (filter.lang) params.set("lang", filter.lang);
   if (filter.sort !== "new") params.set("sort", filter.sort);
   return params.toString();
 }

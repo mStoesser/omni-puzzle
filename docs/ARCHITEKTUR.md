@@ -60,8 +60,9 @@ public/
   icons/
 src/
   main.ts                 # Bootstrapping, Router-Start, Render-Loop
-  i18n/de.ts              # alle UI-Texte
-  i18n/t.ts               # t(key, params): Textabruf mit {platzhalter}
+  i18n/de.ts              # alle UI-Texte (Deutsch, legt die Schlüssel fest)
+  i18n/en.ts              # dieselben Schlüssel auf Englisch (M28)
+  i18n/t.ts               # aktive Sprache, t(key, params) mit {platzhalter}, tn() für Mehrzahl, perLocale()
   core/
     types.ts              # PuzzleDocument, PuzzleType-Interface, Hilfstypen
     registry.ts           # Registrierung und Lookup der Rätseltypen
@@ -111,7 +112,7 @@ src/
     nonogram/  { index.ts, rules.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
-  templates/              # deutsche Mail-Vorlagen
+  templates/              # Mail-Vorlagen, Sprache nach user_metadata.lang (M28)
   functions/publish/      # Edge Function (Deno), importiert src/server/publish-handler.ts
   functions/cleanup-images/  # Edge Function (Deno), importiert src/server/cleanup-handler.ts
   functions/submit-score/ # Edge Function (Deno), importiert src/server/score-handler.ts
@@ -135,6 +136,7 @@ type PuzzleDocument<D = unknown> = {
     createdAt: string;    // ISO-Datum
     verified?: boolean;   // vom Ersteller gelöst
     minMoves?: number;    // vom Solver ermittelt
+    lang?: "de" | "en";   // Sprache der Texte (M28); andere Werte werden wie unbekannte Felder verworfen
   };
   data: D;                // typspezifisch
 };
@@ -567,7 +569,7 @@ URL: https://<host>/#/p/1.<code>      ("1." = Codec-Version)
 | `#/edit/<localId>` | eigenes Rätsel bearbeiten |
 | `#/play/<localId>` | eigenes Rätsel oder eingebautes Beispiel spielen |
 | `#/impressum` | Impressum (Angaben in `src/imprint.ts`) |
-| `#/datenschutz` | Datenschutzerklärung (Einstellungen in `src/privacy.ts`, Texte in `src/i18n/de.ts`) |
+| `#/datenschutz` | Datenschutzerklärung (Einstellungen in `src/privacy.ts`, Texte in `src/i18n/de.ts` und `en.ts`) |
 
 ## Lokale Speicherung (IndexedDB)
 
@@ -853,6 +855,38 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   5 000 Fortschritte) und 100 Bilder × 200 KB = 20 MB Storage. Ein Dutzend Konten am Limit würde den Free-Tier sprengen;
   dann im Dashboard nachsehen (`sync_puzzles` nach Nutzer summieren) und die Grenzen senken.
 
+### Englisch und Sprache pro Rätsel (M28)
+
+- **Texte:** `i18n/de.ts` legt die Schlüssel fest, `i18n/en.ts` hat den Typ `Record<MessageKey, string>`; `t.test.ts`
+  prüft dieselben Schlüssel und Platzhalter. Mehrzahl über `tn(key, count)`: Sagt `Intl.PluralRules` „one“, wird
+  `<key>One` genommen, falls es ihn gibt. Die Zahl steht als `{count}` im Text.
+- **Aktive Sprache** (`ui/language.ts`): „Automatisch“ (Standard) nimmt die erste Sprache aus `navigator.languages`, die
+  die App kann, sonst Englisch. Unter Profil › Darstellung › Sprache fest wählbar, gespeichert im `localStorage`
+  (`knobelkiste-lang`). `main.ts` setzt sie vor dem ersten Rendern; ein Wechsel rendert neu ohne Neuladen,
+  `<html lang>`, `document.title` und die Seitenbeschreibung folgen. Das Manifest bleibt deutsch.
+- **Formate:** Datum, relative Zeiten und Zahlen nutzen die aktive Locale. Zur Sprache passende Browser-Locales werden
+  übernommen (z. B. `en-GB`), sonst `de-DE` bzw. `en-US`. Formatter werden mit `perLocale()` gecacht und nach einem
+  Wechsel neu gebaut. Ausnahme: Die Normalisierung von Quiz-Antworten (`core/hash.ts`) bleibt fest `de-DE`, sonst
+  ändern sich die Hashes.
+- **Beispiele:** Rätsel ohne Text haben einen Titel je Sprache (`title: { de, en }`), das Dokument trägt den deutschen.
+  Das Quiz gibt es zweimal, je in einer Sprache (`lang`); Startseite und Levelliste zeigen nur Beispiele, die man lesen
+  kann (`examplesIn(lang)`), per Link bleibt jedes spielbar. Der Fortschritt hängt nicht am Titel.
+- **Sprache pro Rätsel:** `meta.lang` ist optional, alte App-Versionen verwerfen das Feld, also bleibt `format: 1`.
+  Der Inhaltsschlüssel (`progressKey`) ignoriert `meta`, ändert sich also nicht. Neue Rätsel bekommen die
+  Oberflächensprache, alte ohne Sprache ebenso beim nächsten Speichern; im Prüf-Panel des Editors ist sie änderbar.
+  Ein Remix übernimmt die Sprache.
+- **Galerie** (Migration `0013_lang.sql`): Spalte `puzzles.lang` (`de`, `en` oder null), `publish_puzzle` übernimmt
+  `meta.lang` (neuer Parameter mit Default, die alte Edge Function läuft weiter). Filter `lang` in der Route
+  (`#/gallery?lang=en`, Standard: alle, auch ohne Sprache); die Karte zeigt ein Kürzel-Badge („DE“), vorgelesen als
+  „Sprache: Deutsch“. Dasselbe Rätsel in zwei Sprachen ist ein Duplikat, weil der Inhaltsschlüssel gleich ist.
+- **Entscheidung Mails:** je nach `user_metadata.lang`. Die App schickt die Sprache beim Registrieren mit und
+  aktualisiert sie (`PUT /auth/v1/user`), wenn sie sich bei einer Sitzung vom Token unterscheidet oder gewechselt
+  wird. Die Vorlagen in `supabase/templates/` wählen mit `{{ if eq .Data.lang "en" }}` den Text; Konten ohne Sprache
+  bekommen Deutsch.
+- **Entscheidung Impressum und Datenschutz:** übersetzt. Weil `en.ts` alle Schlüssel haben muss, gibt es die Texte
+  ohnehin; über der englischen Datenschutzerklärung steht, dass nur die deutsche Fassung verbindlich ist
+  (`legalTranslation`, im Deutschen leer).
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -893,7 +927,7 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 
 | Hash | View |
 |---|---|
-| `#/gallery?type=…&level=…&sort=…` | Galerie mit Filtern und Sortierung |
+| `#/gallery?type=…&level=…&lang=…&sort=…` | Galerie mit Filtern (Typ, Stufe, Sprache) und Sortierung |
 | `#/g/<id>` | veröffentlichtes Rätsel spielen (kurzer Teilen-Link) |
 | `#/account` | Anmelden/Registrieren bzw. Kontoseite mit „Meine Veröffentlichungen“ |
 | `#/moderation` | Moderationsansicht (nur Moderatoren) |

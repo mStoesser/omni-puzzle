@@ -4,12 +4,13 @@ import type { Profile } from "../../core/account.ts";
 import { PUBLISH } from "../../core/publish.ts";
 import type { OwnChain } from "../../core/chains.ts";
 import type { OwnPublication } from "../../core/published.ts";
-import { t } from "../../i18n/t.ts";
+import { LANG_NAMES, LANGS, locale, t, tn } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { segment, sheet, stat } from "../components/ui.ts";
 import { icon } from "../icons.ts";
 import type { IconName } from "../icons.ts";
 import type { ThemeChoice } from "../theme.ts";
+import type { LanguageChoice } from "../language.ts";
 import { timeAgo } from "../time.ts";
 
 export type AccountMode = "signIn" | "signUp" | "reset" | "newPassword";
@@ -48,11 +49,13 @@ export type AccountPanel = "name" | "password" | "publications" | "chains";
 /** Device settings and numbers shown with or without an account. */
 export type ProfileExtras = {
   theme: ThemeChoice;
+  language: LanguageChoice;
   stats: { solved: number; built: number };
 };
 
 export type ProfileActions = {
   setTheme(theme: ThemeChoice): void;
+  setLanguage(choice: LanguageChoice): void;
 };
 
 /** Actions resolve to true on success, so the view can clear the form. */
@@ -115,6 +118,13 @@ export function accountView(model: AccountViewModel | null, actions: AccountActi
       ],
       extras.theme,
       profileActions.setTheme,
+    )}
+    <p class="label settings-label" id="settings-language">${t("profileLanguage")}</p>
+    ${segment<LanguageChoice>(
+      t("profileLanguage"),
+      [{ value: "system", label: t("languageSystem") }, ...LANGS.map((lang) => ({ value: lang, label: LANG_NAMES[lang], lang }))],
+      extras.language,
+      profileActions.setLanguage,
     )}
 
     <p class="label settings-label">${t("profileLegal")}</p>
@@ -197,7 +207,7 @@ function syncSection(model: AccountViewModel, actions: AccountActions) {
         <span>${running ? t("syncRunning") : lastSyncText(sync.lastSync, Date.now())}</span>
       </p>
       ${sync.status === "error" && sync.error ? html`<p class="notice" role="alert">${t("syncFailed", { reason: t(sync.error) })}</p>` : nothing}
-      ${sync.rejected > 0 ? html`<p class="notice">${t("syncRejected", { count: sync.rejected })}</p>` : nothing}
+      ${sync.rejected > 0 ? html`<p class="notice">${tn("syncRejected", sync.rejected)}</p>` : nothing}
       <button type="button" class="secondary" ?disabled=${running} @click=${actions.syncNow}>${t("syncNow")}</button>
     </section>`;
 }
@@ -394,7 +404,7 @@ function publicationList(model: AccountViewModel, actions: AccountActions) {
     title: p.title,
     description: p.description,
     hidden: p.hidden,
-    sub: `${p.typeName} · ${t("myPublicationsStats", { date: date(p.publishedAt), plays: p.playCount, likes: p.likeCount })}`,
+    sub: `${p.typeName} · ${t("myPublicationsStats", { date: date(p.publishedAt), plays: tn("galleryPlays", p.playCount), likes: tn("galleryLikes", p.likeCount) })}`,
     confirm: t("myPublicationsWithdrawConfirm", { title: p.title }),
   }));
   return ownList(model, entries, actions, { save: actions.savePublication, withdraw: actions.withdraw });
@@ -410,13 +420,13 @@ function chainList(model: AccountViewModel, actions: AccountActions) {
     title: c.title,
     description: c.description,
     hidden: c.hidden,
-    sub: t("myChainsStats", { date: date(c.publishedAt), steps: c.stepCount, plays: c.playCount }),
+    sub: t("myChainsStats", { date: date(c.publishedAt), steps: tn("chainSteps", c.stepCount), plays: tn("galleryPlays", c.playCount) }),
     confirm: t("myChainsWithdrawConfirm", { title: c.title }),
   }));
   return ownList(model, entries, actions, { save: actions.saveChain, withdraw: actions.withdrawChain });
 }
 
-const date = (iso: string) => new Date(iso).toLocaleDateString("de-DE");
+const date = (iso: string) => new Date(iso).toLocaleDateString(locale());
 
 type OwnEntry = { id: string; href: string; title: string; description: string; hidden: boolean; sub: string; confirm: string };
 

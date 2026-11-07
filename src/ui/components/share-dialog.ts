@@ -1,5 +1,5 @@
 import { html, nothing } from "lit-html";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import { icon } from "../icons.ts";
 import { sheet } from "./ui.ts";
 
@@ -92,7 +92,7 @@ function publishWay(publish: SharePublish) {
       </div>
     </div>
     <ul class="checklist">
-      ${item(true, publish.minMoves === null ? t("checkSolvableShort") : publish.minMoves === 1 ? t("checkSolvableMinOne") : t("checkSolvableMin", { moves: publish.minMoves }))}
+      ${item(true, publish.minMoves === null ? t("checkSolvableShort") : tn("checkSolvableMin", publish.minMoves))}
       ${item(true, t("checkTested"))}
       ${item(signedIn, signedIn && publish.username ? t("checkSignedInAs", { name: publish.username }) : t("checkSignedIn"))}
     </ul>

@@ -40,6 +40,7 @@ npm test           # node --test "src/**/*.test.ts"
 ## Konventionen
 
 - Code, Bezeichner und Code-Kommentare auf **Englisch**.
-- UI-Texte auf **Deutsch**, aber zentral in `src/i18n/de.ts` (damit später andere Sprachen möglich sind).
+- UI-Texte zentral in `src/i18n/de.ts` (Deutsch, legt die Schlüssel fest) und `src/i18n/en.ts` (Englisch, dieselben
+  Schlüssel und Platzhalter). Jeder neue Text kommt in beide Dateien; Mehrzahl über `tn()` und einen `…One`-Schlüssel.
 - Dokumentation auf **Deutsch**.
 - Dateinamen: `kebab-case.ts`, Tests daneben als `*.test.ts`.

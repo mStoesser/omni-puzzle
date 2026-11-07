@@ -94,6 +94,7 @@ async function handle(request: Request, env: PublishEnv): Promise<Response> {
       description: publication.description,
       min_moves: publication.minMoves,
       difficulty: publication.difficulty,
+      lang: publication.lang,
     }),
   });
   if (insert.ok) {

@@ -1,4 +1,4 @@
-import type { PuzzleDocument } from "../../core/types.ts";
+import type { PuzzleDocument, PuzzleLang } from "../../core/types.ts";
 import { choiceHash, textHash } from "./logic.ts";
 import type { QuizData, QuizQuestion } from "./logic.ts";
 
@@ -20,19 +20,20 @@ function number(id: string, text: string, value: number, tolerance = 0): QuizQue
   return { kind: "number", id, text, value, tolerance };
 }
 
-function example(id: string, title: string, data: QuizData) {
+/** Quiz examples are written in one language each (M28); the home page lists those in the app's language. */
+function example(id: string, lang: PuzzleLang, title: string, data: QuizData) {
   const doc: PuzzleDocument<QuizData> = {
     format: 1,
     type: "quiz",
     typeVersion: 1,
-    meta: { title, createdAt: "2026-10-30T00:00:00.000Z", verified: true },
+    meta: { title, createdAt: "2026-10-30T00:00:00.000Z", verified: true, lang },
     data,
   };
-  return { id, doc };
+  return { id, doc, lang };
 }
 
 export const quizExamples = [
-  example("quiz-1", "Kleines Allgemeinwissen", {
+  example("quiz-1", "de", "Kleines Allgemeinwissen", {
     passPercent: 60,
     questions: [
       single("planet", "Welcher Planet ist der Sonne am nächsten?", ["Venus", "Merkur", "Mars", "Erde"], 1),
@@ -42,6 +43,18 @@ export const quizExamples = [
       single("chess", "Aus wie vielen Feldern besteht ein Schachbrett?", ["32", "64", "81", "100"], 1),
       number("wall", "In welchem Jahr fiel die Berliner Mauer?", 1989),
       free("element", "Welches chemische Element hat das Zeichen O?", ["Sauerstoff", "Oxygen", "Oxygenium"]),
+    ],
+  }),
+  example("quiz-en-1", "en", "A Little General Knowledge", {
+    passPercent: 60,
+    questions: [
+      single("planet", "Which planet is closest to the sun?", ["Venus", "Mercury", "Mars", "Earth"], 1),
+      multi("mammals", "Which of these animals are mammals?", ["Dolphin", "Shark", "Bat", "Penguin"], [0, 2]),
+      free("capital", "What is the capital of Austria?", ["Vienna", "Wien"]),
+      number("spider", "How many legs does a spider have?", 8),
+      single("chess", "How many squares are there on a chessboard?", ["32", "64", "81", "100"], 1),
+      number("wall", "In which year did the Berlin Wall fall?", 1989),
+      free("element", "Which chemical element has the symbol O?", ["Oxygen", "Sauerstoff", "Oxygenium"]),
     ],
   }),
 ];
