@@ -10,7 +10,8 @@ import { LIMITS, findProblems, height, initState, isFixed, isSolved, maskAt, wid
 import type { PipesData, ProblemCode } from "./logic.ts";
 import { boardLayers, shapeName } from "./render.ts";
 
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "pipe", label: t("ppToolPipe"), icon: "〰", paint: true },
   { id: "source", label: t("ppToolSource"), icon: "◉" },
   { id: "turn", label: t("ppToolTurn"), icon: "↻" },
@@ -48,7 +49,7 @@ export function renderEditor(ctx: EditorContext<PipesData>) {
         max: LIMITS.maxSize,
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
-      palette: PALETTE,
+      palette: palette(),
       board: boardLayers(data, undefined, { theme: ctx.theme }),
       label: t("ppEditorBoard"),
       onTap: (tool, x, y) => {

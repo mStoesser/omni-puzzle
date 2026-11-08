@@ -10,7 +10,8 @@ import type { LaserData, ProblemCode } from "./logic.ts";
 import { boardLayers, describeCell } from "./render.ts";
 
 // In groups, so the tool grid stays clear on a phone. The inventory is a number in the settings.
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "emitter", label: t("lsToolEmitter"), icon: "🔦", group: t("lsGroupBasics") },
   { id: "target", label: t("lsToolTarget"), icon: "◎", group: t("lsGroupBasics") },
   { id: "rotatable", label: t("lsToolRotatable"), icon: "↻", group: t("lsGroupBasics") },
@@ -61,7 +62,7 @@ export function renderEditor(ctx: EditorContext<LaserData>) {
           set: (count) => ctx.update(setInventory(data, count)),
         },
       ],
-      palette: PALETTE,
+      palette: palette(),
       // Shows the beams of the start position, so the creator sees what the player sees.
       board: boardLayers(data, initState(data), { problemCells, theme: ctx.theme }),
       label: t("lsEditorBoard"),

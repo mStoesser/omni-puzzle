@@ -9,7 +9,8 @@ import { LIMITS, exitSpan, findProblems, initState, isSolved } from "./logic.ts"
 import type { KlotskiData, ProblemCode } from "./logic.ts";
 import { boardLayers } from "./render.ts";
 
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "block11", label: t("klToolBlock11"), icon: "▪" },
   { id: "block21", label: t("klToolBlock21"), icon: "▬" },
   { id: "block12", label: t("klToolBlock12"), icon: "▮" },
@@ -49,7 +50,7 @@ export function renderEditor(ctx: EditorContext<KlotskiData>) {
         max: LIMITS.maxSize,
         onResize: (width, height) => ctx.update(resize(data, width, height)),
       },
-      palette: PALETTE,
+      palette: palette(),
       // Positions straight from the data: drafts may have blocks outside the board.
       board: boardLayers(data, data.blocks, { problemBlocks, theme: ctx.theme }),
       label: t("klEditorBoard"),

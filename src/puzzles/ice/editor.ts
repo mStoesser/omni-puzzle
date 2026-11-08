@@ -9,7 +9,8 @@ import { LIMITS, cellAt, findProblems, initState, isSolved } from "./logic.ts";
 import type { IceData, IceKind, ProblemCode } from "./logic.ts";
 import { boardLayers } from "./render.ts";
 
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "wall", label: t("iceToolWall"), icon: "■", paint: true },
   { id: "sand", label: t("iceToolSand"), icon: "░", paint: true },
   { id: "start", label: t("iceToolStart"), icon: "●" },
@@ -46,7 +47,7 @@ export function renderEditor(ctx: EditorContext<IceData>) {
         max: LIMITS.maxSize,
         onResize: (width, height) => ctx.update(resize(data, width, height)),
       },
-      palette: PALETTE,
+      palette: palette(),
       // The figure stands on the start cell.
       board: boardLayers(data, initState(data), { problemCells, theme: ctx.theme }),
       label: t("iceEditorBoard"),

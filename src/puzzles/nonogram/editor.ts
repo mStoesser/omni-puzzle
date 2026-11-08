@@ -9,7 +9,8 @@ import { LIMITS, analyze, findProblems } from "./logic.ts";
 import type { NonogramData, ProblemCode } from "./logic.ts";
 import { cluePreview, editorLayers } from "./render.ts";
 
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "fill", label: t("ngToolFill"), icon: "■", paint: true },
   { id: "erase", label: t("ngToolErase"), icon: "⌫", paint: true },
 ];
@@ -48,7 +49,7 @@ export function renderEditor(ctx: EditorContext<NonogramData>) {
         max: LIMITS.maxSize,
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
-      palette: PALETTE,
+      palette: palette(),
       board: editorLayers(data, image, marked, ctx.theme),
       label: t("ngEditorBoard"),
       onTap: (tool, x, y) => {

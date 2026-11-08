@@ -9,7 +9,8 @@ import { LIMITS, charAt, findProblems, height, initState, isSolved, width } from
 import type { LightsOutData, ProblemCode } from "./logic.ts";
 import { boardLayers } from "./render.ts";
 
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "press", label: t("loToolPress"), icon: "✚" },
   { id: "light", label: t("loToolLight"), icon: "💡", paint: true },
   { id: "hole", label: t("loToolHole"), icon: "⬚", paint: true },
@@ -40,7 +41,7 @@ export function renderEditor(ctx: EditorContext<LightsOutData>) {
         max: LIMITS.maxSize,
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
-      palette: PALETTE,
+      palette: palette(),
       board: boardLayers(data, initState(data), { showHoles: true, theme: ctx.theme }),
       label: t("loEditorBoard"),
       onTap: (tool, x, y) => {

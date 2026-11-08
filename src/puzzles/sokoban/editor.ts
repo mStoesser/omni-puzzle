@@ -9,7 +9,8 @@ import { LIMITS, charAt, findProblems, height, initState, isSolved, width } from
 import type { ProblemCode, SokobanData } from "./logic.ts";
 import { boardLayers } from "./render.ts";
 
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "wall", label: t("skToolWall"), icon: "■", paint: true },
   { id: "box", label: t("skToolBox"), icon: "▣" },
   { id: "goal", label: t("skToolGoal"), icon: "◎" },
@@ -45,7 +46,7 @@ export function renderEditor(ctx: EditorContext<SokobanData>) {
         max: LIMITS.maxSize,
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
-      palette: PALETTE,
+      palette: palette(),
       board: boardLayers(data, initState(data), { problemCells, theme: ctx.theme }),
       label: t("skEditorBoard"),
       onTap: (tool, x, y) => {

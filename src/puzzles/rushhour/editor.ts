@@ -9,7 +9,8 @@ import { LIMITS, findProblems, initState, isSolved } from "./logic.ts";
 import type { ProblemCode, RushHourData } from "./logic.ts";
 import { boardLayers } from "./render.ts";
 
-const PALETTE: readonly PaletteItem[] = [
+// A function, so labels follow the language chosen at runtime (module constants were translated on import).
+const palette = (): readonly PaletteItem[] => [
   { id: "block2", label: t("rhToolBlock2"), icon: "▭" },
   { id: "block3", label: t("rhToolBlock3"), icon: "▬" },
   { id: "target", label: t("rhToolTarget"), icon: "🟥" },
@@ -49,7 +50,7 @@ export function renderEditor(ctx: EditorContext<RushHourData>) {
         max: LIMITS.maxSize,
         onResize: (width, height) => ctx.update(resize(data, width, height)),
       },
-      palette: PALETTE,
+      palette: palette(),
       // initState only reads block positions, so it is safe for data with problems.
       board: boardLayers(data, initState(data), { problemBlocks, theme: ctx.theme }),
       label: t("rhEditorBoard"),
