@@ -13,6 +13,7 @@ export const sokoban: PuzzleType<SokobanData, SokobanState, SokobanMove> = {
   icon: svg`<rect x="10" y="7" width="11" height="11" rx="1.5"/><path d="M10 7l11 11"/><path d="M2 12.5h5"/><path d="m5 10 2.5 2.5L5 15"/><path d="M3 21h18"/>`,
   color: { dark: "#F48FB1", light: "#B83270" },
   problems,
+  themeParts: { board: "skPartBoard", line: "skPartLine", wall: "skPartWall", figure: "skPartFigure", piece: "skPartPiece", target: "skPartTarget", done: "skPartDone" },
   renderPlay,
   renderEditor,
 };

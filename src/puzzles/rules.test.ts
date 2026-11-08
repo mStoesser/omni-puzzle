@@ -46,6 +46,18 @@ test("each renderer's palette takes exactly the theme roles its rules report", (
   }
 });
 
+test("every theme role (and the rules' fixed colors) has a name in the theme editor", () => {
+  for (const type of registry.all()) {
+    if (!type.themeRoles) {
+      assert.equal(type.themeParts, undefined, type.id);
+      continue;
+    }
+    const named = Object.keys(type.themeParts ?? {}).sort();
+    const needed = [...type.themeRoles, ...(type.themeFixed ? ["fixed"] : [])].sort();
+    assert.deepEqual(named, needed, type.id);
+  }
+});
+
 test("the puzzle of the day skips exactly the types without a leaderboard", () => {
   // pick_daily() and mod_plan_daily() list them, because the database does not know the rules.
   const sql = readFileSync(new URL("../../supabase/migrations/0011_daily.sql", import.meta.url), "utf8");

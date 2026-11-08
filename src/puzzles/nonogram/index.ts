@@ -14,6 +14,7 @@ export const nonogram: PuzzleType<NonogramData, NonogramState, NonogramMove> = {
   color: { dark: "#B9DB6A", light: "#55731A" },
   controls: { moves: false },
   problems,
+  themeParts: { board: "ngPartBoard", line: "ngPartLine", piece: "ngPartPiece", done: "ngPartDone" },
   renderPlay,
   renderEditor,
 };

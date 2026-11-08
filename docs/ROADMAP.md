@@ -663,14 +663,20 @@ und Regeln bleiben unberührt.
 - [ ] Live testen: Rätsel mit Theme teilen und veröffentlichen, auf dem Handy öffnen.
 
 ### M30 – Eigene Themes im Editor
-- [ ] Theme-Editor: Farbwahl pro Rolle (natives `<input type="color">`), Live-Vorschau am aktuellen Rätsel,
+- [x] Theme-Editor: Farbwahl pro Rolle (natives `<input type="color">`), Live-Vorschau am aktuellen Rätsel,
   ausgehend von einem vorgefertigten Theme.
-- [ ] Kontrastwarnungen live (z. B. „Kiste kaum vom Boden zu unterscheiden“); unter dem Mindestwert ist
+  („Farben anpassen“ unter der Theme-Auswahl; Namen der Teile je Typ über `themeParts`.)
+- [x] Kontrastwarnungen live (z. B. „Kiste kaum vom Boden zu unterscheiden“); unter dem Mindestwert ist
   Veröffentlichen gesperrt, Teilen per Link mit Hinweis.
-- [ ] „Als Theme speichern“: eigene Themes als Vorlagen, zunächst nur auf dem Gerät (IndexedDB); umbenennen, löschen.
+  (Prüfpunkt „Theme gut erkennbar“ im Teilen-Sheet; die Function lehnt seit M29 ohnehin ab.)
+- [x] „Als Theme speichern“: eigene Themes als Vorlagen, zunächst nur auf dem Gerät (IndexedDB); umbenennen, löschen.
   Die vorgefertigten Themes erscheinen in derselben Liste.
-- [ ] **Entscheidung im Meilenstein:** Eigene Themes synchronisieren (wie M27, bräuchte eine Migration) oder nicht.
+  (Im IndexedDB-Store `meta`, keine neue Datenbankversion; höchstens 50.)
+- [x] **Entscheidung im Meilenstein:** Eigene Themes synchronisieren (wie M27, bräuchte eine Migration) oder nicht.
+  (Entschieden: nicht synchronisieren.)
 - [ ] Texte in `de.ts` und `en.ts`; Handy-Test.
+  (Texte da; im Browser geprüft (Headless Chrome, 390 und 1280 px): Farben ändern, Warnungen, gesperrtes
+  Veröffentlichen, Speichern, Neuladen, Umbenennen, Löschen. Handy-Test offen.)
 
 ### M31 – Icon-Katalog
 - [ ] Icons als SVG-Dateien (`src/icons/pieces/<id>.svg`), per Vite `?raw` eingebunden (kein neues Paket, offline da).

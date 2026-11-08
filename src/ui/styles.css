@@ -2573,6 +2573,109 @@ a.icon-button {
   border-radius: 50%;
 }
 
+/* Contrast warnings and color editing (M30). */
+.theme-warnings ul {
+  display: grid;
+  gap: var(--kk-space-1);
+  margin: var(--kk-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--kk-danger);
+  font-size: 0.875rem;
+}
+
+.theme-warnings li {
+  display: flex;
+  gap: var(--kk-space-2);
+  align-items: flex-start;
+}
+
+.theme-warnings li svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.theme-warnings p {
+  margin: var(--kk-space-1) 0 0;
+  font-size: 0.8125rem;
+}
+
+.theme-edit {
+  margin-top: var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+}
+
+.theme-edit summary {
+  display: flex;
+  gap: var(--kk-space-2);
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--kk-space-3);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.theme-colors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--kk-space-2);
+  padding: 0 var(--kk-space-3) var(--kk-space-3);
+}
+
+.theme-color {
+  display: flex;
+  gap: var(--kk-space-2);
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.theme-color input {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+  background: var(--kk-surface);
+  cursor: pointer;
+}
+
+.theme-save {
+  display: grid;
+  gap: var(--kk-space-2);
+  padding: var(--kk-space-3);
+  border-top: 1px solid var(--kk-line);
+  font-size: 0.875rem;
+}
+
+.theme-save label {
+  display: grid;
+  gap: var(--kk-space-1);
+  color: var(--kk-muted);
+}
+
+.theme-save input {
+  min-height: 44px;
+  padding: 0 var(--kk-space-3);
+  border: 1px solid var(--control-border, var(--kk-line));
+  border-radius: var(--kk-radius-md);
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  font: inherit;
+}
+
+.theme-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kk-space-2);
+}
+
+.theme-save .status-problem {
+  margin: 0;
+}
+
 .editor-tools-bar .icon-button {
   border-color: transparent;
   background: transparent;

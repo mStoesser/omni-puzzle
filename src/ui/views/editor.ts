@@ -4,9 +4,12 @@ import type { EditorSession } from "../../core/editor-session.ts";
 import { PUZZLE_LANGS } from "../../core/types.ts";
 import { THEME_PRESETS } from "../../core/theme-presets.ts";
 import type { PuzzleTheme, ThemeRole } from "../../core/puzzle-theme.ts";
-import { sameTheme } from "../../core/puzzle-theme.ts";
+import { contrastProblems, sameTheme } from "../../core/puzzle-theme.ts";
+import { SAVED_THEME_LIMITS } from "../../core/saved-themes.ts";
+import type { SavedTheme } from "../../core/saved-themes.ts";
 import type { AnyPuzzleType, EditorContext, PuzzleLang, SolveResult } from "../../core/types.ts";
 import { LANG_NAMES, t, tn } from "../../i18n/t.ts";
+import type { MessageKey } from "../../i18n/t.ts";
 import { publishDialog } from "../components/publish-dialog.ts";
 import type { PublishDialogActions, PublishDialogModel } from "../components/publish-dialog.ts";
 import { shareDialog } from "../components/share-dialog.ts";
@@ -29,6 +32,8 @@ export type EditorViewModel = {
   images: EditorContext<unknown>["images"];
   lang: PuzzleLang; // language of the puzzle's texts (M28), preset to the UI language
   theme?: PuzzleTheme; // colors of the board (M29); undefined = default colors
+  savedThemes: readonly SavedTheme[]; // own templates on this device (M30)
+  themeNotice?: MessageKey; // why saving a template failed
   /** Test play inside the editor frame (segment "Probespielen"); null = building. */
   testPlay: TemplateResult | null;
 };
@@ -40,6 +45,9 @@ export type EditorViewActions = {
   setTitle(title: string): void;
   setLanguage(lang: PuzzleLang): void;
   setTheme(theme: PuzzleTheme | undefined): void;
+  saveTheme(name: string): void;
+  renameTheme(id: string, name: string): void;
+  deleteTheme(id: string): void;
   testPlay(): void;
   backToEditor(): void;
   openShare(): void;
@@ -68,7 +76,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
         ${PUZZLE_LANGS.map((lang) => html`<option value=${lang} lang=${lang} ?selected=${lang === model.lang}>${LANG_NAMES[lang]}</option>`)}
       </select>
     </label>
-    ${type.themeRoles ? themePicker(type.themeRoles, model.theme, actions.setTheme) : nothing}
+    ${type.themeRoles ? themePicker(type, model, actions) : nothing}
   </section>`;
   return html`
     <header class="editor-head">
@@ -120,6 +128,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
           publishing: model.publishing,
           username: model.username,
           minMoves: model.solve?.status === "solved" ? model.solve.moves.length : null,
+          theme: !model.theme ? null : themeWarnings(type, model.theme).length === 0 ? "ok" : "low-contrast",
           openPublish: actions.openPublish,
         })
       : nothing}
@@ -127,24 +136,57 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
   `;
 }
 
+/** A part's name in this type (e.g. "Boxes"), capitalized for labels; English names are lowercase for sentences. */
+function partName(type: AnyPuzzleType, part: ThemeRole | "fixed"): string {
+  const key = type.themeParts?.[part];
+  return key ? t(key) : part;
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Contrast warnings of the theme on this type (M30), as sentences; empty = fine. */
+export function themeWarnings(type: AnyPuzzleType, theme: PuzzleTheme | undefined): string[] {
+  if (!theme || !type.themeRoles) return [];
+  // Several fixed colors (e.g. the three laser colors) share one name and one warning.
+  const sentences = contrastProblems(theme, { roles: type.themeRoles, fixed: type.themeFixed }).map((p) =>
+    capitalize(t("editorThemeLowContrast", p.b === "fixed" ? { a: partName(type, "fixed"), b: partName(type, p.a) } : { a: partName(type, p.a), b: partName(type, p.b) })),
+  );
+  return [...new Set(sentences)];
+}
+
 /**
- * Theme choice (M29): default colors or a preset, with a small preview of the colors this type uses.
- * A theme that matches no preset (e.g. one that changed later or one from a newer app) stays selected as "custom".
+ * Theme choice (M29): default colors, a preset or an own template, with a small preview of the colors this type uses.
+ * M30: every color can be adjusted (live on the board, with contrast warnings) and saved as an own template.
+ * A theme that matches nothing (e.g. after adjusting) stays selected as "custom".
  */
-function themePicker(roles: readonly ThemeRole[], theme: PuzzleTheme | undefined, setTheme: (theme: PuzzleTheme | undefined) => void) {
+function themePicker(type: AnyPuzzleType, model: EditorViewModel, actions: EditorViewActions) {
+  const roles = type.themeRoles ?? [];
+  const { theme, savedThemes } = model;
   const preset = theme ? THEME_PRESETS.find((p) => sameTheme(p.theme, theme)) : undefined;
-  const value = !theme ? "" : (preset?.id ?? "custom");
+  const saved = theme && !preset ? savedThemes.find((p) => sameTheme(p.theme, theme)) : undefined;
+  const value = !theme ? "" : preset ? preset.id : saved ? `own:${saved.id}` : "custom";
   const choose = (e: Event) => {
     const id = (e.target as HTMLSelectElement).value;
     if (id === "custom") return;
-    setTheme(THEME_PRESETS.find((p) => p.id === id)?.theme);
+    const own = id.startsWith("own:") ? savedThemes.find((p) => `own:${p.id}` === id) : undefined;
+    actions.setTheme(own?.theme ?? THEME_PRESETS.find((p) => p.id === id)?.theme);
   };
+  const warnings = themeWarnings(type, theme);
   return html`<div class="editor-theme">
     <label class="editor-lang">
       <span>${t("editorTheme")}</span>
       <select aria-describedby="editor-theme-hint" @change=${choose}>
         <option value="" ?selected=${value === ""}>${t("puzzleThemeDefault")}</option>
-        ${THEME_PRESETS.map((p) => html`<option value=${p.id} ?selected=${value === p.id}>${t(p.name)}</option>`)}
+        <optgroup label=${t("editorThemePresets")}>
+          ${THEME_PRESETS.map((p) => html`<option value=${p.id} ?selected=${value === p.id}>${t(p.name)}</option>`)}
+        </optgroup>
+        ${savedThemes.length > 0
+          ? html`<optgroup label=${t("editorThemeMine")}>
+              ${savedThemes.map((p) => html`<option value="own:${p.id}" ?selected=${value === `own:${p.id}`}>${p.name}</option>`)}
+            </optgroup>`
+          : nothing}
         ${value === "custom" ? html`<option value="custom" selected>${t("puzzleThemeCustom")}</option>` : nothing}
       </select>
     </label>
@@ -153,8 +195,48 @@ function themePicker(roles: readonly ThemeRole[], theme: PuzzleTheme | undefined
           ${roles.filter((r) => r !== "board").map((r) => html`<span class="theme-swatch" style="background: ${theme.colors[r]}"></span>`)}
         </span>`
       : nothing}
+    <div class="theme-warnings" role="status">
+      ${warnings.length > 0
+        ? html`<ul>${warnings.map((w) => html`<li>${icon("alert", 16)}<span>${w}</span></li>`)}</ul>
+            <p>${t("editorThemeBlocked")}</p>`
+        : nothing}
+    </div>
+    ${theme ? themeColors(type, theme, saved, model.themeNotice, actions) : nothing}
     <p id="editor-theme-hint" class="editor-hint">${t("editorThemeHint")}</p>
   </div>`;
+}
+
+/** Native color inputs per role (the board shows every change at once), and saving as an own template. */
+function themeColors(type: AnyPuzzleType, theme: PuzzleTheme, saved: SavedTheme | undefined, notice: MessageKey | undefined, actions: EditorViewActions) {
+  const nameOf = (e: Event) => ((e.target as Element).closest(".theme-save")?.querySelector("input")?.value ?? "");
+  const setColor = (role: ThemeRole) => (e: Event) =>
+    actions.setTheme({ colors: { ...theme.colors, [role]: (e.target as HTMLInputElement).value } });
+  return html`<details class="theme-edit">
+    <summary>${icon("pencil", 16)}${t("editorThemeColors")}</summary>
+    <div class="theme-colors">
+      ${(type.themeRoles ?? []).map(
+        (role) => html`<label class="theme-color">
+          <input type="color" .value=${theme.colors[role]} @input=${setColor(role)} />
+          <span>${capitalize(partName(type, role))}</span>
+        </label>`,
+      )}
+    </div>
+    <div class="theme-save">
+      <label>
+        <span>${t("editorThemeName")}</span>
+        <input type="text" maxlength=${SAVED_THEME_LIMITS.maxName} .value=${saved?.name ?? ""} />
+      </label>
+      <div class="theme-save-actions">
+        ${saved
+          ? html`<button type="button" class="secondary" @click=${(e: Event) => actions.renameTheme(saved.id, nameOf(e))}>${t("editorThemeRename")}</button>
+              <button type="button" class="secondary danger" @click=${() => confirm(t("editorThemeDeleteAsk", { name: saved.name })) && actions.deleteTheme(saved.id)}>
+                ${t("editorThemeDelete")}
+              </button>`
+          : html`<button type="button" class="secondary" @click=${(e: Event) => actions.saveTheme(nameOf(e))}>${t("editorThemeSave")}</button>`}
+      </div>
+      ${notice ? html`<p class="status-problem" role="alert">${t(notice)}</p>` : nothing}
+    </div>
+  </details>`;
 }
 
 /** Live check as one status line: green when solvable, red with the reason when not. */

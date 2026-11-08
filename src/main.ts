@@ -56,7 +56,9 @@ import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
 import { createStore } from "./core/store.ts";
 import { imageProblem, imageKey, publishedImageUrl, sniffImageType, toBase64 } from "./core/images.ts";
 import type { AnyPuzzleType, ImageSource, PuzzleDocument, PuzzleLang, SolveResult } from "./core/types.ts";
-import { sameTheme } from "./core/puzzle-theme.ts";
+import { contrastProblems, sameTheme } from "./core/puzzle-theme.ts";
+import * as themes from "./core/saved-themes.ts";
+import type { SavedTheme } from "./core/saved-themes.ts";
 import type { PuzzleTheme } from "./core/puzzle-theme.ts";
 import { language, t, tn } from "./i18n/t.ts";
 import type { MessageKey } from "./i18n/t.ts";
@@ -98,6 +100,7 @@ type EditorState = {
   createdAt: string;
   lang: PuzzleLang; // M28: the UI language for new puzzles and old ones without a language
   theme?: PuzzleTheme; // M29: colors of the board; undefined = default colors
+  themeNotice?: MessageKey; // M30: why saving a theme template failed
   type: AnyPuzzleType;
   session: EditorSession<unknown>;
   /** Data the creator solved in test play; compared by reference, so undo can restore "verified". */
@@ -135,6 +138,7 @@ type AppState = {
   language: LanguageChoice; // M28; the language in effect is language() from i18n/t.ts
   daily: Daily | "loading" | "failed"; // the puzzle of the day (M26), loaded on the home page and #/daily
   dailyDays: readonly string[]; // days whose puzzle was solved on this device (streak when signed out)
+  savedThemes: readonly SavedTheme[]; // own theme templates on this device (M30)
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -214,6 +218,7 @@ const store = createStore<AppState>({
   language: readLanguageChoice(),
   daily: "loading",
   dailyDays: dailies.parseLocalDays(browserStore.get(DAILY_DAYS_KEY)),
+  savedThemes: [],
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -1479,6 +1484,9 @@ function openPublish() {
   const { editor, account } = state;
   if (!editor || !account.profile || publishing(state) !== "signed-in") return;
   if (!editing.readiness(editorCheck(editor)).canShare) return;
+  const { themeRoles, themeFixed } = editor.type;
+  // The publish function refuses a theme with too little contrast (M30); the share sheet disables the button too.
+  if (editor.theme && themeRoles && contrastProblems(editor.theme, { roles: themeRoles, fixed: themeFixed }).length > 0) return;
   patch({
     share: null,
     publish: { title: editor.session.title, author: account.profile.username, state: "confirm", error: null, publishedId: null },
@@ -1537,10 +1545,18 @@ const editorActions = {
   setTheme: (theme: PuzzleTheme | undefined) => {
     const editor = store.get().editor;
     if (!editor || sameTheme(editor.theme, theme)) return;
-    const { theme: _old, ...rest } = editor;
+    const { theme: _old, themeNotice: _notice, ...rest } = editor;
     patch({ editor: theme ? { ...rest, theme } : rest });
     editorChanged();
   },
+  saveTheme: (name: string) => {
+    const editor = store.get().editor;
+    if (!editor?.theme) return;
+    const result = themes.addSavedTheme(store.get().savedThemes, newPuzzleId(), name, editor.theme);
+    finishThemeChange(result);
+  },
+  renameTheme: (id: string, name: string) => finishThemeChange(themes.renameSavedTheme(store.get().savedThemes, id, name)),
+  deleteTheme: (id: string) => finishThemeChange({ list: themes.removeSavedTheme(store.get().savedThemes, id) }),
   testPlay: () => {
     const editor = store.get().editor;
     if (!editor || !editing.readiness(editorCheck(editor)).canTest) return;
@@ -1848,6 +1864,33 @@ const libraryActions = {
 };
 
 // --- Progress ---
+
+// --- Own theme templates (M30), only on this device ---
+
+async function loadSavedThemes() {
+  try {
+    patch({ savedThemes: themes.parseSavedThemes(await (await storage).getMeta(themes.SAVED_THEMES_KEY)) });
+  } catch (error) {
+    console.warn(error);
+  }
+}
+
+function finishThemeChange(result: themes.SaveResult) {
+  const editor = store.get().editor;
+  if (result.error) {
+    if (editor) patch({ editor: { ...editor, themeNotice: result.error === "full" ? "editorThemeFull" : "editorThemeNameInvalid" } });
+    return;
+  }
+  if (editor?.themeNotice) {
+    const { themeNotice: _notice, ...rest } = editor;
+    patch({ editor: rest });
+  }
+  patch({ savedThemes: result.list });
+  void storage.then((s) => s.putMeta(themes.SAVED_THEMES_KEY, result.list)).catch((error: unknown) => {
+    console.error(error);
+    patch({ notice: "storageFailed" });
+  });
+}
 
 async function loadProgress() {
   const records = await (await storage).listProgress();
@@ -2194,6 +2237,8 @@ function view(state: AppState) {
           images: editorImages,
           lang: editor.lang,
           ...(editor.theme ? { theme: editor.theme } : {}),
+          ...(editor.themeNotice ? { themeNotice: editor.themeNotice } : {}),
+          savedThemes: state.savedThemes,
           testPlay: state.play?.origin === "test" ? playView(state.play, playStats(state), playActions, { embedded: true }) : null,
           ...editorCheck(editor),
         },
@@ -2351,4 +2396,5 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch((error: unknown) => console.warn("service worker", error));
 }
 void loadProgress();
+void loadSavedThemes();
 scheduleRender();

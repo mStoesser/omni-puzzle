@@ -23,6 +23,8 @@ export type SharePublish = {
   publishing: "signed-in" | "signed-out" | null;
   username: string | null;
   minMoves: number | null;
+  /** M30: null = default colors; "low-contrast" blocks publishing (the server would refuse), a link only gets a hint. */
+  theme: "ok" | "low-contrast" | null;
   openPublish(): void;
 };
 
@@ -69,6 +71,7 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
               <p class="hint">${t("shareLength", { length: url.length })}</p>
               ${url.length > RECOMMENDED_LINK_LENGTH ? html`<p class="status-problem">${t("shareTooLong")}</p>` : nothing}
               ${model.hasImages ? html`<p class="hint">${t("shareImagesHint")}</p>` : nothing}
+              ${publish.theme === "low-contrast" ? html`<p class="hint">${t("shareThemeContrast")}</p>` : nothing}
               ${model.copy === "failed" ? html`<p class="status-problem" role="alert">${t("shareCopyFailed")}</p>` : nothing}
             `}
       </section>
@@ -94,10 +97,12 @@ function publishWay(publish: SharePublish) {
     <ul class="checklist">
       ${item(true, publish.minMoves === null ? t("checkSolvableShort") : tn("checkSolvableMin", publish.minMoves))}
       ${item(true, t("checkTested"))}
+      ${publish.theme ? item(publish.theme === "ok", t("checkThemeContrast")) : nothing}
       ${item(signedIn, signedIn && publish.username ? t("checkSignedInAs", { name: publish.username }) : t("checkSignedIn"))}
     </ul>
     ${signedIn ? nothing : html`<p class="hint">${t("publishSignInHint")} <a href="#/account">${t("accountLink")}</a></p>`}
-    <button class="secondary block" ?disabled=${!signedIn} @click=${publish.openPublish}>${t("sharePublishButton")}</button>
+    ${publish.theme === "low-contrast" ? html`<p class="hint">${t("shareThemeContrast")}</p>` : nothing}
+    <button class="secondary block" ?disabled=${!signedIn || publish.theme === "low-contrast"} @click=${publish.openPublish}>${t("sharePublishButton")}</button>
   </section>`;
 }
 

@@ -140,6 +140,11 @@ export type PuzzleType<D, S, M> = PuzzleRules<D, S, M> & {
   controls?: { undo?: boolean; moves?: boolean };
   /** Localized, user-facing problems for live validation in the editor. Empty = playable. */
   problems?(data: D): string[];
+  /**
+   * What the theme roles are called in this type (M30), e.g. piece = "Boxes", for the theme editor and its contrast
+   * warnings; "fixed" names the colors of the rules (themeFixed). Every role in themeRoles needs a name.
+   */
+  themeParts?: Partial<Record<ThemeRole | "fixed", MessageKey>>;
 
   renderPlay(ctx: PlayContext<D, S, M>): TemplateResult;
   renderEditor(ctx: EditorContext<D>): TemplateResult;

@@ -13,6 +13,7 @@ export const ice: PuzzleType<IceData, IceState, IceMove> = {
   icon: svg`<circle cx="16" cy="13" r="4"/><path d="M2 20h20"/><path d="M3 10h6"/><path d="M5 14h5"/>`,
   color: { dark: "#7DB4FF", light: "#2F62C8" },
   problems,
+  themeParts: { board: "icePartBoard", line: "icePartLine", wall: "icePartWall", figure: "icePartFigure", accent: "icePartAccent", target: "icePartTarget", done: "icePartDone" },
   renderPlay,
   renderEditor,
 };

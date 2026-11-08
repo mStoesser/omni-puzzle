@@ -92,6 +92,7 @@ src/
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
     puzzle-theme.ts       # Rätsel-Themes: Rollen, Prüfung, Farbrechnung, Kontrastprüfung (M29)
     theme-presets.ts      # vorgefertigte Themes (M29)
+    saved-themes.ts       # eigene Theme-Vorlagen: Liste prüfen, anlegen, umbenennen, löschen (M30)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“ (quiz-images und user-images)
@@ -159,6 +160,7 @@ type PuzzleType<D, S, M> = {
   controls?: { undo?: boolean; moves?: boolean };  // Core-Bedienelemente abschalten (Quiz: kein Undo, kein Zugzähler)
   themeRoles?: ThemeRole[];         // M29: Rollen, die der Renderer aus einem Theme nimmt; ohne = nicht themebar
   themeFixed?: { light: string; dark: string }[];  // M29: Farben der Regeln auf dem Brett (Laserfarben)
+  themeParts?: Record<ThemeRole | "fixed", MessageKey>;  // M30: Namen der Rollen im Typ („Kisten“, „Boden“)
 
   // --- Daten ---
   createDefault(): D;               // Startpunkt für den Editor
@@ -942,6 +944,27 @@ Solver und Daten bleiben unberührt.
 - **Ansichten:** Auswahl „Theme“ mit Farbvorschau im Prüf-Panel des Editors; das Bau-Brett und Probespielen zeigen das
   Theme. Spiel, Ketten und Rätsel des Tages übernehmen es über `loadDocument`. Galerie-Karten laden
   `theme:doc->meta->theme` mit (keine Migration) und färben das Platzhalter-Raster, ebenso „Meine Rätsel“.
+
+### Eigene Themes im Editor (M30)
+
+- **Farben anpassen:** Unter der Theme-Auswahl klappt „Farben anpassen“ ein natives `<input type="color">` je Rolle
+  auf, die der Typ nutzt. Jede Änderung (`input`) setzt das Theme sofort, das Bau-Brett ist die Live-Vorschau. Die
+  Namen kommen aus `themeParts` des Typs (z. B. Sokoban: Boden, Wände, Kisten, Kisten im Ziel); ein Test verlangt
+  für jede Rolle in `themeRoles` (und `fixed`) einen Namen. Englische Namen sind klein geschrieben, damit sie in
+  Sätzen passen; Beschriftungen und Satzanfänge werden großgeschrieben. Eine Farbe zu ändern hebt „verifiziert“
+  nicht auf, weil das Theme nicht zu den Daten gehört.
+- **Kontrastwarnungen live** aus `contrastProblems`, als Sätze („Kisten und Boden sind kaum zu unterscheiden.“), eine
+  je Paar (die drei Laserfarben teilen sich eine). Darunter: Veröffentlichen geht so nicht, Teilen per Link schon.
+  Im Teilen-Sheet steht dann ein offener Prüfpunkt „Theme gut erkennbar“, der Knopf „Veröffentlichen“ ist gesperrt
+  (wie die Edge Function, die `theme-contrast` meldet), beim Link steht nur ein Hinweis.
+- **Vorlagen** (`core/saved-themes.ts`, rein und getestet): Liste `{ id, name, theme }` im vorhandenen IndexedDB-Store
+  `meta` unter `themes`, also ohne neue Datenbankversion. Höchstens 50 Vorlagen, Namen 1–40 Zeichen; kaputte Einträge
+  (z. B. aus einer neueren App) werden beim Laden übersprungen. Die Auswahl zeigt „Vorlagen“ und „Meine Themes“ in
+  einer Liste; eine Vorlage wird wie ein Preset an ihren Farben erkannt. Ist sie gewählt, lässt sie sich umbenennen
+  und löschen; sonst speichert „Als Theme speichern“ die aktuellen Farben als neue Vorlage. Rätsel verweisen nie auf
+  eine Vorlage, Löschen ändert also kein Rätsel. `clearLocal` (Kontowechsel „Vom Gerät entfernen“) lässt sie stehen.
+- **Entscheidung:** Vorlagen werden nicht synchronisiert (keine Migration). Das Theme eines Rätsels reist ohnehin in
+  `meta.theme` mit dem Rätsel; nachrüsten ließe es sich wie M27 mit einer eigenen Tabelle.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

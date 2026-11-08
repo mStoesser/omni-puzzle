@@ -13,6 +13,7 @@ export const klotski: PuzzleType<KlotskiData, KlotskiState, KlotskiMove> = {
   icon: svg`<path d="M9 21H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-5"/><rect x="7" y="6" width="10" height="7" rx="1"/><path d="M7 17h3"/><path d="M14 17h3"/>`,
   color: { dark: "#D9AE7E", light: "#8A5A2B" },
   problems,
+  themeParts: { board: "klPartBoard", line: "klPartLine", piece: "klPartPiece", accent: "klPartAccent", target: "klPartTarget" },
   renderPlay,
   renderEditor,
 };
