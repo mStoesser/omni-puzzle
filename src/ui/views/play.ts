@@ -3,6 +3,7 @@ import { canRedo, canUndo, currentState, moveCount } from "../../core/session.ts
 import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { ImageSource, PuzzleLang } from "../../core/types.ts";
 import { formatDuration } from "../../core/timer.ts";
 import type { Timer } from "../../core/timer.ts";
@@ -31,6 +32,7 @@ export type PlayViewModel = {
   images: ImageSource; // local pictures, or those of the published puzzle
   minMoves: number | null; // shortest solution, if known
   lang?: PuzzleLang; // language of the puzzle's texts (M28); a remix keeps it
+  theme?: PuzzleTheme; // colors of the board (M29); a remix keeps it
   level?: { index: number; total: number }; // position among the examples of its type (1-based)
   next?: { href: string; title: string; label?: string }; // the following example or chain step; `label` replaces the button text
   chain?: { story: string }; // a step of a chain: the text before the puzzle
@@ -117,7 +119,7 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
         <div class="play-main">
           ${model.chain?.story ? html`<p class="box chain-story play-story">${model.chain.story}</p>` : nothing}
           <div class="board">
-            ${type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch, images: model.images })}
+            ${type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch, images: model.images, theme: model.theme })}
           </div>
         </div>
         <nav class="play-controls ${showUndo ? "" : "single"}" aria-label=${t("playControls")}>

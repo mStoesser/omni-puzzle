@@ -1,8 +1,12 @@
 import { html, svg } from "lit-html";
+import { mix } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
 import { BIT, canTurn, connected, currentMasks, height, initState, isFixed, maskAt, width } from "./logic.ts";
 import type { PipesData, PipesMove, PipesState } from "./logic.ts";
@@ -14,25 +18,34 @@ const HALF = CELL / 2;
 /** Delay per tile when water flows into newly connected pipes. */
 const FLOW_MS = 45;
 
-// Scoped to the SVG via class names; light and dark variants (dark per app theme).
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go.
+// Tiles are the board, the gaps between them are lines; fixed tiles and their bolts are obstacles.
+export const PALETTE: Palette = {
+  scope: ".pp",
+  vars: {
+    "--pp-board": { light: "#e4e1d8", dark: "#22252b", theme: "line" },
+    "--pp-tile": { light: "#f3f0e8", dark: "#2c3038", theme: "board" },
+    "--pp-fixed": { light: "#d3cec1", dark: "#3b404a", theme: (c) => mix(c.board, c.wall, 0.25) },
+    "--pp-bolt": { light: "#8f897c", dark: "#7d838e", theme: "wall" },
+    "--pp-pipe": { light: "#8b8f97", dark: "#6b717c", theme: "piece" },
+    "--pp-water": { light: "#1f7ae0", dark: "#4ea3ff", theme: "done" },
+    "--pp-source": { light: "#0d4f9e", dark: "#a9d1ff", theme: "figure" },
+    "--pp-ring": { light: "#ffffff", dark: "#22252b", theme: "board" },
+  },
+};
+
 const STYLE = svg`<style>
-  .pp { --pp-board: #e4e1d8; --pp-tile: #f3f0e8; --pp-fixed: #d3cec1; --pp-bolt: #8f897c; --pp-pipe: #8b8f97;
-        --pp-water: #1f7ae0; --pp-source: #0d4f9e; --pp-ring: #ffffff; }
-  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
-  :root[data-theme="dark"] .pp { --pp-board: #22252b; --pp-tile: #2c3038; --pp-fixed: #3b404a; --pp-bolt: #7d838e;
-        --pp-pipe: #6b717c; --pp-water: #4ea3ff; --pp-source: #a9d1ff; --pp-ring: #22252b; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .pp { --pp-board: #22252b; --pp-tile: #2c3038; --pp-fixed: #3b404a; --pp-bolt: #7d838e;
-        --pp-pipe: #6b717c; --pp-water: #4ea3ff; --pp-source: #a9d1ff; --pp-ring: #22252b; }
-  }
+  ${paletteCss(PALETTE)}
   .pp-board { fill: var(--pp-board); }
   .pp-tile { fill: var(--pp-tile); }
   .pp-cell.fixed .pp-tile { fill: var(--pp-fixed); }
   .pp-bolt { fill: var(--pp-bolt); }
   .pp-turn { transition: transform 0.15s ease-out; }
-  .pp-pipe { stroke: var(--pp-pipe); stroke-width: 22; stroke-linecap: round; fill: none; transition: stroke 0.2s ease-out; }
+  /* Connected pipes are also wider: color is never the only difference. */
+  .pp-pipe { stroke: var(--pp-pipe); stroke-width: 16; stroke-linecap: round; fill: none;
+             transition: stroke 0.2s ease-out, stroke-width 0.2s ease-out; }
   .pp-hub { fill: var(--pp-pipe); transition: fill 0.2s ease-out; }
-  .pp-cell.full .pp-pipe { stroke: var(--pp-water); }
+  .pp-cell.full .pp-pipe { stroke: var(--pp-water); stroke-width: 24; }
   .pp-cell.full .pp-hub { fill: var(--pp-water); }
   .pp-source { fill: var(--pp-source); stroke: var(--pp-ring); stroke-width: 6; }
   .pp-cell.play.turnable { cursor: pointer; }
@@ -52,7 +65,7 @@ export function renderPlay(ctx: Ctx) {
       role="group"
       aria-label=${t("pipesBoard")}
     >
-      ${boardLayers(data, state, { ctx })}
+      ${boardLayers(data, state, { ctx, theme: ctx.theme })}
     </svg>
     <p class="visually-hidden" aria-live="polite">${t("ppConnected", { done: full, total: pipes })}</p>
   `;
@@ -62,7 +75,11 @@ export function renderPlay(ctx: Ctx) {
 let focused = -1;
 
 /** Board and tiles in board units. With `ctx` tiles can be turned by tapping or keyboard. */
-export function boardLayers(data: PipesData, state: PipesState = initState(data), options: { ctx?: Ctx } = {}) {
+export function boardLayers(
+  data: PipesData,
+  state: PipesState = initState(data),
+  options: { ctx?: Ctx; theme?: PuzzleTheme } = {},
+) {
   const { ctx } = options;
   const w = width(data);
   const masks = currentMasks(data, state);
@@ -77,7 +94,7 @@ export function boardLayers(data: PipesData, state: PipesState = initState(data)
     }
   }
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
-  return svg`<g class="pp">
+  return svg`<g class="pp" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     <rect class="pp-board" x="0" y="0" width=${w * CELL} height=${height(data) * CELL} rx="12"></rect>
     ${tiles}

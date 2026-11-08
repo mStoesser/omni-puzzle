@@ -27,6 +27,7 @@ export const counterType: PuzzleType<CounterData, number, 1 | -1> = {
   initState: () => 0,
   applyMove: (_data, state, move) => (state + move < 0 ? null : state + move),
   isSolved: (data, state) => state === data.target,
+  themeRoles: ["board", "piece"],
   renderPlay: () => null as unknown as TemplateResult,
   renderEditor: () => null as unknown as TemplateResult,
 };

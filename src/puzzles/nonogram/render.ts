@@ -1,6 +1,10 @@
 import { html, svg } from "lit-html";
+import { mix } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme, ThemeColors } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { lineDone } from "./logic.ts";
 import type { Mark, NonogramData, NonogramMove, NonogramState } from "./logic.ts";
 
@@ -13,17 +17,36 @@ const ZOOM_PX = 44;
 const CLUE_X = 0.7;
 const CLUE_Y = 0.62;
 
-// Styles for the HTML around the boards and for the SVGs. Light and dark (dark per app theme).
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go.
+const PAPER = { light: "#f6f3ec", dark: "#24272d", theme: "board" } as const;
+const INK = { light: "#2b2f36", dark: "#e6e8ec", theme: "piece" } as const;
+const LINE = { light: "#d6d0c3", dark: "#363a42", theme: "line" } as const;
+const LINE5 = { light: "#9c968a", dark: "#6b707a", theme: (c: ThemeColors) => mix(c.line, c.piece, 0.4) };
+
+export const PALETTE: Palette = {
+  scope: ".ng",
+  vars: {
+    "--ng-ink": INK,
+    "--ng-paper": PAPER,
+    "--ng-line": LINE,
+    "--ng-line5": LINE5,
+    "--ng-cross": { light: "#8a857b", dark: "#80858f", theme: (c) => mix(c.piece, c.board, 0.45) },
+    "--ng-clue": { light: "#2b2f36", dark: "#e6e8ec", theme: "piece" },
+    "--ng-done": { light: "#b0aa9e", dark: "#5b606a", theme: (c) => mix(c.piece, c.board, 0.65) },
+    "--ng-image": { light: "#3f6212", dark: "#b9db6a", theme: "done" },
+  },
+};
+
+/** The picture in the grid editor uses some of the same colors. */
+export const EDIT_PALETTE: Palette = {
+  scope: ".ng-edit",
+  vars: { "--ng-ink": INK, "--ng-paper": PAPER, "--ng-line": LINE, "--ng-line5": LINE5 },
+};
+
+// Styles for the HTML around the boards and for the SVGs.
 const STYLE = html`<style>
-  .ng { --ng-ink: #2b2f36; --ng-paper: #f6f3ec; --ng-line: #d6d0c3; --ng-line5: #9c968a; --ng-cross: #8a857b;
-        --ng-clue: #2b2f36; --ng-done: #b0aa9e; --ng-image: #3f6212;
-        display: grid; gap: var(--kk-space-2, 8px); width: 100%; }
-  :root[data-theme="dark"] .ng { --ng-ink: #e6e8ec; --ng-paper: #24272d; --ng-line: #363a42; --ng-line5: #6b707a;
-        --ng-cross: #80858f; --ng-clue: #e6e8ec; --ng-done: #5b606a; --ng-image: #b9db6a; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .ng { --ng-ink: #e6e8ec; --ng-paper: #24272d; --ng-line: #363a42; --ng-line5: #6b707a;
-        --ng-cross: #80858f; --ng-clue: #e6e8ec; --ng-done: #5b606a; --ng-image: #b9db6a; }
-  }
+  ${paletteCss(PALETTE)}
+  .ng { display: grid; gap: var(--kk-space-2, 8px); width: 100%; }
   .ng-bar { display: flex; flex-wrap: wrap; gap: var(--kk-space-2, 8px); align-items: stretch; justify-content: center; }
   .ng-bar .tool > span { min-height: 44px; min-width: 88px; grid-auto-flow: column; }
   .ng-scroll { container-type: inline-size; overflow: auto; max-height: 70dvh; overscroll-behavior: contain; }
@@ -65,7 +88,7 @@ export function renderPlay(ctx: Ctx) {
   const rowsDone = [...Array(data.height).keys()].filter((y) => lineDone(data, state, "row", y)).length;
   const colsDone = [...Array(data.width).keys()].filter((x) => lineDone(data, state, "col", x)).length;
   return html`
-    <div class="ng ${solved ? "solved" : ""}">
+    <div class="ng ${solved ? "solved" : ""}" style=${paletteStyle(PALETTE, ctx.theme)}>
       ${STYLE}
       <div class="ng-bar">
         <fieldset class="ng-modes" style="display: contents">
@@ -85,8 +108,8 @@ export function renderPlay(ctx: Ctx) {
  * Editor preview: the clues as players will see them, next to the drawn picture. Only for looking:
  * not tappable, and the page scrolls over it.
  */
-export function cluePreview(data: NonogramData, image: readonly string[]) {
-  return html`<div class="ng preview">${STYLE}${sheet(data, image.join(""), { done: false })}</div>`;
+export function cluePreview(data: NonogramData, image: readonly string[], theme?: PuzzleTheme) {
+  return html`<div class="ng preview" style=${paletteStyle(PALETTE, theme)}>${STYLE}${sheet(data, image.join(""), { done: false })}</div>`;
 }
 
 /** Clues and cells. With `ctx` cells can be marked; `done` overrides which clues are greyed out. */
@@ -294,15 +317,11 @@ function keydown(e: KeyboardEvent, ctx: Ctx, i: number) {
  * The picture for the grid editor (board units: 100 per cell, like the grid editor). `marked` cells get a dashed
  * frame, e.g. where two solutions of ambiguous clues differ.
  */
-export function editorLayers(data: NonogramData, image: readonly string[], marked: ReadonlySet<number>) {
+export function editorLayers(data: NonogramData, image: readonly string[], marked: ReadonlySet<number>, theme?: PuzzleTheme) {
   const cells = image.join("");
-  return svg`<g class="ng-edit">
+  return svg`<g class="ng-edit" style=${paletteStyle(EDIT_PALETTE, theme)}>
     <style>
-      .ng-edit { --ng-ink: #2b2f36; --ng-paper: #f6f3ec; --ng-line: #d6d0c3; --ng-line5: #9c968a; }
-      :root[data-theme="dark"] .ng-edit { --ng-ink: #e6e8ec; --ng-paper: #24272d; --ng-line: #363a42; --ng-line5: #6b707a; }
-      @media (prefers-color-scheme: dark) {
-        :root:not([data-theme]) .ng-edit { --ng-ink: #e6e8ec; --ng-paper: #24272d; --ng-line: #363a42; --ng-line5: #6b707a; }
-      }
+      ${paletteCss(EDIT_PALETTE)}
       .ng-edit .ng-px { fill: var(--ng-paper); }
       .ng-edit .ng-px.on { fill: var(--ng-ink); }
       .ng-edit .ng-line { stroke: var(--ng-line); stroke-width: 3; }

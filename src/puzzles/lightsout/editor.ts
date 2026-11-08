@@ -41,7 +41,7 @@ export function renderEditor(ctx: EditorContext<LightsOutData>) {
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
       palette: PALETTE,
-      board: boardLayers(data, initState(data), { showHoles: true }),
+      board: boardLayers(data, initState(data), { showHoles: true, theme: ctx.theme }),
       label: t("loEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));

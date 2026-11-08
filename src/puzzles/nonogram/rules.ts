@@ -14,4 +14,5 @@ export const nonogramRules: PuzzleRules<NonogramData, NonogramState, NonogramMov
   initState,
   applyMove,
   isSolved,
+  themeRoles: ["board", "line", "piece", "done"],
 };

@@ -49,7 +49,7 @@ export function renderEditor(ctx: EditorContext<NonogramData>) {
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
       palette: PALETTE,
-      board: editorLayers(data, image, marked),
+      board: editorLayers(data, image, marked, ctx.theme),
       label: t("ngEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y, true));
@@ -61,7 +61,7 @@ export function renderEditor(ctx: EditorContext<NonogramData>) {
     })}
     <details class="ng-preview">
       <summary>${t("ngCluePreview")}</summary>
-      ${cluePreview(data, image)}
+      ${cluePreview(data, image, ctx.theme)}
     </details>
   `;
 }

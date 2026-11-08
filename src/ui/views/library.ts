@@ -1,4 +1,5 @@
 import { html, nothing } from "lit-html";
+import { parseTheme } from "../../core/puzzle-theme.ts";
 import type { PuzzleRecord } from "../../core/storage.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { t, tn } from "../../i18n/t.ts";
@@ -48,7 +49,7 @@ function libraryEntry({ record, type, playable }: LibraryItem, actions: LibraryV
   ];
   return html`
     <li class="library-card">
-      ${thumb(type, "list")}
+      ${thumb(type, "list", parseTheme(meta.theme))}
       <div class="library-card-body">
         <a class="library-card-link" href="#/edit/${record.id}">${title}</a>
         <span class="library-card-sub">

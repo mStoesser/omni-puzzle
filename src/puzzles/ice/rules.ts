@@ -15,4 +15,5 @@ export const iceRules: PuzzleRules<IceData, IceState, IceMove> = {
   isSolved,
   solve,
   levels: { easy: 4, medium: 9 },
+  themeRoles: ["board", "line", "wall", "figure", "accent", "target", "done"],
 };

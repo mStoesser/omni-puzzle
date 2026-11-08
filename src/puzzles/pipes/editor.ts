@@ -49,7 +49,7 @@ export function renderEditor(ctx: EditorContext<PipesData>) {
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
       palette: PALETTE,
-      board: boardLayers(data),
+      board: boardLayers(data, undefined, { theme: ctx.theme }),
       label: t("ppEditorBoard"),
       onTap: (tool, x, y) => {
         if (!isTool(tool)) return;

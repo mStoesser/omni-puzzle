@@ -15,4 +15,5 @@ export const pipesRules: PuzzleRules<PipesData, PipesState, PipesMove> = {
   isSolved,
   solve,
   levels: { easy: 12, medium: 30 },
+  themeRoles: ["board", "line", "wall", "figure", "piece", "done"],
 };

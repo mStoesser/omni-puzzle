@@ -1,32 +1,49 @@
 import { html, svg } from "lit-html";
 import { pointKey } from "../../core/grid.ts";
 import type { Dir } from "../../core/grid.ts";
+import { fixedOn, mix } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme, ThemeColors } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { cellAt, emitterColor, inventoryLeft, isTurnable, minVersion, targetCount, traceBeams } from "./logic.ts";
 import type { Color, LaserCell, LaserData, LaserMove, LaserState, Orientation, PlacedCell } from "./logic.ts";
+import { LASER_COLORS } from "./rules.ts";
 
 type Ctx = PlayContext<LaserData, LaserState, LaserMove>;
 
 const PAD = 12;
 const INVENTORY_ROW = 90; // board units above the board for the inventory
 
-// Scoped to the SVG via class names; light and dark variants (dark per app theme).
-const DARK = `--ls-board: #2a2c31; --ls-line: #3a3d44; --ls-wall: #8a8d94; --ls-red: #ff5a50; --ls-green: #4ade80;
-  --ls-blue: #7aa7ff; --ls-target: #8f939b; --ls-lit: #ffd23f; --ls-mirror: #8fbaf0; --ls-fixed: #c7c9ce;
-  --ls-base: #34465c; --ls-emitter: #e7e7ea; --ls-text: #c7c9ce;`;
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go. The laser colors belong to
+// the rules (LASER_COLORS): a theme only decides between their light and dark variant through the board's brightness.
+const beam = (color: Color) => ({ ...LASER_COLORS[color], theme: (c: ThemeColors) => fixedOn(c.board, LASER_COLORS[color]) });
+
+export const PALETTE: Palette = {
+  scope: ".ls",
+  vars: {
+    "--ls-board": { light: "#e4e1d8", dark: "#2a2c31", theme: "board" },
+    "--ls-line": { light: "#cfcbc0", dark: "#3a3d44", theme: "line" },
+    "--ls-wall": { light: "#6b6a66", dark: "#8a8d94", theme: "wall" },
+    "--ls-red": beam("red"),
+    "--ls-green": beam("green"),
+    "--ls-blue": beam("blue"),
+    "--ls-target": { light: "#6e6b65", dark: "#8f939b", theme: "target" },
+    "--ls-lit": { light: "#a66f00", dark: "#ffd23f", theme: "done" },
+    "--ls-mirror": { light: "#3c6e9e", dark: "#8fbaf0", theme: "piece" },
+    "--ls-fixed": { light: "#4b4a47", dark: "#c7c9ce", theme: "wall" },
+    "--ls-base": { light: "#c9d6e4", dark: "#34465c", theme: (c) => mix(c.board, c.piece, 0.3) },
+    "--ls-emitter": { light: "#2b2a28", dark: "#e7e7ea", theme: "figure" },
+    "--ls-text": { light: "#4b4a47", dark: "#c7c9ce", theme: "figure" },
+  },
+};
+
 const STYLE = svg`<style>
-  .ls { --ls-board: #e4e1d8; --ls-line: #cfcbc0; --ls-wall: #6b6a66; --ls-red: #e3342f; --ls-green: #1f9d55;
-        --ls-blue: #2563eb; --ls-target: #6e6b65; --ls-lit: #a66f00; --ls-mirror: #3c6e9e; --ls-fixed: #4b4a47;
-        --ls-base: #c9d6e4; --ls-emitter: #2b2a28; --ls-text: #4b4a47; }
-  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
-  :root[data-theme="dark"] .ls { ${DARK} }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .ls { ${DARK} }
-  }
+  ${paletteCss(PALETTE)}
   .ls .red { --ls-c: var(--ls-red); }
   .ls .green { --ls-c: var(--ls-green); }
   .ls .blue { --ls-c: var(--ls-blue); }
@@ -77,7 +94,7 @@ export function renderPlay(ctx: Ctx) {
       role="group"
       aria-label=${t(inventory > 0 ? "laserBoardInventory" : "laserBoard")}
     >
-      ${boardLayers(data, state, { ctx })}
+      ${boardLayers(data, state, { ctx, theme: ctx.theme })}
     </svg>
     <p class="visually-hidden" aria-live="polite">
       ${t("lsTargetsHit", { hit, total: targetCount(data) })}${inventory > 0
@@ -97,7 +114,7 @@ let focused = 0;
 export function boardLayers(
   data: LaserData,
   state: LaserState,
-  options: { ctx?: Ctx; problemCells?: ReadonlySet<number> },
+  options: { ctx?: Ctx; problemCells?: ReadonlySet<number>; theme?: PuzzleTheme },
 ) {
   const { ctx, problemCells } = options;
   const trace = traceBeams(data, state);
@@ -112,7 +129,7 @@ export function boardLayers(
   });
 
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
-  return svg`<g class="ls">
+  return svg`<g class="ls" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     ${ctx && data.inventory ? inventoryRow(data, state) : null}
     <rect class="ls-board" x="0" y="0" width=${data.width * CELL} height=${data.height * CELL} rx="12"></rect>

@@ -1,8 +1,12 @@
 import { html, svg } from "lit-html";
 import type { Dir } from "../../core/grid.ts";
+import { detailOn, mix } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { directionKey, directionPad, swipeCancel, swipeEnd, swipeStart } from "../../ui/components/swipe.ts";
 import { boxesOnGoals, cellPoint, charAt, height, insideCells, neighbour, prepare, walkPath, width } from "./logic.ts";
 import type { Board, SokobanData, SokobanMove, SokobanState } from "./logic.ts";
@@ -13,20 +17,27 @@ const PAD = 12;
 /** Pause between the steps of a walk to a tapped cell. */
 const STEP_MS = 90;
 
-// Scoped to the SVG via class names; light and dark variants (dark per app theme).
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go.
+export const PALETTE: Palette = {
+  scope: ".sk",
+  vars: {
+    "--sk-floor": { light: "#e9e4d8", dark: "#2a2c31", theme: "board" },
+    "--sk-line": { light: "#dcd5c5", dark: "#34373e", theme: "line" },
+    "--sk-wall": { light: "#8a7f6e", dark: "#5d5649", theme: "wall" },
+    "--sk-wall-top": { light: "#a89d8b", dark: "#776e5e", theme: (c) => mix(c.wall, "#ffffff", 0.2) },
+    "--sk-goal": { light: "#c2410c", dark: "#ff8a66", theme: "target" },
+    "--sk-box": { light: "#b7792f", dark: "#c98a3e", theme: "piece" },
+    "--sk-box-edge": { light: "#7c4f19", dark: "#8a5a22", theme: (c) => mix(c.piece, "#000000", 0.35) },
+    "--sk-box-done": { light: "#2f8f5b", dark: "#3fbf7f", theme: "done" },
+    "--sk-box-done-edge": { light: "#1d5e3a", dark: "#23784f", theme: (c) => mix(c.done, "#000000", 0.35) },
+    "--sk-check": { light: "#ffffff", dark: "#10331f", theme: (c) => detailOn(c.done) },
+    "--sk-figure": { light: "#1d3557", dark: "#e9f1fb", theme: "figure" },
+    "--sk-face": { light: "#f4f8fc", dark: "#31506f", theme: (c) => detailOn(c.figure) },
+  },
+};
+
 const STYLE = svg`<style>
-  .sk { --sk-void: transparent; --sk-floor: #e9e4d8; --sk-line: #dcd5c5; --sk-wall: #8a7f6e; --sk-wall-top: #a89d8b;
-        --sk-goal: #c2410c; --sk-box: #b7792f; --sk-box-edge: #7c4f19; --sk-box-done: #2f8f5b; --sk-box-done-edge: #1d5e3a;
-        --sk-figure: #1d3557; --sk-face: #f4f8fc; }
-  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
-  :root[data-theme="dark"] .sk { --sk-floor: #2a2c31; --sk-line: #34373e; --sk-wall: #5d5649; --sk-wall-top: #776e5e;
-        --sk-goal: #ff8a66; --sk-box: #c98a3e; --sk-box-edge: #8a5a22; --sk-box-done: #3fbf7f; --sk-box-done-edge: #23784f;
-        --sk-figure: #e9f1fb; --sk-face: #31506f; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .sk { --sk-floor: #2a2c31; --sk-line: #34373e; --sk-wall: #5d5649; --sk-wall-top: #776e5e;
-        --sk-goal: #ff8a66; --sk-box: #c98a3e; --sk-box-edge: #8a5a22; --sk-box-done: #3fbf7f; --sk-box-done-edge: #23784f;
-        --sk-figure: #e9f1fb; --sk-face: #31506f; }
-  }
+  ${paletteCss(PALETTE)}
   .sk-floor { fill: var(--sk-floor); stroke: var(--sk-line); stroke-width: 2; }
   .sk-outside { fill: var(--sk-floor); opacity: 0.35; }
   .sk-wall { fill: var(--sk-wall); }
@@ -36,7 +47,10 @@ const STYLE = svg`<style>
   .sk-crate { fill: var(--sk-box); stroke: var(--sk-box-edge); stroke-width: 6; }
   .sk-slat { stroke: var(--sk-box-edge); stroke-width: 6; stroke-linecap: round; }
   .sk-box.done .sk-crate { fill: var(--sk-box-done); stroke: var(--sk-box-done-edge); }
-  .sk-box.done .sk-slat { stroke: var(--sk-box-done-edge); }
+  /* A box on its goal also differs in shape: a check mark instead of the slats (color is never the only difference). */
+  .sk-check { display: none; fill: none; stroke: var(--sk-check); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+  .sk-box.done .sk-slat { display: none; }
+  .sk-box.done .sk-check { display: inline; }
   .sk-body { fill: var(--sk-figure); }
   .sk-face { fill: var(--sk-face); }
   .sk-problem { fill: none; stroke: var(--danger, #c6362f); stroke-width: 8; stroke-dasharray: 16 10; }
@@ -99,7 +113,7 @@ export function renderPlay(ctx: Ctx) {
         if (dir) move(dir);
       }}
     >
-      ${boardLayers(data, state, {})}
+      ${boardLayers(data, state, { theme: ctx.theme })}
     </svg>
     ${directionPad(move)}
     <p class="visually-hidden" aria-live="polite">${statusText(data, state)}</p>
@@ -152,7 +166,11 @@ function inside(data: SokobanData): Set<number> {
  * Board, boxes and figure in board units. `problemCells` (cell indexes) are highlighted (editor).
  * Floor outside the walls (not reachable by the figure) is drawn faint.
  */
-export function boardLayers(data: SokobanData, state: SokobanState, options: { problemCells?: ReadonlySet<number> }) {
+export function boardLayers(
+  data: SokobanData,
+  state: SokobanState,
+  options: { problemCells?: ReadonlySet<number>; theme?: PuzzleTheme },
+) {
   const board = prepare(data);
   const within = inside(data);
   const tiles = [];
@@ -171,7 +189,7 @@ export function boardLayers(data: SokobanData, state: SokobanState, options: { p
     }
   }
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
-  return svg`<g class="sk">
+  return svg`<g class="sk" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     ${tiles} ${goals} ${walls}
     ${state.boxes.map((cell) => box(board, cell))}
@@ -196,6 +214,7 @@ function box(board: Board, cell: number) {
   return svg`<g class="sk-box ${board.goals[cell] ? "done" : ""}" style="transform: translate(${x * CELL}px, ${y * CELL}px)">
     <rect class="sk-crate" x="12" y="12" width="76" height="76" rx="10"></rect>
     <path class="sk-slat" d="M 26 26 L 74 74 M 74 26 L 26 74"></path>
+    <path class="sk-check" d="M 30 52 L 44 66 L 71 36"></path>
   </g>`;
 }
 

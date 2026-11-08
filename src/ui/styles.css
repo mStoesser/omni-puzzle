@@ -1762,6 +1762,32 @@ a.icon-button {
   background-position: -1px -1px;
 }
 
+/* A themed puzzle (M29): the board's colors, with a piece and the target in the corner. */
+.thumb.themed {
+  background-color: var(--thumb-board);
+  background-image: linear-gradient(var(--thumb-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--thumb-line) 1px, transparent 1px);
+}
+
+.thumb-part {
+  position: absolute;
+  bottom: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.thumb-part.piece {
+  right: 36px;
+  background: var(--thumb-piece);
+}
+
+.thumb-part.target {
+  right: 10px;
+  background: var(--thumb-target);
+  border-radius: 50%;
+}
+
 .thumb.list {
   width: 88px;
   height: 88px;
@@ -2528,6 +2554,23 @@ a.icon-button {
   background: var(--kk-surface);
   color: var(--kk-text);
   font: inherit;
+}
+
+/* Theme of the puzzle (M29): choice plus a small preview of the colors on the board color. */
+.editor-theme .theme-swatches {
+  display: flex;
+  gap: 6px;
+  width: max-content;
+  margin: var(--kk-space-2) 0 0 auto;
+  padding: 6px 8px;
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+}
+
+.theme-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
 }
 
 .editor-tools-bar .icon-button {

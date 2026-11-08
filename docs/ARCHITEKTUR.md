@@ -90,6 +90,8 @@ src/
     daily.ts, day.ts      # Rätsel des Tages: laden, Tagesrangliste, Serie, Planung; Kalendertage rechnen (M26)
     sync.ts               # Bibliothek und Fortschritt mit dem Konto abgleichen: Zusammenführen, Holen, Senden (M27)
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
+    puzzle-theme.ts       # Rätsel-Themes: Rollen, Prüfung, Farbrechnung, Kontrastprüfung (M29)
+    theme-presets.ts      # vorgefertigte Themes (M29)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“ (quiz-images und user-images)
@@ -97,6 +99,7 @@ src/
   ui/
     views/                # home.ts, library.ts, play.ts, editor.ts, chain.ts, chain-editor.ts …
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
+    palette.ts            # Rollen-Paletten der Renderer: Standard-CSS und Theme als Inline-Stil (M29)
     styles.css
   puzzles/
     index.ts              # registriert alle Typen (mit UI)
@@ -137,6 +140,7 @@ type PuzzleDocument<D = unknown> = {
     verified?: boolean;   // vom Ersteller gelöst
     minMoves?: number;    // vom Solver ermittelt
     lang?: "de" | "en";   // Sprache der Texte (M28); andere Werte werden wie unbekannte Felder verworfen
+    theme?: { colors: Record<ThemeRole, string> };  // Farben des Spielfelds (M29); ungültig = still verworfen
   };
   data: D;                // typspezifisch
 };
@@ -153,6 +157,8 @@ type PuzzleType<D, S, M> = {
   icon: SVGTemplateResult;          // Linien-Symbol: Pfade für viewBox 24×24, Strich 2, runde Enden
   color: { dark: string; light: string };  // Typfarbe je Theme, nur für Akzente (Kachel, Badge, Fortschritt)
   controls?: { undo?: boolean; moves?: boolean };  // Core-Bedienelemente abschalten (Quiz: kein Undo, kein Zugzähler)
+  themeRoles?: ThemeRole[];         // M29: Rollen, die der Renderer aus einem Theme nimmt; ohne = nicht themebar
+  themeFixed?: { light: string; dark: string }[];  // M29: Farben der Regeln auf dem Brett (Laserfarben)
 
   // --- Daten ---
   createDefault(): D;               // Startpunkt für den Editor
@@ -184,6 +190,7 @@ type PlayContext<D, S, M> = {
   data: D; state: S;
   dispatch(move: M): void;          // Core ruft applyMove, speichert History (Undo/Redo), prüft isSolved
   images: ImageSource;              // ab M14: url(key) → Adresse, "loading" oder null (nicht verfügbar)
+  theme?: PuzzleTheme;              // ab M29: Theme des Rätsels, undefined = Standardfarben (auch im EditorContext)
 };
 
 type EditorContext<D> = {
@@ -886,6 +893,55 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
 - **Entscheidung Impressum und Datenschutz:** übersetzt. Weil `en.ts` alle Schlüssel haben muss, gibt es die Texte
   ohnehin; über der englischen Datenschutzerklärung steht, dass nur die deutsche Fassung verbindlich ist
   (`legalTranslation`, im Deutschen leer).
+
+### Rätsel-Themes (M29)
+
+Der Autor wählt pro Rätsel ein Theme (Farben des Spielfelds); ein geteiltes Rätsel sieht bei allen gleich aus.
+Nicht zu verwechseln mit dem App-Farbschema hell/dunkel (`ui/theme.ts`). Themes sind reine Darstellung: Logik,
+Solver und Daten bleiben unberührt.
+
+- **Rollen** (`core/puzzle-theme.ts`): Jeder Typ ordnet seine Teile gemeinsamen Rollen zu und nutzt nur die, die er
+  hat. So passt jedes Theme auf jeden Typ.
+
+  | Rolle | Bedeutung | Ausparken | Klotski | Sokoban | Eis | Laser | Lights Out | Rohre | Nonogramm |
+  |---|---|---|---|---|---|---|---|---|---|
+  | `board` | Brett, Untergrund | Brett | Brett | Boden | Eis | Brett | Brett (neu) | Kachel | Papier |
+  | `line` | Raster, dezente Linien | Linien | Linien | Fugen | Linien | Linien | Loch-Umriss | Spalt | Linien |
+  | `wall` | Hindernis | – | – | Wand | Fels | Wand, fester Spiegel | – | feste Kachel, Nieten | – |
+  | `figure` | Spielfigur | – | – | Figur | Figur | Laser | – | Quelle | – |
+  | `piece` | bewegliches Teil | Autos waagrecht | 1×1 (2×1 gemischt) | Kiste | – | Spiegel | Licht aus | Rohr | Füllung, Zahlen |
+  | `accent` | zweites Teil, Sonderfeld | Autos senkrecht | 2×2 (2×1 gemischt) | – | Sand | – | – | – | – |
+  | `target` | Ziel | Zielauto, Ausgang | Zielblock, Ausgang | Zielfeld | Ziel | Ziel | – | – | – |
+  | `done` | erledigt | – | – | Kiste auf Ziel | erreichtes Ziel | getroffenes Ziel | Licht an | Wasser | Lösungsbild |
+
+  Abgeleitete Farben (Kanten, Glanzlichter, Gesicht der Figur, Mittellinien) rechnet die Palette aus den Rollen
+  (`mix`, `detailOn`). Das **Quiz** hat kein Spielfeld und ist nicht themebar; `loadDocument` verwirft dort `meta.theme`.
+- **Paletten** (`ui/palette.ts`): Jeder Renderer listet seine CSS-Variablen einmal mit Standardfarbe hell/dunkel
+  (unverändert gegenüber vorher) und der Quelle im Theme. `paletteCss` erzeugt daraus das `<style>` (hell, dunkel per
+  `data-theme`, dunkel per Systemeinstellung), statt es dreimal auszuschreiben. Mit Theme bekommt das Wurzelelement
+  des Bretts die Werte als Inline-Stil (`paletteStyle`); der schlägt die Standardwerte, also sieht ein Brett mit Theme
+  im hellen und dunklen Modus gleich aus, nur die App drumherum wechselt. Weil es ein Inline-Stil ist, können
+  mehrere Bretter mit verschiedenen Themes auf einer Seite stehen. Ein Test prüft, dass jede Palette genau die
+  `themeRoles` des Typs nutzt.
+- **Format:** `meta.theme = { colors: { <rolle>: "#rrggbb", … } }` mit allen Rollen, nicht nur eine ID, damit eigene
+  Themes (M30) ohne Formatwechsel dazukommen. `parseTheme` verlangt jede bekannte Rolle als Hex-Farbe, verwirft
+  unbekannte Rollen und Felder, höchstens 32 Farbschlüssel und 1 KB. Ungültiges fällt still auf den Standard zurück;
+  `format` und `typeVersion` bleiben. Der Inhaltsschlüssel ignoriert `meta`: dasselbe Rätsel in anderem Theme ist ein
+  Duplikat, der Fortschritt bleibt. Ein Remix behält das Theme.
+- **Kontrast** (`contrastProblems`): Nur Paare von Rollen, die der Typ hat. Teile auf dem Brett (`piece`, `wall`,
+  `figure`, `target`, `done`, `accent` gegen `board`) brauchen 3:1, `figure` auf `accent` (Figur auf Sand) 2:1,
+  `done` neben `piece` 1,5:1, Linien 1,2:1. Die Laserfarben gehören zu den Regeln (`LASER_COLORS` in `laser/rules.ts`,
+  `themeFixed`): Ein Theme wählt nur über die Helligkeit des Bretts die helle oder dunkle Variante, die mindestens 2:1
+  zum Brett haben muss. `preparePublication` lehnt zu wenig Kontrast mit `theme-contrast` ab; ein Test prüft alle
+  vorgefertigten Themes auf allen Typen.
+- **Farbe ist nie der einzige Unterschied:** Dafür kamen Formmerkmale dazu: ein Pfeil zum Ausgang auf dem Zielblock
+  (Ausparken, Klotski), ein Häkchen statt der Latten auf Kisten im Ziel (Sokoban), breitere Rohre, wenn Wasser fließt
+  (Rohre). Lights Out (Glühbirne), Laser (gefülltes Ziel) und Eis (Figur auf dem Ziel) hatten schon eins.
+- **Vorgefertigte Themes** (`core/theme-presets.ts`): Garten, Meer, Pastell, Nacht, Weltraum. Gespeichert werden die
+  Farben; der Editor erkennt ein Preset an ihnen, sonst zeigt er „Eigenes“.
+- **Ansichten:** Auswahl „Theme“ mit Farbvorschau im Prüf-Panel des Editors; das Bau-Brett und Probespielen zeigen das
+  Theme. Spiel, Ketten und Rätsel des Tages übernehmen es über `loadDocument`. Galerie-Karten laden
+  `theme:doc->meta->theme` mit (keine Migration) und färben das Platzhalter-Raster, ebenso „Meine Rätsel“.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

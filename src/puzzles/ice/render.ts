@@ -1,8 +1,12 @@
 import { html, svg } from "lit-html";
 import type { Dir } from "../../core/grid.ts";
+import { detailOn, isDark, mix } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { directionKey, directionPad, swipeCancel, swipeEnd, swipeStart } from "../../ui/components/swipe.ts";
 import { dirTowards, isSolved } from "./logic.ts";
 import type { IceCell, IceData, IceMove, IceState } from "./logic.ts";
@@ -11,17 +15,25 @@ type Ctx = PlayContext<IceData, IceState, IceMove>;
 
 const PAD = 12;
 
-// Scoped to the SVG via class names; light and dark variants (dark per app theme).
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go.
+export const PALETTE: Palette = {
+  scope: ".ice",
+  vars: {
+    "--ice-board": { light: "#dcecf8", dark: "#1e2c39", theme: "board" },
+    "--ice-line": { light: "#c0d9ec", dark: "#2b3d4e", theme: "line" },
+    "--ice-rock": { light: "#66717f", dark: "#77818e", theme: "wall" },
+    "--ice-rock-top": { light: "#8d97a4", dark: "#9aa4b0", theme: (c) => mix(c.wall, "#ffffff", 0.2) },
+    "--ice-sand": { light: "#e2c992", dark: "#7c6842", theme: "accent" },
+    "--ice-grain": { light: "#b8975a", dark: "#b39a63", theme: (c) => mix(c.accent, isDark(c.accent) ? "#ffffff" : "#000000", 0.3) },
+    "--ice-goal": { light: "#b56f00", dark: "#ffd23f", theme: "target" },
+    "--ice-figure": { light: "#1d3557", dark: "#e9f1fb", theme: "figure" },
+    "--ice-belly": { light: "#f4f8fc", dark: "#31506f", theme: (c) => detailOn(c.figure) },
+    "--ice-glow": { light: "#ffb703", dark: "#ffd23f", theme: "done" },
+  },
+};
+
 const STYLE = svg`<style>
-  .ice { --ice-board: #dcecf8; --ice-line: #c0d9ec; --ice-rock: #66717f; --ice-rock-top: #8d97a4; --ice-sand: #e2c992;
-         --ice-grain: #b8975a; --ice-goal: #b56f00; --ice-figure: #1d3557; --ice-belly: #f4f8fc; --ice-glow: #ffb703; }
-  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
-  :root[data-theme="dark"] .ice { --ice-board: #1e2c39; --ice-line: #2b3d4e; --ice-rock: #77818e; --ice-rock-top: #9aa4b0;
-         --ice-sand: #7c6842; --ice-grain: #b39a63; --ice-goal: #ffd23f; --ice-figure: #e9f1fb; --ice-belly: #31506f; --ice-glow: #ffd23f; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .ice { --ice-board: #1e2c39; --ice-line: #2b3d4e; --ice-rock: #77818e; --ice-rock-top: #9aa4b0;
-         --ice-sand: #7c6842; --ice-grain: #b39a63; --ice-goal: #ffd23f; --ice-figure: #e9f1fb; --ice-belly: #31506f; --ice-glow: #ffd23f; }
-  }
+  ${paletteCss(PALETTE)}
   .ice-board { fill: var(--ice-board); }
   .ice-line { stroke: var(--ice-line); stroke-width: 2; }
   .ice-rock { fill: var(--ice-rock); }
@@ -67,7 +79,7 @@ export function renderPlay(ctx: Ctx) {
         if (dir) move(dir);
       }}
     >
-      ${boardLayers(data, state, {})}
+      ${boardLayers(data, state, { theme: ctx.theme })}
     </svg>
     ${directionPad(move)}
     <p class="visually-hidden" aria-live="polite">${positionText(data, state)}</p>
@@ -93,12 +105,16 @@ function positionText(data: IceData, state: IceState): string {
  * Board, cells and figure in board units. `problemCells` (indexes into data.cells) are highlighted (editor).
  * In the editor `state` is the start position, so the figure marks the start.
  */
-export function boardLayers(data: IceData, state: IceState, options: { problemCells?: ReadonlySet<number> }) {
+export function boardLayers(
+  data: IceData,
+  state: IceState,
+  options: { problemCells?: ReadonlySet<number>; theme?: PuzzleTheme },
+) {
   const { problemCells } = options;
   const of = (kind: IceCell["kind"]) => data.cells.filter((c) => c.kind === kind);
   const reached = isSolved(data, state);
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
-  return svg`<g class="ice">
+  return svg`<g class="ice" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     <rect class="ice-board" x="0" y="0" width=${data.width * CELL} height=${data.height * CELL} rx="12"></rect>
     ${gridLines(data)}

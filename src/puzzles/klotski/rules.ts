@@ -15,4 +15,5 @@ export const klotskiRules: PuzzleRules<KlotskiData, KlotskiState, KlotskiMove> =
   isSolved,
   solve,
   levels: { easy: 12, medium: 35 },
+  themeRoles: ["board", "line", "piece", "accent", "target"],
 };

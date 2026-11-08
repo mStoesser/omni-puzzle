@@ -15,4 +15,5 @@ export const lightsOutRules: PuzzleRules<LightsOutData, LightsOutState, LightsOu
   isSolved,
   solve,
   levels: { easy: 4, medium: 9 },
+  themeRoles: ["board", "line", "piece", "done"],
 };

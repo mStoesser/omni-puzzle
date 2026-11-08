@@ -630,26 +630,36 @@ Format unverändert gültig bleibt.
 Ein Rätsel-Theme (Farben und später Icons des Spielfelds) wählt der **Autor pro Rätsel**; ein geteiltes Rätsel sieht
 bei allen gleich aus. Nicht zu verwechseln mit dem App-Theme hell/dunkel. Themes sind reine Darstellung: Logik, Solver
 und Regeln bleiben unberührt.
-- [ ] Gemeinsame Rollen für alle Typen (z. B. Brett, Linie, Hindernis, Figur, bewegliches Teil, Ziel, erledigt, Akzent);
+- [x] Gemeinsame Rollen für alle Typen (z. B. Brett, Linie, Hindernis, Figur, bewegliches Teil, Ziel, erledigt, Akzent);
   jeder Typ ordnet seine Teile den Rollen zu und nutzt nur die, die er hat. So passt ein Theme auf jeden Typ.
   Rollen und Zuordnung in `docs/ARCHITEKTUR.md` festhalten.
-- [ ] Plugin-Schnittstelle: Typen melden ihre Rollen (bewusste Core-Erweiterung, Regel 5). Alle 9 Renderer auf
+  (Brett, Linie, Hindernis, Figur, Teil, Akzent, Ziel, erledigt; Tabelle in ARCHITEKTUR, Abschnitt M29.)
+- [x] Plugin-Schnittstelle: Typen melden ihre Rollen (bewusste Core-Erweiterung, Regel 5). Alle 9 Renderer auf
   Rollen-Paletten umstellen; das `<style>` wird aus der Palette erzeugt statt dreimal pro Typ ausgeschrieben.
-- [ ] Ohne Theme bleibt alles wie heute (Standard, folgt hell/dunkel). Ein gewähltes Theme sieht **immer gleich aus**,
+  (`PuzzleRules.themeRoles`, `ui/palette.ts`. Abweichung: Das Quiz hat kein Spielfeld und bleibt ohne Theme, also
+  8 Renderer; ein Test hält Paletten und `themeRoles` gleich.)
+- [x] Ohne Theme bleibt alles wie heute (Standard, folgt hell/dunkel). Ein gewähltes Theme sieht **immer gleich aus**,
   auch im Dunkelmodus – wie ein echtes Spielbrett; nur die App drumherum wechselt.
-- [ ] `meta.theme` (optional) in der Hülle, enthält das vollständige Theme (Farben pro Rolle), nicht nur eine ID,
+  (Theme als Inline-Stil am Brett. Im Browser geprüft: Standardfarben unverändert, Themes in hell und dunkel gleich.)
+- [x] `meta.theme` (optional) in der Hülle, enthält das vollständige Theme (Farben pro Rolle), nicht nur eine ID,
   damit spätere eigene Themes ohne Formatwechsel dazukommen. Unbekanntes oder Ungültiges fällt still auf den Standard
   zurück; `format` und `typeVersion` bleiben. Der Inhaltsschlüssel ignoriert `meta`: dasselbe Rätsel in anderem Theme
   ist ein Duplikat, der Fortschritt bleibt.
-- [ ] Prüfung (rein, getestet): Farbformat, bekannte Rollen, Größe; `server/publish-handler` und `rules.ts` nutzen sie.
+- [x] Prüfung (rein, getestet): Farbformat, bekannte Rollen, Größe; `server/publish-handler` und `rules.ts` nutzen sie.
   Keine Migration, die Galerie filtert nicht nach Theme.
-- [ ] Kontrastprüfung (rein, getestet): wichtige Paare (z. B. Ziel/Brett, Teil/Brett, erledigt/Teil) brauchen einen
+  (`parseTheme`; die Function übernimmt das Theme und lehnt zu wenig Kontrast mit `theme-contrast` ab.)
+- [x] Kontrastprüfung (rein, getestet): wichtige Paare (z. B. Ziel/Brett, Teil/Brett, erledigt/Teil) brauchen einen
   Mindestkontrast. Ein Test prüft damit alle vorgefertigten Themes. Farbe bleibt nie der einzige Unterschied.
-- [ ] Laserfarben (Rot, Grün, Blau) gehören zu den Regeln und werden vorgelesen; sie sind nicht themebar.
-- [ ] 4–6 vorgefertigte Themes, die auf allen Typen funktionieren (z. B. Garten, Nacht, Weltraum, Pastell).
-- [ ] Editor: Auswahl „Theme“ mit kleiner Vorschau im Prüf-Panel. Spiel, Galerie-Karte, Ketten und Tagesrätsel
+  (Dafür neu: Pfeil auf dem Zielblock bei Ausparken und Klotski, Häkchen auf Kisten im Ziel, breitere Rohre mit Wasser.)
+- [x] Laserfarben (Rot, Grün, Blau) gehören zu den Regeln und werden vorgelesen; sie sind nicht themebar.
+- [x] 4–6 vorgefertigte Themes, die auf allen Typen funktionieren (z. B. Garten, Nacht, Weltraum, Pastell).
+  (Garten, Meer, Pastell, Nacht, Weltraum.)
+- [x] Editor: Auswahl „Theme“ mit kleiner Vorschau im Prüf-Panel. Spiel, Galerie-Karte, Ketten und Tagesrätsel
   übernehmen das Theme; ein Remix behält es.
-- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, App hell und dunkel.
+  (Galerie-Karten und „Meine Rätsel“ färben das Platzhalter-Raster; die Galerie lädt `doc->meta->theme` mit.)
+- [x] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, App hell und dunkel.
+  (Headless Chrome über die LAN-Adresse: alle 8 Typen mit Themes, Standard hell, Editor mobil und Desktop.
+  Galerie-Karte mit Theme noch nicht im Browser gesehen, nur getestet.)
 - [ ] Live testen: Rätsel mit Theme teilen und veröffentlichen, auf dem Handy öffnen.
 
 ### M30 – Eigene Themes im Editor

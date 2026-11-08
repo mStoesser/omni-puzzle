@@ -126,4 +126,8 @@ test("toDocument builds the envelope from the current editor state", () => {
   const solved = toDocument(session, { ...info, verified: true, solve: { status: "solved", moves: [1, 2, 3] } });
   assert.deepEqual(solved.meta, { title: "Titel", createdAt: info.createdAt, verified: true, minMoves: 3 });
   assert.equal(toDocument(session, { ...info, verified: false, solve: { status: "aborted" } }).meta.minMoves, undefined);
+  const theme = { colors: { board: "#ffffff", line: "#dddddd", wall: "#555555", figure: "#000000", piece: "#333333", accent: "#666666", target: "#222222", done: "#777777" } };
+  assert.deepEqual(toDocument(session, { ...info, lang: "en", theme, verified: false, solve: null }).meta, {
+    title: "Titel", createdAt: info.createdAt, lang: "en", theme,
+  });
 });

@@ -133,6 +133,8 @@ export function publishErrorText(error: unknown): MessageKey {
         return "publishNotVerified";
       case "unsolvable":
         return "publishUnsolvable";
+      case "theme-contrast":
+        return "publishThemeContrast";
       case "invalid-title":
         return "publishInvalidTitle";
       case "invalid-description":

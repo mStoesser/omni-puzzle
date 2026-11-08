@@ -51,7 +51,7 @@ export function renderEditor(ctx: EditorContext<KlotskiData>) {
       },
       palette: PALETTE,
       // Positions straight from the data: drafts may have blocks outside the board.
-      board: boardLayers(data, data.blocks, { problemBlocks }),
+      board: boardLayers(data, data.blocks, { problemBlocks, theme: ctx.theme }),
       label: t("klEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));

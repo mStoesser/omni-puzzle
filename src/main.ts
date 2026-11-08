@@ -56,6 +56,8 @@ import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
 import { createStore } from "./core/store.ts";
 import { imageProblem, imageKey, publishedImageUrl, sniffImageType, toBase64 } from "./core/images.ts";
 import type { AnyPuzzleType, ImageSource, PuzzleDocument, PuzzleLang, SolveResult } from "./core/types.ts";
+import { sameTheme } from "./core/puzzle-theme.ts";
+import type { PuzzleTheme } from "./core/puzzle-theme.ts";
 import { language, t, tn } from "./i18n/t.ts";
 import type { MessageKey } from "./i18n/t.ts";
 import { examples, examplesIn, registry } from "./puzzles/index.ts";
@@ -95,6 +97,7 @@ type EditorState = {
   id: string; // library id; a new puzzle is saved under it on its first change
   createdAt: string;
   lang: PuzzleLang; // M28: the UI language for new puzzles and old ones without a language
+  theme?: PuzzleTheme; // M29: colors of the board; undefined = default colors
   type: AnyPuzzleType;
   session: EditorSession<unknown>;
   /** Data the creator solved in test play; compared by reference, so undo can restore "verified". */
@@ -404,6 +407,7 @@ function startPlay(
     origin,
     progressKey: progressKey(doc),
     ...(doc.meta.lang ? { lang: doc.meta.lang } : {}),
+    ...(doc.meta.theme ? { theme: doc.meta.theme } : {}),
     images: extra.images ?? localImages,
     minMoves: doc.meta.minMoves ?? null,
     timer: IDLE_TIMER,
@@ -954,7 +958,7 @@ const playActions = {
     if (play.published) await downloadImages(play.published.id, type.imageKeys?.(data) ?? []);
     const record: PuzzleRecord = {
       id: newPuzzleId(),
-      doc: { format: 1, type: type.id, typeVersion: type.version, meta: { title: play.title, createdAt: now(), lang: play.lang ?? language() }, data },
+      doc: { format: 1, type: type.id, typeVersion: type.version, meta: { title: play.title, createdAt: now(), lang: play.lang ?? language(), ...(play.theme ? { theme: play.theme } : {}) }, data },
       updatedAt: now(),
     };
     if (await save((s) => s.putPuzzle(record))) location.hash = formatRoute({ name: "edit", id: record.id });
@@ -1305,6 +1309,7 @@ async function openEditor(route: Route & { name: "edit" }) {
       id: record.id,
       createdAt: doc.meta.createdAt,
       lang: doc.meta.lang ?? language(),
+      ...(doc.meta.theme ? { theme: doc.meta.theme } : {}),
       type,
       session: editing.createEditorSession(doc.data, doc.meta.title),
       verifiedData: doc.meta.verified ? doc.data : undefined,
@@ -1337,6 +1342,7 @@ function editorDocument(editor: EditorState): PuzzleDocument {
     typeVersion: editor.type.version,
     createdAt: editor.createdAt,
     lang: editor.lang,
+    ...(editor.theme ? { theme: editor.theme } : {}),
     verified: isVerified(editor),
     solve: cachedSolve(editing.currentData(editor.session)),
   });
@@ -1527,6 +1533,14 @@ const editorActions = {
     patch({ editor: { ...editor, lang } });
     editorChanged();
   },
+  // A theme only changes how the puzzle looks, so the creator's solution stays valid (it is not part of the data).
+  setTheme: (theme: PuzzleTheme | undefined) => {
+    const editor = store.get().editor;
+    if (!editor || sameTheme(editor.theme, theme)) return;
+    const { theme: _old, ...rest } = editor;
+    patch({ editor: theme ? { ...rest, theme } : rest });
+    editorChanged();
+  },
   testPlay: () => {
     const editor = store.get().editor;
     if (!editor || !editing.readiness(editorCheck(editor)).canTest) return;
@@ -1536,6 +1550,7 @@ const editorActions = {
       showSolved: false,
       origin: "test",
       progressKey: null,
+      ...(editor.theme ? { theme: editor.theme } : {}),
       images: localImages,
       minMoves: minMovesOf(cachedSolve(editing.currentData(editor.session))),
       timer: IDLE_TIMER,
@@ -2178,6 +2193,7 @@ function view(state: AppState) {
           publish: state.publish,
           images: editorImages,
           lang: editor.lang,
+          ...(editor.theme ? { theme: editor.theme } : {}),
           testPlay: state.play?.origin === "test" ? playView(state.play, playStats(state), playActions, { embedded: true }) : null,
           ...editorCheck(editor),
         },

@@ -63,7 +63,7 @@ export function renderEditor(ctx: EditorContext<LaserData>) {
       ],
       palette: PALETTE,
       // Shows the beams of the start position, so the creator sees what the player sees.
-      board: boardLayers(data, initState(data), { problemCells }),
+      board: boardLayers(data, initState(data), { problemCells, theme: ctx.theme }),
       label: t("lsEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));

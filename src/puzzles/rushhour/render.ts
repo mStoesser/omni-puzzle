@@ -1,7 +1,11 @@
 import { html, nothing, svg } from "lit-html";
+import { detailOn } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { blockOrigin, moveRange } from "./logic.ts";
 import type { Block, RushHourData, RushHourMove, RushHourState } from "./logic.ts";
 
@@ -10,23 +14,34 @@ type Ctx = PlayContext<RushHourData, RushHourState, RushHourMove>;
 const PAD = 24; // margin around the board for the exit marker
 const INSET = 6; // gap between blocks and cell borders
 
-// Scoped to the SVG via class names; light and dark variants (dark per app theme).
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go.
+export const PALETTE: Palette = {
+  scope: ".rh",
+  vars: {
+    "--rh-board": { light: "#e4e1d8", dark: "#2a2c31", theme: "board" },
+    "--rh-line": { light: "#cfcbc0", dark: "#3a3d44", theme: "line" },
+    "--rh-block": { light: "#62758c", dark: "#6a7d93", theme: "piece" },
+    "--rh-block-alt": { light: "#866a4c", dark: "#8f7659", theme: "accent" },
+    "--rh-target": { light: "#d6453d", dark: "#ef5b52", theme: "target" },
+    "--rh-mark": { light: "rgba(255, 255, 255, 0.85)", dark: "rgba(255, 255, 255, 0.85)", theme: (c) => detailOn(c.target) },
+  },
+};
+
+// Scoped to the SVG via class names.
 const STYLE = svg`<style>
-  .rh { --rh-board: #e4e1d8; --rh-line: #cfcbc0; --rh-block: #62758c; --rh-block-alt: #866a4c; --rh-target: #d6453d; }
-  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
-  :root[data-theme="dark"] .rh { --rh-board: #2a2c31; --rh-line: #3a3d44; --rh-block: #6a7d93; --rh-block-alt: #8f7659; --rh-target: #ef5b52; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .rh { --rh-board: #2a2c31; --rh-line: #3a3d44; --rh-block: #6a7d93; --rh-block-alt: #8f7659; --rh-target: #ef5b52; }
-  }
+  ${paletteCss(PALETTE)}
   .rh-board { fill: var(--rh-board); }
   .rh-line { stroke: var(--rh-line); stroke-width: 2; }
   .rh-exit { fill: var(--rh-target); opacity: 0.5; }
-  .rh-block { fill: var(--rh-block); cursor: grab; }
-  .rh-block.v { fill: var(--rh-block-alt); }
-  .rh-block.target { fill: var(--rh-target); }
+  .rh-block { cursor: grab; }
+  .rh-face { fill: var(--rh-block); }
+  .rh-block.v .rh-face { fill: var(--rh-block-alt); }
+  .rh-block.target .rh-face { fill: var(--rh-target); }
+  /* The target block also differs in shape: an arrow towards the exit (color is never the only difference). */
+  .rh-mark { fill: none; stroke: var(--rh-mark); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
   .rh-block.dragging { cursor: grabbing; filter: brightness(1.1); }
   .rh-block.static { cursor: inherit; }
-  .rh-block.problem { stroke: var(--danger, #c6362f); stroke-width: 8; stroke-dasharray: 16 10; }
+  .rh-block.problem .rh-face { stroke: var(--danger, #c6362f); stroke-width: 8; stroke-dasharray: 16 10; }
 </style>`;
 
 export function renderPlay(ctx: Ctx) {
@@ -39,7 +54,7 @@ export function renderPlay(ctx: Ctx) {
       role="group"
       aria-label=${t("rushHourBoard")}
     >
-      ${boardLayers(data, ctx.state, { ctx })}
+      ${boardLayers(data, ctx.state, { ctx, theme: ctx.theme })}
     </svg>
   `;
 }
@@ -51,11 +66,11 @@ export function renderPlay(ctx: Ctx) {
 export function boardLayers(
   data: RushHourData,
   state: RushHourState,
-  options: { ctx?: Ctx; problemBlocks?: ReadonlySet<number> },
+  options: { ctx?: Ctx; problemBlocks?: ReadonlySet<number>; theme?: PuzzleTheme },
 ) {
   const { ctx, problemBlocks } = options;
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
-  return svg`<g class="rh">
+  return svg`<g class="rh" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     <rect class="rh-board" x="0" y="0" width=${data.width * CELL} height=${data.height * CELL} rx="12"></rect>
     ${gridLines(data)} ${exitMarker(data)}
@@ -70,25 +85,33 @@ export function boardLayers(
         ctx ? "" : "static",
         problemBlocks?.has(i) ? "problem" : "",
       ].join(" ");
-      return svg`<rect
+      const width = cols * CELL - 2 * INSET;
+      const height = rows * CELL - 2 * INSET;
+      return svg`<g
         class=${classes}
         tabindex=${ctx ? 0 : nothing}
         role=${ctx ? "button" : nothing}
         aria-label=${ctx ? blockLabel(block, origin) : nothing}
         @keydown=${ctx ? (e: KeyboardEvent) => keyMove(e, ctx, i) : null}
         @blur=${ctx ? (e: FocusEvent) => keySlide?.block === i && putDown(e.currentTarget as SVGGraphicsElement, ctx) : null}
-        x=${origin.x * CELL + INSET}
-        y=${origin.y * CELL + INSET}
-        width=${cols * CELL - 2 * INSET}
-        height=${rows * CELL - 2 * INSET}
-        rx="16"
         @pointerdown=${ctx ? (e: PointerEvent) => startDrag(e, ctx, i) : null}
         @pointermove=${ctx ? moveDrag : null}
         @pointerup=${ctx ? (e: PointerEvent) => endDrag(e, ctx) : null}
         @pointercancel=${ctx ? cancelDrag : null}
-      ></rect>`;
+      >
+        <rect class="rh-face" x=${origin.x * CELL + INSET} y=${origin.y * CELL + INSET} width=${width} height=${height} rx="16"></rect>
+        ${block.target ? exitArrow(origin.x * CELL + INSET + width / 2, origin.y * CELL + INSET + height / 2, data.exit.side) : null}
+      </g>`;
     })}
   </g>`;
+}
+
+const ARROW_TURN = { E: 0, S: 90, W: 180, N: 270 } as const;
+
+/** A chevron pointing towards the exit, centered on (cx, cy). */
+function exitArrow(cx: number, cy: number, side: keyof typeof ARROW_TURN) {
+  return svg`<path class="rh-mark" d="M ${cx - 7} ${cy - 15} L ${cx + 8} ${cy} L ${cx - 7} ${cy + 15}"
+    transform="rotate(${ARROW_TURN[side]} ${cx} ${cy})"></path>`;
 }
 
 function blockLabel(block: Block, origin: { x: number; y: number }) {

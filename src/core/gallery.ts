@@ -3,6 +3,8 @@ import { isLevel } from "./difficulty.ts";
 import type { Level } from "./difficulty.ts";
 import { isPuzzleLang } from "./types.ts";
 import type { PuzzleLang } from "./types.ts";
+import { parseTheme } from "./puzzle-theme.ts";
+import type { PuzzleTheme } from "./puzzle-theme.ts";
 
 export type GallerySort = "new" | "likes" | "plays" | "hardest";
 export const GALLERY_SORTS: readonly GallerySort[] = ["new", "likes", "plays", "hardest"];
@@ -28,6 +30,7 @@ export type GalleryItem = {
   minMoves: number | null;
   level: Level | null;
   lang: PuzzleLang | null;
+  theme: PuzzleTheme | null; // M29: colors of the board, for the card preview
   likeCount: number;
   playCount: number;
   ratingSum: number;
@@ -53,6 +56,7 @@ type Row = {
   min_moves: number | null;
   difficulty: number | null;
   lang: string | null;
+  theme?: unknown; // doc->meta->theme, untrusted
   like_count: number;
   play_count: number;
   rating_sum: number;
@@ -63,7 +67,8 @@ type Row = {
 };
 
 const SELECT =
-  "id,type,title,content_key,min_moves,difficulty,lang,like_count,play_count,rating_sum,rating_count,published_at,hardness," +
+  "id,type,title,content_key,min_moves,difficulty,lang,theme:doc->meta->theme,like_count,play_count,rating_sum,rating_count," +
+  "published_at,hardness," +
   "author:profiles!puzzles_author_id_fkey(username)";
 
 /** PostgREST query parameters for one page; pure, so it is tested without a server. */
@@ -98,6 +103,7 @@ function toItem(row: Row): GalleryItem {
     minMoves: row.min_moves,
     level: isLevel(row.difficulty) ? row.difficulty : null,
     lang: isPuzzleLang(row.lang) ? row.lang : null,
+    theme: parseTheme(row.theme),
     likeCount: row.like_count,
     playCount: row.play_count,
     ratingSum: row.rating_sum,

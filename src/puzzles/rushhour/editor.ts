@@ -51,7 +51,7 @@ export function renderEditor(ctx: EditorContext<RushHourData>) {
       },
       palette: PALETTE,
       // initState only reads block positions, so it is safe for data with problems.
-      board: boardLayers(data, initState(data), { problemBlocks }),
+      board: boardLayers(data, initState(data), { problemBlocks, theme: ctx.theme }),
       label: t("rhEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));

@@ -171,6 +171,7 @@ export const en: Messages = {
   publishSignInHint: "You need to be signed in to publish.",
   publishNotVerified: "Solve the puzzle yourself in test play first.",
   publishUnsolvable: "The puzzle cannot be solved.",
+  publishThemeContrast: "Parts of the puzzle are hard to tell apart in the chosen theme. Pick another theme.",
   publishInvalidTitle: "The title is missing or too long (at most 200 characters).",
   publishInvalidDescription: "The description is too long (at most 2000 characters).",
   publishTooLarge: "The puzzle is too large to publish.",
@@ -662,6 +663,15 @@ export const en: Messages = {
   editorAutosaved: "saved automatically",
   editorSettings: "Settings",
   editorLanguage: "Language of the puzzle",
+  editorTheme: "Theme",
+  editorThemeHint: "Colors of the board. Everyone sees the puzzle like this, in light and dark mode.",
+  puzzleThemeDefault: "Default",
+  puzzleThemeCustom: "Custom",
+  puzzleThemeGarden: "Garden",
+  puzzleThemeOcean: "Ocean",
+  puzzleThemePastel: "Pastel",
+  puzzleThemeNight: "Night",
+  puzzleThemeSpace: "Space",
   tools: "Tools",
 
   // Chains (M24)

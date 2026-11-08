@@ -1,7 +1,11 @@
 import { html, nothing, svg } from "lit-html";
+import { detailOn, mix } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { blockOrigin, exitSpan, reachable } from "./logic.ts";
 import type { Block, KlotskiData, KlotskiMove, KlotskiState } from "./logic.ts";
 
@@ -11,17 +15,23 @@ type Point = { x: number; y: number };
 const PAD = 24; // margin around the board for the exit marker
 const INSET = 5; // gap between blocks and cell borders
 
-// Scoped to the SVG via class names; light and dark variants (dark per app theme).
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go.
+export const PALETTE: Palette = {
+  scope: ".kl",
+  vars: {
+    "--kl-board": { light: "#e6dccb", dark: "#2a2c31", theme: "board" },
+    "--kl-line": { light: "#d4c8b3", dark: "#3a3d44", theme: "line" },
+    "--kl-small": { light: "#a7794a", dark: "#b8895a", theme: "piece" },
+    "--kl-long": { light: "#8b6440", dark: "#9a7350", theme: (c) => mix(c.piece, c.accent, 0.5) },
+    "--kl-big": { light: "#6f5136", dark: "#7f6045", theme: "accent" },
+    "--kl-target": { light: "#d6453d", dark: "#ef5b52", theme: "target" },
+    "--kl-edge": { light: "rgba(0, 0, 0, 0.18)", dark: "rgba(0, 0, 0, 0.3)", theme: () => "rgba(0, 0, 0, 0.2)" },
+    "--kl-mark": { light: "rgba(255, 255, 255, 0.85)", dark: "rgba(255, 255, 255, 0.85)", theme: (c) => detailOn(c.target) },
+  },
+};
+
 const STYLE = svg`<style>
-  .kl { --kl-board: #e6dccb; --kl-line: #d4c8b3; --kl-small: #a7794a; --kl-long: #8b6440; --kl-big: #6f5136;
-        --kl-target: #d6453d; --kl-edge: rgba(0, 0, 0, 0.18); }
-  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
-  :root[data-theme="dark"] .kl { --kl-board: #2a2c31; --kl-line: #3a3d44; --kl-small: #b8895a; --kl-long: #9a7350;
-        --kl-big: #7f6045; --kl-target: #ef5b52; --kl-edge: rgba(0, 0, 0, 0.3); }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .kl { --kl-board: #2a2c31; --kl-line: #3a3d44; --kl-small: #b8895a; --kl-long: #9a7350;
-        --kl-big: #7f6045; --kl-target: #ef5b52; --kl-edge: rgba(0, 0, 0, 0.3); }
-  }
+  ${paletteCss(PALETTE)}
   .kl-board { fill: var(--kl-board); }
   .kl-line { stroke: var(--kl-line); stroke-width: 2; }
   .kl-exit { fill: var(--kl-target); opacity: 0.5; }
@@ -32,6 +42,8 @@ const STYLE = svg`<style>
   .kl-block.long .kl-face { fill: var(--kl-long); }
   .kl-block.big .kl-face { fill: var(--kl-big); }
   .kl-block.target .kl-face { fill: var(--kl-target); }
+  /* The target block also differs in shape: an arrow towards the exit (color is never the only difference). */
+  .kl-mark { fill: none; stroke: var(--kl-mark); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
   .kl-block.problem .kl-face { stroke: var(--danger, #c6362f); stroke-width: 8; stroke-dasharray: 16 10; }
   @media (prefers-reduced-motion: reduce) {
     .kl-block, .kl-block.dragging { transition: none; }
@@ -45,7 +57,7 @@ export function renderPlay(ctx: Ctx) {
   const positions = data.blocks.map((_, i) => blockOrigin(data, state, i));
   return html`
     <svg viewBox="${-PAD} ${-PAD} ${w + 2 * PAD} ${h + 2 * PAD}" role="group" aria-label=${t("klotskiBoard")}>
-      ${boardLayers(data, positions, { ctx })}
+      ${boardLayers(data, positions, { ctx, theme: ctx.theme })}
     </svg>
   `;
 }
@@ -57,11 +69,11 @@ export function renderPlay(ctx: Ctx) {
 export function boardLayers(
   data: KlotskiData,
   positions: readonly Point[],
-  options: { ctx?: Ctx; problemBlocks?: ReadonlySet<number> },
+  options: { ctx?: Ctx; problemBlocks?: ReadonlySet<number>; theme?: PuzzleTheme },
 ) {
   const { ctx, problemBlocks } = options;
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
-  return svg`<g class="kl">
+  return svg`<g class="kl" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     <rect class="kl-board" x="0" y="0" width=${data.width * CELL} height=${data.height * CELL} rx="12"></rect>
     ${gridLines(data)} ${exitMarker(data)}
@@ -88,9 +100,18 @@ export function boardLayers(
         @pointercancel=${ctx ? cancelDrag : null}
       >
         <rect class="kl-face" x=${INSET} y=${INSET} width=${block.w * CELL - 2 * INSET} height=${block.h * CELL - 2 * INSET} rx="14"></rect>
+        ${block.target ? exitArrow((block.w * CELL) / 2, (block.h * CELL) / 2, data.exit.side) : null}
       </g>`;
     })}
   </g>`;
+}
+
+const ARROW_TURN = { E: 0, S: 90, W: 180, N: 270 } as const;
+
+/** A chevron pointing towards the exit, centered on (cx, cy) in the block's own coordinates. */
+function exitArrow(cx: number, cy: number, side: keyof typeof ARROW_TURN) {
+  return svg`<path class="kl-mark" d="M ${cx - 7} ${cy - 15} L ${cx + 8} ${cy} L ${cx - 7} ${cy + 15}"
+    transform="rotate(${ARROW_TURN[side]} ${cx} ${cy})"></path>`;
 }
 
 function sizeClass(block: Block): string {

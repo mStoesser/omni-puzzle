@@ -2,16 +2,25 @@ import { html, nothing } from "lit-html";
 import type { ChainItem } from "../../core/chains.ts";
 import type { GalleryItem } from "../../core/gallery.ts";
 import { averageRating, formatAverage } from "../../core/reactions.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { t, tn } from "../../i18n/t.ts";
 import { icon, iconSvg, ICONS } from "../icons.ts";
 import { timeAgo } from "../time.ts";
 import { langBadge, statusBadge, typeBadge, typeVars } from "./ui.ts";
 
-/** Placeholder preview: a grid with the type symbol. The puzzles themselves are only rendered when played. */
-export function thumb(type: AnyPuzzleType | undefined, size: "list" | "tile") {
-  return html`<span class="thumb ${size} typed" style=${typeVars(type)} aria-hidden="true">
+/**
+ * Placeholder preview: a grid with the type symbol. The puzzles themselves are only rendered when played.
+ * With a theme (M29) the grid takes the board's colors, and two parts show the piece and target colors.
+ */
+export function thumb(type: AnyPuzzleType | undefined, size: "list" | "tile", theme?: PuzzleTheme | null) {
+  const colors = theme && type?.themeRoles ? theme.colors : null;
+  const style = colors
+    ? `${typeVars(type)};--thumb-board:${colors.board};--thumb-line:${colors.line};--thumb-piece:${colors.piece};--thumb-target:${colors.target}`
+    : typeVars(type);
+  return html`<span class="thumb ${size} typed ${colors ? "themed" : ""}" style=${style} aria-hidden="true">
     <span class="thumb-icon">${iconSvg(type?.icon ?? ICONS.puzzle, 14)}</span>
+    ${colors ? html`<span class="thumb-part piece"></span><span class="thumb-part target"></span>` : nothing}
   </span>`;
 }
 
@@ -28,7 +37,7 @@ function likes(item: GalleryItem) {
 export function galleryCard(item: GalleryItem, type: AnyPuzzleType | undefined, solved: boolean) {
   const average = averageRating(item.ratingSum, item.ratingCount);
   return html`<a class="puzzle-card" href="#/g/${item.id}">
-    ${thumb(type, "list")}
+    ${thumb(type, "list", item.theme)}
     <span class="puzzle-card-body">
       <span class="puzzle-card-badges">${typeBadge(type, item.type)}${item.lang ? langBadge(item.lang) : nothing}${solved ? statusBadge("solved") : nothing}</span>
       <span class="puzzle-card-title">${item.title}</span>
@@ -51,7 +60,7 @@ export function galleryCard(item: GalleryItem, type: AnyPuzzleType | undefined, 
 /** A published puzzle as a grid tile (home page). */
 export function galleryTile(item: GalleryItem, type: AnyPuzzleType | undefined, solved: boolean) {
   return html`<a class="puzzle-tile" href="#/g/${item.id}">
-    ${thumb(type, "tile")}
+    ${thumb(type, "tile", item.theme)}
     <span class="puzzle-tile-body">
       <span class="puzzle-tile-type typed" style=${typeVars(type)}>${type ? t(type.name) : item.type}</span>
       <span class="puzzle-card-title">${item.title}</span>

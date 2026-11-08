@@ -15,4 +15,5 @@ export const rushHourRules: PuzzleRules<RushHourData, RushHourState, RushHourMov
   isSolved,
   solve,
   levels: { easy: 8, medium: 20 },
+  themeRoles: ["board", "line", "piece", "accent", "target"],
 };

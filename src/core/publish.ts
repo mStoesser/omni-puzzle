@@ -5,6 +5,7 @@ import type { Level } from "./difficulty.ts";
 import { DocumentError, loadDocument } from "./document.ts";
 import type { Registry } from "./registry.ts";
 import { progressKey } from "./storage.ts";
+import { contrastProblems } from "./puzzle-theme.ts";
 import type { AnyPuzzleRules, PuzzleDocument, PuzzleLang, PuzzleMeta } from "./types.ts";
 
 // Shared by the app and the publish function on the server; DOM-free.
@@ -28,6 +29,7 @@ export type PublishErrorCode =
   | "invalid-document" // fails loadDocument (format, type, validation)
   | "not-verified" // the creator has not solved it
   | "unsolvable" // the solver proved that there is no solution
+  | "theme-contrast" // M29: parts of the puzzle are hard to tell apart in its theme
   | "invalid-image"; // a referenced image is missing, too large, of the wrong type or does not match its key
 
 export class PublishError extends Error {
@@ -87,6 +89,11 @@ export function preparePublication(input: unknown, registry: Registry<AnyPuzzleR
   const { type, doc } = loaded;
   if (doc.meta.verified !== true) throw new PublishError("not-verified");
 
+  const theme = doc.meta.theme;
+  if (theme && type.themeRoles && contrastProblems(theme, { roles: type.themeRoles, fixed: type.themeFixed }).length > 0) {
+    throw new PublishError("theme-contrast");
+  }
+
   let minMoves: number | null = null;
   if (type.solve) {
     const result = type.solve(doc.data, PUBLISH.solveLimits);
@@ -98,6 +105,7 @@ export function preparePublication(input: unknown, registry: Registry<AnyPuzzleR
   const meta: PuzzleMeta = { title: cleanTitle, createdAt: doc.meta.createdAt, verified: true };
   if (minMoves !== null) meta.minMoves = minMoves;
   if (doc.meta.lang) meta.lang = doc.meta.lang;
+  if (theme) meta.theme = theme;
   const published: PuzzleDocument = { format: 1, type: doc.type, typeVersion: doc.typeVersion, meta, data: doc.data };
   return {
     type: doc.type,

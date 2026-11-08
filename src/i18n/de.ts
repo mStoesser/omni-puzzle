@@ -167,6 +167,7 @@ export const de = {
   publishSignInHint: "Zum Veröffentlichen musst du angemeldet sein.",
   publishNotVerified: "Löse das Rätsel zuerst selbst im Testspiel.",
   publishUnsolvable: "Das Rätsel ist nicht lösbar.",
+  publishThemeContrast: "Im gewählten Theme sind Teile des Rätsels kaum zu unterscheiden. Wähle ein anderes Theme.",
   publishInvalidTitle: "Der Titel fehlt oder ist zu lang (höchstens 200 Zeichen).",
   publishInvalidDescription: "Die Beschreibung ist zu lang (höchstens 2000 Zeichen).",
   publishTooLarge: "Das Rätsel ist zu groß zum Veröffentlichen.",
@@ -658,6 +659,15 @@ export const de = {
   editorAutosaved: "automatisch gespeichert",
   editorSettings: "Einstellungen",
   editorLanguage: "Sprache des Rätsels",
+  editorTheme: "Theme",
+  editorThemeHint: "Farben des Spielfelds. Alle sehen das Rätsel so, im hellen wie im dunklen Modus.",
+  puzzleThemeDefault: "Standard",
+  puzzleThemeCustom: "Eigenes",
+  puzzleThemeGarden: "Garten",
+  puzzleThemeOcean: "Meer",
+  puzzleThemePastel: "Pastell",
+  puzzleThemeNight: "Nacht",
+  puzzleThemeSpace: "Weltraum",
   tools: "Werkzeuge",
 
   // Chains (M24)

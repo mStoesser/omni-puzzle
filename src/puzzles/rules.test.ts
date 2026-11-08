@@ -3,6 +3,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { examples, examplesIn, registry } from "./index.ts";
 import { rulesRegistry } from "./rules.ts";
+import { paletteRoles } from "../ui/palette.ts";
+import type { Palette } from "../ui/palette.ts";
+import { PALETTE as ice } from "./ice/render.ts";
+import { PALETTE as klotski } from "./klotski/render.ts";
+import { PALETTE as laser } from "./laser/render.ts";
+import { PALETTE as lightsout } from "./lightsout/render.ts";
+import { EDIT_PALETTE as nonogramEdit, PALETTE as nonogram } from "./nonogram/render.ts";
+import { PALETTE as pipes } from "./pipes/render.ts";
+import { PALETTE as rushhour } from "./rushhour/render.ts";
+import { PALETTE as sokoban } from "./sokoban/render.ts";
 
 test("every puzzle type has its rules registered for the server", () => {
   const ids = (list: readonly { id: string; version: number }[]) => list.map((t) => `${t.id}@${t.version}`).sort();
@@ -14,6 +24,25 @@ test("every puzzle type has its rules registered for the server", () => {
     assert.equal(rules.migrate, type.migrate, type.id);
     assert.equal(rules.minVersion, type.minVersion, type.id);
     assert.equal(rules.ranking, type.ranking, type.id);
+    assert.equal(rules.themeRoles, type.themeRoles, type.id);
+    assert.equal(rules.themeFixed, type.themeFixed, type.id);
+  }
+});
+
+test("each renderer's palette takes exactly the theme roles its rules report", () => {
+  // The contrast check (also on the server) only tests pairs of these roles.
+  const palettes: Record<string, Palette[]> = {
+    ice: [ice], klotski: [klotski], laser: [laser], lightsout: [lightsout], nonogram: [nonogram, nonogramEdit],
+    pipes: [pipes], rushhour: [rushhour], sokoban: [sokoban],
+  };
+  for (const type of rulesRegistry.all()) {
+    const list = palettes[type.id];
+    if (!list) {
+      assert.equal(type.themeRoles, undefined, `${type.id} has no palette, so it cannot be themed`);
+      continue;
+    }
+    const used = new Set(list.flatMap(paletteRoles));
+    assert.deepEqual([...used].sort(), [...type.themeRoles!].sort(), type.id);
   }
 });
 

@@ -21,6 +21,28 @@ test("validateEnvelope keeps a known language and drops other values, like unkno
   for (const other of ["fr", "EN", 1, null]) assert.equal("lang" in withLang(other), false, String(other));
 });
 
+const THEME = {
+  colors: {
+    board: "#ffffff", line: "#dddddd", wall: "#555555", figure: "#000000",
+    piece: "#333333", accent: "#666666", target: "#222222", done: "#777777",
+  },
+};
+
+test("validateEnvelope keeps a valid theme and drops an invalid one silently", () => {
+  const withTheme = (theme: unknown) => validateEnvelope({ ...counterDocument(3), meta: { ...counterDocument(3).meta, theme } }).meta;
+  assert.deepEqual(withTheme(THEME).theme, THEME);
+  for (const other of ["night", { colors: { board: "#fff" } }, null, 3]) {
+    assert.equal("theme" in withTheme(other), false, JSON.stringify(other));
+  }
+});
+
+test("loadDocument drops the theme of types that cannot be themed", () => {
+  const themed = { ...counterDocument(3), meta: { ...counterDocument(3).meta, theme: THEME } };
+  assert.deepEqual(loadDocument(themed, registry).doc.meta.theme, THEME);
+  const plain = createRegistry([{ ...counterType, themeRoles: undefined }]);
+  assert.equal("theme" in loadDocument(themed, plain).doc.meta, false);
+});
+
 test("validateEnvelope rejects malformed envelopes", () => {
   const good = counterDocument(3);
   const bad: unknown[] = [

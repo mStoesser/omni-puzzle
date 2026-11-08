@@ -1,7 +1,11 @@
 import { html, svg } from "lit-html";
+import { isDark, mix } from "../../core/puzzle-theme.ts";
+import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t, tn } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
+import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import type { Palette } from "../../ui/palette.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
 import { height, isCell, lightsOn, width } from "./logic.ts";
 import type { LightsOutData, LightsOutMove, LightsOutState } from "./logic.ts";
@@ -12,17 +16,25 @@ const PAD = 12;
 const INSET = 6;
 
 // Scoped to the SVG via class names; light and dark variants (dark per app theme).
-// Off cells are dark in both themes, so a lit cell stands out by brightness, glow and its bulb.
+// Colors per role (M29): defaults for light and dark, and where a puzzle theme's colors go.
+// Without a theme the tiles lie directly on the page, as before. Off cells are dark in both app themes, so a lit cell
+// stands out by brightness, glow and its bulb.
+export const PALETTE: Palette = {
+  scope: ".lo",
+  vars: {
+    "--lo-board": { light: "transparent", dark: "transparent", theme: "board" },
+    "--lo-off": { light: "#555d6b", dark: "#343943", theme: "piece" },
+    "--lo-off-edge": { light: "#3f4652", dark: "#4a505c", theme: (c) => mix(c.piece, c.board, 0.3) },
+    "--lo-on": { light: "#ffc933", dark: "#ffd23f", theme: "done" },
+    "--lo-on-edge": { light: "#b07d00", dark: "#ffe58a", theme: (c) => mix(c.done, isDark(c.done) ? "#ffffff" : "#000000", 0.3) },
+    "--lo-bulb": { light: "#fff6d6", dark: "#fffbe8", theme: (c) => mix(c.done, "#ffffff", 0.8) },
+    "--lo-hole": { light: "#b8b2a5", dark: "#4a505c", theme: "line" },
+  },
+};
+
 const STYLE = svg`<style>
-  .lo { --lo-off: #555d6b; --lo-off-edge: #3f4652; --lo-on: #ffc933; --lo-on-edge: #b07d00; --lo-bulb: #fff6d6;
-        --lo-hole: #b8b2a5; }
-  /* Dark colors follow the app theme: data-theme on the html element, or the system setting without it. */
-  :root[data-theme="dark"] .lo { --lo-off: #343943; --lo-off-edge: #4a505c; --lo-on: #ffd23f; --lo-on-edge: #ffe58a;
-        --lo-bulb: #fffbe8; --lo-hole: #4a505c; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .lo { --lo-off: #343943; --lo-off-edge: #4a505c; --lo-on: #ffd23f; --lo-on-edge: #ffe58a;
-        --lo-bulb: #fffbe8; --lo-hole: #4a505c; }
-  }
+  ${paletteCss(PALETTE)}
+  .lo-board { fill: var(--lo-board); }
   .lo-tile { fill: var(--lo-off); stroke: var(--lo-off-edge); stroke-width: 4;
              transition: fill 0.18s ease-out, stroke 0.18s ease-out, filter 0.18s ease-out; }
   .lo-cell.on .lo-tile { fill: var(--lo-on); stroke: var(--lo-on-edge); filter: drop-shadow(0 0 10px var(--lo-on)); }
@@ -43,7 +55,7 @@ export function renderPlay(ctx: Ctx) {
       role="group"
       aria-label=${t("lightsOutBoard")}
     >
-      ${boardLayers(data, state, { ctx })}
+      ${boardLayers(data, state, { ctx, theme: ctx.theme })}
     </svg>
     <p class="visually-hidden" aria-live="polite">${tn("loLightsOn", lightsOn(state))}</p>
   `;
@@ -53,7 +65,11 @@ export function renderPlay(ctx: Ctx) {
 let focused = -1;
 
 /** Cells and lights in board units. With `ctx` cells can be tapped; with `showHoles` holes are outlined (editor). */
-export function boardLayers(data: LightsOutData, state: LightsOutState, options: { ctx?: Ctx; showHoles?: boolean }) {
+export function boardLayers(
+  data: LightsOutData,
+  state: LightsOutState,
+  options: { ctx?: Ctx; showHoles?: boolean; theme?: PuzzleTheme },
+) {
   const { ctx, showHoles } = options;
   const w = width(data);
   if (ctx && !isCell(data, focused % w, Math.floor(focused / w))) focused = firstCell(data);
@@ -71,7 +87,11 @@ export function boardLayers(data: LightsOutData, state: LightsOutState, options:
     }
   }
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
-  return svg`<g class="lo">${STYLE}${cells}</g>`;
+  return svg`<g class="lo" style=${paletteStyle(PALETTE, options.theme)}>
+    ${STYLE}
+    <rect class="lo-board" x="0" y="0" width=${w * CELL} height=${height(data) * CELL} rx="12"></rect>
+    ${cells}
+  </g>`;
 }
 
 function cell(data: LightsOutData, x: number, y: number, on: boolean, ctx: Ctx | undefined, inTabOrder: boolean) {

@@ -1,6 +1,7 @@
 import type { Registry } from "./registry.ts";
 import type { AnyPuzzleRules, PuzzleDocument, PuzzleMeta } from "./types.ts";
 import { isPuzzleLang } from "./types.ts";
+import { parseTheme } from "./puzzle-theme.ts";
 
 export type DocumentErrorCode =
   | "invalid" // malformed or failed validation
@@ -71,6 +72,9 @@ export function validateEnvelope(raw: unknown): PuzzleDocument {
   }
   // A language this version does not know (from a newer app) is dropped like an unknown field, not an error.
   if (isPuzzleLang(meta.lang)) clean.lang = meta.lang;
+  // Likewise an invalid theme: the puzzle is then shown in the default colors (M29).
+  const theme = parseTheme(meta.theme);
+  if (theme) clean.theme = theme;
 
   return { format: 1, type: raw.type, typeVersion: raw.typeVersion as number, meta: clean, data: raw.data };
 }
@@ -78,7 +82,8 @@ export function validateEnvelope(raw: unknown): PuzzleDocument {
 /**
  * Turns an untrusted document into a playable one:
  * envelope check → type lookup → migrate (if older) → type validation.
- * The result carries the type's `minVersion` of the data (or the current version), see PuzzleRules.minVersion.
+ * The result carries the type's `minVersion` of the data (or the current version), see PuzzleRules.minVersion,
+ * and no theme if the type cannot be themed.
  * With `draft`, the data only needs a valid structure (parseDraft), for editor drafts.
  */
 export function loadDocument<T extends AnyPuzzleRules>(
@@ -107,7 +112,13 @@ export function loadDocument<T extends AnyPuzzleRules>(
     throw new DocumentError("invalid", `validation failed: ${String(error)}`);
   }
   const typeVersion = type.minVersion?.(data) ?? type.version;
-  return { type, doc: { ...doc, typeVersion, data } };
+  let meta = doc.meta;
+  if (meta.theme && !type.themeRoles) {
+    // A type that cannot be themed (e.g. the quiz) never carries a theme, so it cannot leave the device either.
+    const { theme: _theme, ...rest } = meta;
+    meta = rest;
+  }
+  return { type, doc: { ...doc, typeVersion, meta, data } };
 }
 
 /**

@@ -46,7 +46,7 @@ export function renderEditor(ctx: EditorContext<SokobanData>) {
         onResize: (w, h) => ctx.update(resize(data, w, h)),
       },
       palette: PALETTE,
-      board: boardLayers(data, initState(data), { problemCells }),
+      board: boardLayers(data, initState(data), { problemCells, theme: ctx.theme }),
       label: t("skEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));

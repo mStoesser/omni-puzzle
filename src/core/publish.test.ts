@@ -6,6 +6,7 @@ import { imageKey, toBase64 } from "./images.ts";
 import { PublishError, prepareImages, preparePublication } from "./publish.ts";
 import { fakeWebp } from "./test-fixtures.ts";
 import { progressKey } from "./storage.ts";
+import { THEME_PRESETS } from "./theme-presets.ts";
 import type { PuzzleDocument } from "./types.ts";
 
 const docOf = (id: string) => structuredClone(examples.find((e) => e.id === id)!.doc) as PuzzleDocument<any>;
@@ -35,6 +36,21 @@ test("the language is kept in the document and goes into its own column; it does
   assert.equal(pub.lang, "en");
   assert.equal(pub.doc.meta.lang, "en");
   assert.equal(pub.contentKey, plain.contentKey);
+});
+
+test("the theme is kept in the document, does not change the content key and needs enough contrast", () => {
+  const doc = docOf("sokoban-1");
+  const plain = preparePublication({ doc: structuredClone(doc), title: "T" }, rulesRegistry);
+  const theme = structuredClone(THEME_PRESETS[0]!.theme);
+  doc.meta.theme = theme;
+  const pub = preparePublication({ doc: structuredClone(doc), title: "T" }, rulesRegistry);
+  assert.deepEqual(pub.doc.meta.theme, theme);
+  assert.equal(pub.contentKey, plain.contentKey);
+  // A box (piece) the color of the floor (board) is rejected; an invalid theme is dropped like an unknown field.
+  doc.meta.theme = { colors: { ...theme.colors, piece: theme.colors.board } };
+  rejects({ doc: structuredClone(doc), title: "T" }, "theme-contrast");
+  (doc.meta as Record<string, unknown>).theme = { colors: { board: "#000000" } };
+  assert.equal("theme" in preparePublication({ doc, title: "T" }, rulesRegistry).doc.meta, false);
 });
 
 test("every built-in example passes the server checks with the same minMoves and a difficulty level", () => {

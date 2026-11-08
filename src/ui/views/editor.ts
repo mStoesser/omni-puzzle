@@ -2,6 +2,9 @@ import { html, nothing } from "lit-html";
 import { canRedoEdit, canUndoEdit, currentData, readiness } from "../../core/editor-session.ts";
 import type { EditorSession } from "../../core/editor-session.ts";
 import { PUZZLE_LANGS } from "../../core/types.ts";
+import { THEME_PRESETS } from "../../core/theme-presets.ts";
+import type { PuzzleTheme, ThemeRole } from "../../core/puzzle-theme.ts";
+import { sameTheme } from "../../core/puzzle-theme.ts";
 import type { AnyPuzzleType, EditorContext, PuzzleLang, SolveResult } from "../../core/types.ts";
 import { LANG_NAMES, t, tn } from "../../i18n/t.ts";
 import { publishDialog } from "../components/publish-dialog.ts";
@@ -25,6 +28,7 @@ export type EditorViewModel = {
   publish: PublishDialogModel | null; // open publish dialog
   images: EditorContext<unknown>["images"];
   lang: PuzzleLang; // language of the puzzle's texts (M28), preset to the UI language
+  theme?: PuzzleTheme; // colors of the board (M29); undefined = default colors
   /** Test play inside the editor frame (segment "Probespielen"); null = building. */
   testPlay: TemplateResult | null;
 };
@@ -35,6 +39,7 @@ export type EditorViewActions = {
   redo(): void;
   setTitle(title: string): void;
   setLanguage(lang: PuzzleLang): void;
+  setTheme(theme: PuzzleTheme | undefined): void;
   testPlay(): void;
   backToEditor(): void;
   openShare(): void;
@@ -63,6 +68,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
         ${PUZZLE_LANGS.map((lang) => html`<option value=${lang} lang=${lang} ?selected=${lang === model.lang}>${LANG_NAMES[lang]}</option>`)}
       </select>
     </label>
+    ${type.themeRoles ? themePicker(type.themeRoles, model.theme, actions.setTheme) : nothing}
   </section>`;
   return html`
     <header class="editor-head">
@@ -102,7 +108,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
       ? html`${check}<div class="editor-test">${model.testPlay}</div>`
       : html`<div class="editor-body">
           ${check}
-          ${type.renderEditor({ data: currentData(session), update: actions.update, images: model.images })}
+          ${type.renderEditor({ data: currentData(session), update: actions.update, images: model.images, theme: model.theme })}
           <div class="editor-tools-bar">
             <p class="label editor-tools-label">${t("tools")}</p>
             <span class="editor-tools-undo">${undoRedo}</span>
@@ -119,6 +125,36 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
       : nothing}
     ${model.publish ? publishDialog(model.publish, actions.publish) : nothing}
   `;
+}
+
+/**
+ * Theme choice (M29): default colors or a preset, with a small preview of the colors this type uses.
+ * A theme that matches no preset (e.g. one that changed later or one from a newer app) stays selected as "custom".
+ */
+function themePicker(roles: readonly ThemeRole[], theme: PuzzleTheme | undefined, setTheme: (theme: PuzzleTheme | undefined) => void) {
+  const preset = theme ? THEME_PRESETS.find((p) => sameTheme(p.theme, theme)) : undefined;
+  const value = !theme ? "" : (preset?.id ?? "custom");
+  const choose = (e: Event) => {
+    const id = (e.target as HTMLSelectElement).value;
+    if (id === "custom") return;
+    setTheme(THEME_PRESETS.find((p) => p.id === id)?.theme);
+  };
+  return html`<div class="editor-theme">
+    <label class="editor-lang">
+      <span>${t("editorTheme")}</span>
+      <select aria-describedby="editor-theme-hint" @change=${choose}>
+        <option value="" ?selected=${value === ""}>${t("puzzleThemeDefault")}</option>
+        ${THEME_PRESETS.map((p) => html`<option value=${p.id} ?selected=${value === p.id}>${t(p.name)}</option>`)}
+        ${value === "custom" ? html`<option value="custom" selected>${t("puzzleThemeCustom")}</option>` : nothing}
+      </select>
+    </label>
+    ${theme
+      ? html`<span class="theme-swatches" style="background: ${theme.colors.board}" aria-hidden="true">
+          ${roles.filter((r) => r !== "board").map((r) => html`<span class="theme-swatch" style="background: ${theme.colors[r]}"></span>`)}
+        </span>`
+      : nothing}
+    <p id="editor-theme-hint" class="editor-hint">${t("editorThemeHint")}</p>
+  </div>`;
 }
 
 /** Live check as one status line: green when solvable, red with the reason when not. */

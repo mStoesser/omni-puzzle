@@ -1,5 +1,6 @@
 import type { SVGTemplateResult, TemplateResult } from "lit-html";
 import type { MessageKey } from "../i18n/t.ts";
+import type { FixedColor, PuzzleTheme, ThemeRole } from "./puzzle-theme.ts";
 
 /** Language of a puzzle's texts (M28); also what the gallery filters by. */
 export type PuzzleLang = "de" | "en";
@@ -20,6 +21,8 @@ export type PuzzleMeta = {
   verified?: boolean; // solved by its creator
   minMoves?: number; // determined by the solver
   lang?: PuzzleLang; // M28; optional, so older app versions (which drop unknown fields) still read the document
+  /** M29: colors of the board, chosen by the author; without it the type's default colors (light/dark). */
+  theme?: PuzzleTheme;
 };
 
 /** Envelope shared by all puzzle types. */
@@ -50,6 +53,8 @@ export type PlayContext<D, S, M> = {
   /** The core applies the move, records history (undo/redo) and checks isSolved. */
   dispatch(move: M): void;
   images: ImageSource;
+  /** The puzzle's theme (M29); undefined = default colors. Only passed to types with `themeRoles`. */
+  theme?: PuzzleTheme;
 };
 
 export type EditorContext<D> = {
@@ -61,6 +66,8 @@ export type EditorContext<D> = {
   update(next: D, group?: number): void;
   /** Local images plus `add`: scales, encodes and stores a picture, resolves to its key or rejects with a reason. */
   images: ImageSource & { add(file: Blob): Promise<string> };
+  /** The theme chosen in the editor (M29), see PlayContext.theme. */
+  theme?: PuzzleTheme;
 };
 
 /**
@@ -109,6 +116,13 @@ export type PuzzleRules<D, S, M> = {
   ranking?: "moves" | "time";
   /** Keys of the images the data references (see core/images.ts). Without it, the type has no images. */
   imageKeys?(data: D): string[];
+  /**
+   * The theme roles the renderer uses (M29, see core/puzzle-theme.ts), so the contrast check knows which pairs matter.
+   * Without it, the type cannot be themed and loadDocument drops meta.theme.
+   */
+  themeRoles?: readonly ThemeRole[];
+  /** Colors that belong to the rules and are drawn on the board whatever the theme (e.g. laser colors). */
+  themeFixed?: readonly FixedColor[];
 };
 
 /** Plugin interface every puzzle type implements: its rules plus texts and UI. D = data, S = play state, M = move. */

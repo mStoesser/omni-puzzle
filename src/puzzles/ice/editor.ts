@@ -48,7 +48,7 @@ export function renderEditor(ctx: EditorContext<IceData>) {
       },
       palette: PALETTE,
       // The figure stands on the start cell.
-      board: boardLayers(data, initState(data), { problemCells }),
+      board: boardLayers(data, initState(data), { problemCells, theme: ctx.theme }),
       label: t("iceEditorBoard"),
       onTap: (tool, x, y) => {
         if (isTool(tool)) ctx.update(applyTool(data, tool, x, y));
