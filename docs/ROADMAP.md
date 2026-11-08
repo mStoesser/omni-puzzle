@@ -660,7 +660,7 @@ und Regeln bleiben unberührt.
 - [x] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, App hell und dunkel.
   (Headless Chrome über die LAN-Adresse: alle 8 Typen mit Themes, Standard hell, Editor mobil und Desktop.
   Galerie-Karte mit Theme noch nicht im Browser gesehen, nur getestet.)
-- [ ] Live testen: Rätsel mit Theme teilen und veröffentlichen, auf dem Handy öffnen.
+- [x] Live testen: Rätsel mit Theme teilen und veröffentlichen, auf dem Handy öffnen.
 
 ### M30 – Eigene Themes im Editor
 - [x] Theme-Editor: Farbwahl pro Rolle (natives `<input type="color">`), Live-Vorschau am aktuellen Rätsel,
@@ -674,7 +674,7 @@ und Regeln bleiben unberührt.
   (Im IndexedDB-Store `meta`, keine neue Datenbankversion; höchstens 50.)
 - [x] **Entscheidung im Meilenstein:** Eigene Themes synchronisieren (wie M27, bräuchte eine Migration) oder nicht.
   (Entschieden: nicht synchronisieren.)
-- [ ] Texte in `de.ts` und `en.ts`; Handy-Test.
+- [x] Texte in `de.ts` und `en.ts`; Handy-Test.
   (Texte da; im Browser geprüft (Headless Chrome, 390 und 1280 px): Farben ändern, Warnungen, gesperrtes
   Veröffentlichen, Speichern, Neuladen, Umbenennen, Löschen. Handy-Test offen.)
 
@@ -692,7 +692,7 @@ und Regeln bleiben unberührt.
   (15 Icons, selbst gezeichnet, also ohne fremde Lizenz.)
 - [x] Theme-Editor: Icon-Raster pro Icon-Rolle; vorgefertigte Themes bekommen passende Icons.
 - [x] Kein Hochladen eigener SVGs (Skripte, Prüfung, Moderation); Rätsel enthalten nur IDs aus dem Katalog.
-- [ ] Ansichten bei 390 und 1280 px, Handy-Test.
+- [x] Ansichten bei 390 und 1280 px, Handy-Test.
   (390 px im Browser geprüft: Sokoban, Eis, Lights Out mit Icons, Kiste im Ziel, Icon-Raster. Handy-Test offen.)
 
 ## Phase 4: Ideen aus dem Redesign
