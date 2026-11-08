@@ -1,10 +1,12 @@
 import { html, svg } from "lit-html";
 import { isDark, mix } from "../../core/puzzle-theme.ts";
+import type { PieceIcon } from "../../core/icon-catalog.ts";
 import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t, tn } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import { PIECE_ICON_CSS, hasPieceIcon, pieceIcon } from "../../ui/piece-icons.ts";
 import type { Palette } from "../../ui/palette.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
 import { height, isCell, lightsOn, width } from "./logic.ts";
@@ -41,6 +43,10 @@ const STYLE = svg`<style>
   .lo-bulb { fill: var(--lo-bulb); opacity: 0; transition: opacity 0.18s ease-out; }
   .lo-cell.on .lo-bulb { opacity: 0.85; }
   .lo-cell.play { cursor: pointer; }
+  ${PIECE_ICON_CSS}
+  /* A lamp icon takes the bulb's place: dim when off, bright and glowing when on. */
+  .lo-cell .piece-icon { --icon-main: var(--lo-off-edge); --icon-detail: var(--lo-off); transition: filter 0.18s ease-out; }
+  .lo-cell.on .piece-icon { --icon-main: var(--lo-bulb); --icon-detail: var(--lo-on-edge); filter: drop-shadow(0 0 6px var(--lo-bulb)); }
   .lo-hole { fill: none; stroke: var(--lo-hole); stroke-width: 3; stroke-dasharray: 10 8; }
   @media (prefers-reduced-motion: reduce) {
     .lo-tile, .lo-bulb { transition: none; }
@@ -83,7 +89,7 @@ export function boardLayers(
         }
         continue;
       }
-      cells.push(cell(data, x, y, !!state.on[index], ctx, index === focused));
+      cells.push(cell(data, x, y, !!state.on[index], ctx, index === focused, options.theme?.icons?.lamp));
     }
   }
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
@@ -94,9 +100,11 @@ export function boardLayers(
   </g>`;
 }
 
-function cell(data: LightsOutData, x: number, y: number, on: boolean, ctx: Ctx | undefined, inTabOrder: boolean) {
+function cell(data: LightsOutData, x: number, y: number, on: boolean, ctx: Ctx | undefined, inTabOrder: boolean, icon?: PieceIcon) {
   const tile = svg`<rect class="lo-tile" x=${x * CELL + INSET} y=${y * CELL + INSET} width=${CELL - 2 * INSET} height=${CELL - 2 * INSET} rx="14"></rect>
-    <circle class="lo-bulb" cx=${(x + 0.5) * CELL} cy=${(y + 0.5) * CELL} r="14"></circle>`;
+    ${hasPieceIcon(icon)
+      ? pieceIcon(icon, x * CELL + 18, y * CELL + 18, CELL - 36)
+      : svg`<circle class="lo-bulb" cx=${(x + 0.5) * CELL} cy=${(y + 0.5) * CELL} r="14"></circle>`}`;
   if (!ctx) return svg`<g class="lo-cell ${on ? "on" : ""}">${tile}</g>`;
   const tap = () => {
     focused = y * width(data) + x;

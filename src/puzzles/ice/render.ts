@@ -1,11 +1,13 @@
 import { html, svg } from "lit-html";
 import type { Dir } from "../../core/grid.ts";
 import { detailOn, isDark, mix } from "../../core/puzzle-theme.ts";
+import type { PieceIcon } from "../../core/icon-catalog.ts";
 import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import { PIECE_ICON_CSS, hasPieceIcon, pieceIcon } from "../../ui/piece-icons.ts";
 import type { Palette } from "../../ui/palette.ts";
 import { directionKey, directionPad, swipeCancel, swipeEnd, swipeStart } from "../../ui/components/swipe.ts";
 import { dirTowards, isSolved } from "./logic.ts";
@@ -46,6 +48,11 @@ const STYLE = svg`<style>
   .ice-figure { transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.3, 1); }
   .ice-body { fill: var(--ice-figure); }
   .ice-belly { fill: var(--ice-belly); }
+  ${PIECE_ICON_CSS}
+  .ice-rock-icon { --icon-main: var(--ice-rock); --icon-detail: var(--ice-rock-top); }
+  .ice-goal-icon { --icon-main: var(--ice-goal); --icon-detail: var(--ice-board); }
+  .ice-goal-icon.reached { --icon-main: var(--ice-glow); filter: drop-shadow(0 0 10px var(--ice-glow)); }
+  .ice-figure { --icon-main: var(--ice-figure); --icon-detail: var(--ice-belly); }
   .ice-problem { fill: none; stroke: var(--danger, #c6362f); stroke-width: 8; stroke-dasharray: 16 10; }
   @media (prefers-reduced-motion: reduce) {
     .ice-figure { transition: none; }
@@ -113,15 +120,16 @@ export function boardLayers(
   const { problemCells } = options;
   const of = (kind: IceCell["kind"]) => data.cells.filter((c) => c.kind === kind);
   const reached = isSolved(data, state);
+  const icons = options.theme?.icons ?? {};
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
   return svg`<g class="ice" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     <rect class="ice-board" x="0" y="0" width=${data.width * CELL} height=${data.height * CELL} rx="12"></rect>
     ${gridLines(data)}
     ${of("sand").map(sand)}
-    ${of("wall").map(rock)}
-    ${of("goal").map((c) => goal(c, reached && c.x === state.x && c.y === state.y))}
-    ${state.x >= 0 ? figure(state) : null}
+    ${of("wall").map((c) => rock(c, icons.rock))}
+    ${of("goal").map((c) => goal(c, reached && c.x === state.x && c.y === state.y, icons.goal))}
+    ${state.x >= 0 ? figure(state, icons.figure) : null}
     ${problemCells
       ? data.cells.map((c, i) =>
           problemCells.has(i)
@@ -143,9 +151,10 @@ function gridLines(data: IceData) {
   return lines;
 }
 
-function rock(c: IceCell) {
+function rock(c: IceCell, icon: PieceIcon | undefined) {
   const x = c.x * CELL;
   const y = c.y * CELL;
+  if (hasPieceIcon(icon)) return pieceIcon(icon, x + 4, y + 4, CELL - 8, "ice-rock-icon");
   return svg`<rect class="ice-rock" x=${x + 6} y=${y + 10} width=${CELL - 12} height=${CELL - 16} rx="18"></rect>
     <rect class="ice-rock-top" x=${x + 16} y=${y + 16} width=${CELL - 40} height="18" rx="9"></rect>`;
 }
@@ -167,17 +176,20 @@ function sand(c: IceCell) {
     ${GRAINS.map(([gx, gy]) => svg`<circle class="ice-grain" cx=${x + gx} cy=${y + gy} r="5"></circle>`)}`;
 }
 
-function goal(c: IceCell, reached: boolean) {
+function goal(c: IceCell, reached: boolean, icon: PieceIcon | undefined) {
   const cx = (c.x + 0.5) * CELL;
   const cy = (c.y + 0.5) * CELL;
+  if (hasPieceIcon(icon)) return pieceIcon(icon, cx - 36, cy - 36, 72, `ice-goal-icon ${reached ? "reached" : ""}`);
   return svg`<circle class="ice-goal ${reached ? "reached" : ""}" cx=${cx} cy=${cy} r="34"></circle>
     <circle class="ice-goal-dot" cx=${cx} cy=${cy} r="10"></circle>`;
 }
 
 // The figure is one group moved with a CSS transform, so a slide animates.
-function figure(p: IceState) {
+function figure(p: IceState, icon: PieceIcon | undefined) {
   return svg`<g class="ice-figure" style="transform: translate(${p.x * CELL}px, ${p.y * CELL}px)">
-    <circle class="ice-body" cx="50" cy="50" r="30"></circle>
-    <ellipse class="ice-belly" cx="50" cy="58" rx="16" ry="17"></ellipse>
+    ${hasPieceIcon(icon)
+      ? pieceIcon(icon, 4, 4, 92)
+      : svg`<circle class="ice-body" cx="50" cy="50" r="30"></circle>
+          <ellipse class="ice-belly" cx="50" cy="58" rx="16" ry="17"></ellipse>`}
   </g>`;
 }

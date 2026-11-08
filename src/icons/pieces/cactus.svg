@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect class="main" x="40" y="12" width="20" height="80" rx="10"/>
+  <path class="main" d="M40 60 L28 60 Q17 60 17 49 L17 30 Q17 23 23.5 23 Q30 23 30 30 L30 47 L40 47 Z"/>
+  <path class="main" d="M60 52 L72 52 Q83 52 83 41 L83 25 Q83 18 76.5 18 Q70 18 70 25 L70 39 L60 39 Z"/>
+  <rect class="detail" x="48" y="22" width="4" height="60" rx="2"/>
+</svg>

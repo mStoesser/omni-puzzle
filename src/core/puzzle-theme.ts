@@ -1,5 +1,7 @@
 // Puzzle themes (M29): colors of the board, chosen by the author per puzzle and stored in meta.theme.
 // Not the app theme (light/dark, ui/theme.ts). Pure and DOM-free: the publish function checks themes too.
+import { isIconRole, isPieceIcon } from "./icon-catalog.ts";
+import type { IconRole, PieceIcon } from "./icon-catalog.ts";
 
 /**
  * Shared roles of all puzzle types. Each type maps its parts to the roles it has (PuzzleRules.themeRoles),
@@ -10,8 +12,11 @@ export type ThemeRole = (typeof THEME_ROLES)[number];
 
 export type ThemeColors = Record<ThemeRole, string>;
 
-/** A complete theme: a color per role, as lowercase "#rrggbb". */
-export type PuzzleTheme = { colors: ThemeColors };
+/** Icon ids per icon role (M31); a role without an entry is drawn as before. */
+export type ThemeIcons = Partial<Record<IconRole, PieceIcon>>;
+
+/** A complete theme: a color per role, as lowercase "#rrggbb", and optionally icons from the catalog (M31). */
+export type PuzzleTheme = { colors: ThemeColors; icons?: ThemeIcons };
 
 export const THEME_LIMITS = { maxBytes: 1024, maxColorKeys: 32 } as const;
 
@@ -24,7 +29,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Checks an untrusted theme (from a link, the gallery or a newer app version). Returns a clean copy, or null if it is
  * not a valid theme: then the puzzle is shown in the default colors. Every role needs a "#rrggbb" color; colors of
- * roles this version does not know are dropped, as are other fields.
+ * roles this version does not know are dropped, as are other fields. Icons (M31) of unknown roles or with ids that are
+ * not in the catalog are dropped one by one, so a newer catalog only loses those pictures.
  */
 export function parseTheme(raw: unknown): PuzzleTheme | null {
   if (!isRecord(raw) || !isRecord(raw.colors)) return null;
@@ -41,12 +47,23 @@ export function parseTheme(raw: unknown): PuzzleTheme | null {
     if (typeof color !== "string" || !HEX.test(color)) return null;
     colors[role] = color.toLowerCase();
   }
-  return { colors };
+  const icons: ThemeIcons = {};
+  if (isRecord(raw.icons)) {
+    for (const [role, id] of Object.entries(raw.icons)) if (isIconRole(role) && isPieceIcon(id)) icons[role] = id;
+  }
+  return Object.keys(icons).length > 0 ? { colors, icons } : { colors };
+}
+
+/** Same colors (icons aside): how the editor recognizes a preset or template, also in puzzles from before M31. */
+export function sameColors(a: PuzzleTheme | undefined, b: PuzzleTheme | undefined): boolean {
+  if (!a || !b) return a === b;
+  return THEME_ROLES.every((role) => a.colors[role] === b.colors[role]);
 }
 
 export function sameTheme(a: PuzzleTheme | undefined, b: PuzzleTheme | undefined): boolean {
-  if (!a || !b) return a === b;
-  return THEME_ROLES.every((role) => a.colors[role] === b.colors[role]);
+  if (!sameColors(a, b) || !a || !b) return sameColors(a, b);
+  const roles = new Set([...Object.keys(a.icons ?? {}), ...Object.keys(b.icons ?? {})]) as Set<IconRole>;
+  return [...roles].every((role) => a.icons?.[role] === b.icons?.[role]);
 }
 
 // --- Colors ---

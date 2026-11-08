@@ -1,5 +1,6 @@
 import type { SVGTemplateResult, TemplateResult } from "lit-html";
 import type { MessageKey } from "../i18n/t.ts";
+import type { IconRole } from "./icon-catalog.ts";
 import type { FixedColor, PuzzleTheme, ThemeRole } from "./puzzle-theme.ts";
 
 /** Language of a puzzle's texts (M28); also what the gallery filters by. */
@@ -123,6 +124,8 @@ export type PuzzleRules<D, S, M> = {
   themeRoles?: readonly ThemeRole[];
   /** Colors that belong to the rules and are drawn on the board whatever the theme (e.g. laser colors). */
   themeFixed?: readonly FixedColor[];
+  /** Parts that can show an icon from the catalog (M31), only where the shape is no game information. */
+  iconRoles?: readonly IconRole[];
 };
 
 /** Plugin interface every puzzle type implements: its rules plus texts and UI. D = data, S = play state, M = move. */

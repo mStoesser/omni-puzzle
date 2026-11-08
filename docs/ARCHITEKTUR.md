@@ -93,6 +93,7 @@ src/
     puzzle-theme.ts       # Rätsel-Themes: Rollen, Prüfung, Farbrechnung, Kontrastprüfung (M29)
     theme-presets.ts      # vorgefertigte Themes (M29)
     saved-themes.ts       # eigene Theme-Vorlagen: Liste prüfen, anlegen, umbenennen, löschen (M30)
+    icon-catalog.ts       # Icon-Katalog: Icon-Rollen und IDs, auch für den Server (M31)
   server/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“ (quiz-images und user-images)
@@ -101,6 +102,8 @@ src/
     views/                # home.ts, library.ts, play.ts, editor.ts, chain.ts, chain-editor.ts …
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
     palette.ts            # Rollen-Paletten der Renderer: Standard-CSS und Theme als Inline-Stil (M29)
+    piece-icons.ts        # Icons aus src/icons/pieces/ (Vite ?raw) für die Renderer (M31)
+  icons/pieces/           # Icon-Dateien <id>.svg, selbst gezeichnet (M31)
     styles.css
   puzzles/
     index.ts              # registriert alle Typen (mit UI)
@@ -141,7 +144,8 @@ type PuzzleDocument<D = unknown> = {
     verified?: boolean;   // vom Ersteller gelöst
     minMoves?: number;    // vom Solver ermittelt
     lang?: "de" | "en";   // Sprache der Texte (M28); andere Werte werden wie unbekannte Felder verworfen
-    theme?: { colors: Record<ThemeRole, string> };  // Farben des Spielfelds (M29); ungültig = still verworfen
+    theme?: { colors: Record<ThemeRole, string>;    // Farben des Spielfelds (M29); ungültig = still verworfen
+              icons?: Partial<Record<IconRole, string>> };  // Icons aus dem Katalog (M31)
   };
   data: D;                // typspezifisch
 };
@@ -161,6 +165,7 @@ type PuzzleType<D, S, M> = {
   themeRoles?: ThemeRole[];         // M29: Rollen, die der Renderer aus einem Theme nimmt; ohne = nicht themebar
   themeFixed?: { light: string; dark: string }[];  // M29: Farben der Regeln auf dem Brett (Laserfarben)
   themeParts?: Record<ThemeRole | "fixed", MessageKey>;  // M30: Namen der Rollen im Typ („Kisten“, „Boden“)
+  iconRoles?: IconRole[];           // M31: Teile, die ein Icon aus dem Katalog zeigen können
 
   // --- Daten ---
   createDefault(): D;               // Startpunkt für den Editor
@@ -966,6 +971,34 @@ Solver und Daten bleiben unberührt.
   eine Vorlage, Löschen ändert also kein Rätsel. `clearLocal` (Kontowechsel „Vom Gerät entfernen“) lässt sie stehen.
 - **Entscheidung:** Vorlagen werden nicht synchronisiert (keine Migration). Das Theme eines Rätsels reist ohnehin in
   `meta.theme` mit dem Rätsel; nachrüsten ließe es sich wie M27 mit einer eigenen Tabelle.
+
+### Icon-Katalog (M31)
+
+- **Katalog:** `core/icon-catalog.ts` listet die Icon-IDs (DOM-frei, also kennt auch die Edge Function den Katalog),
+  die Dateien liegen als `src/icons/pieces/<id>.svg`. IDs bleiben stabil, der Katalog wächst nur. Erste 15 Icons:
+  Katze, Roboter, Pinguin, Gespenst, Geschenk, Apfel, Fass, Stern, Fahne, Blume, Baum, Kaktus, Stein, Sonne, Mond.
+  Sie sind selbst gezeichnet (keine fremde Lizenz, keine Namensnennung nötig).
+- **Regeln für Icon-Dateien** (`core/icon-catalog.test.ts` prüft jede Datei und dass Katalog und Ordner gleich sind):
+  Wurzel `<svg … viewBox="0 0 100 100">`, nur `path`, `circle`, `ellipse`, `rect`, `polygon` und `g`, nur
+  Geometrie-Attribute und `class`, jede Form mit `class="main"` oder `class="detail"`, keine Farben, kein Text, keine
+  Skripte, Stile oder Verweise, höchstens 4 KB.
+- **Laden** (`ui/piece-icons.ts`): `import.meta.glob(…, { query: "?raw", eager: true })` bündelt die Dateien beim Build,
+  sie sind also offline da und brauchen kein Paket. Eingefügt werden sie mit `unsafeSVG`, als Gruppe mit `translate` und
+  `scale` (ein verschachteltes `<svg>` würde von Seiten-CSS für `svg` verkleinert). Das ist die einzige Stelle mit
+  `unsafe…`; sie ist vertretbar, weil nur Dateien aus dem Repository eingefügt werden, die der Test prüft. Rätsel
+  enthalten nur IDs, eigene SVGs lassen sich nicht hochladen. Unter `node --test` gibt es kein Vite, dann ist der
+  Katalog leer und die Renderer zeichnen wie ohne Icon.
+- **Icon-Rollen** nur, wo die Form keine Spielinformation ist: Figur, Kiste und Ziel (Sokoban), Figur, Fels und Ziel
+  (Eis), Lampe (Lights Out). Rohre, Spiegel, Nonogramm, Klotski und Ausparken bekommen nur Farben; die Laser-Ziele
+  tragen schon Farbsymbole. Die Farben kommen aus den Farbrollen (Figur → `figure`, Kiste → `piece` bzw. `done` im Ziel,
+  Ziel → `target`, Fels → `wall`, Lampe aus/an → abgeleitete Töne von `piece`/`done`), über `--icon-main` und
+  `--icon-detail`. Eine Kiste mit Icon im Ziel bekommt eine Plakette mit Häkchen, eine Lampe mit Icon leuchtet, wenn sie
+  an ist: Farbe bleibt nie der einzige Unterschied.
+- **Format:** `meta.theme.icons` (Icon-Rolle → ID). `parseTheme` verwirft unbekannte Rollen und IDs einzeln, eine ältere
+  App zeigt also nur diese Teile wie ohne Icon. App-Versionen vor M31 verwerfen das ganze Feld. Kein Formatwechsel.
+- **Editor:** „Figuren und Symbole“ unter der Theme-Auswahl, ein Raster aus 44-px-Radiobuttons je Icon-Rolle
+  (Standard + Katalog), in den Farben des Themes. Vorlagen und eigene Themes werden an den Farben erkannt (`sameColors`),
+  Icons zu wählen lässt die Auswahl also stehen. Die vorgefertigten Themes bringen passende Icons mit.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

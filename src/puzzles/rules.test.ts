@@ -26,6 +26,7 @@ test("every puzzle type has its rules registered for the server", () => {
     assert.equal(rules.ranking, type.ranking, type.id);
     assert.equal(rules.themeRoles, type.themeRoles, type.id);
     assert.equal(rules.themeFixed, type.themeFixed, type.id);
+    assert.equal(rules.iconRoles, type.iconRoles, type.id);
   }
 });
 

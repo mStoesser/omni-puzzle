@@ -1,11 +1,13 @@
 import { html, svg } from "lit-html";
 import type { Dir } from "../../core/grid.ts";
 import { detailOn, mix } from "../../core/puzzle-theme.ts";
+import type { PieceIcon } from "../../core/icon-catalog.ts";
 import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
+import { PIECE_ICON_CSS, hasPieceIcon, pieceIcon } from "../../ui/piece-icons.ts";
 import type { Palette } from "../../ui/palette.ts";
 import { directionKey, directionPad, swipeCancel, swipeEnd, swipeStart } from "../../ui/components/swipe.ts";
 import { boxesOnGoals, cellPoint, charAt, height, insideCells, neighbour, prepare, walkPath, width } from "./logic.ts";
@@ -53,6 +55,16 @@ const STYLE = svg`<style>
   .sk-box.done .sk-check { display: inline; }
   .sk-body { fill: var(--sk-figure); }
   .sk-face { fill: var(--sk-face); }
+  ${PIECE_ICON_CSS}
+  .sk-goal-icon { --icon-main: var(--sk-goal); --icon-detail: var(--sk-floor); }
+  .sk-box { --icon-main: var(--sk-box); --icon-detail: var(--sk-box-edge); }
+  .sk-box.done { --icon-main: var(--sk-box-done); --icon-detail: var(--sk-box-done-edge); }
+  /* With an icon the box on its goal gets a badge with a check mark (color is never the only difference). */
+  .sk-badge { display: none; }
+  .sk-box.done .sk-badge { display: inline; }
+  .sk-badge circle { fill: var(--sk-box-done-edge); stroke: var(--sk-floor); stroke-width: 4; }
+  .sk-badge path { fill: none; stroke: var(--sk-check); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+  .sk-figure { --icon-main: var(--sk-figure); --icon-detail: var(--sk-face); }
   .sk-problem { fill: none; stroke: var(--danger, #c6362f); stroke-width: 8; stroke-dasharray: 16 10; }
   @media (prefers-reduced-motion: reduce) {
     .sk-box, .sk-figure { transition: none; }
@@ -173,6 +185,7 @@ export function boardLayers(
 ) {
   const board = prepare(data);
   const within = inside(data);
+  const icons = options.theme?.icons ?? {};
   const tiles = [];
   const walls = [];
   const goals = [];
@@ -185,15 +198,21 @@ export function boardLayers(
         continue;
       }
       tiles.push(svg`<rect class=${within.has(index) ? "sk-floor" : "sk-outside"} x=${x * CELL} y=${y * CELL} width=${CELL} height=${CELL}></rect>`);
-      if (board.goals[index]) goals.push(svg`<circle class="sk-goal" cx=${(x + 0.5) * CELL} cy=${(y + 0.5) * CELL} r="22"></circle>`);
+      if (board.goals[index]) {
+        goals.push(
+          hasPieceIcon(icons.goal)
+            ? pieceIcon(icons.goal, x * CELL + 14, y * CELL + 14, CELL - 28, "sk-goal-icon")
+            : svg`<circle class="sk-goal" cx=${(x + 0.5) * CELL} cy=${(y + 0.5) * CELL} r="22"></circle>`,
+        );
+      }
     }
   }
   // The group carries the color variables, so the layers work inside any <svg> (play view or grid editor).
   return svg`<g class="sk" style=${paletteStyle(PALETTE, options.theme)}>
     ${STYLE}
     ${tiles} ${goals} ${walls}
-    ${state.boxes.map((cell) => box(board, cell))}
-    ${state.player >= 0 ? figure(board, state.player) : null}
+    ${state.boxes.map((cell) => box(board, cell, icons.box))}
+    ${state.player >= 0 ? figure(board, state.player, icons.figure) : null}
     ${options.problemCells
       ? [...options.problemCells].map((cell) => {
           const { x, y } = cellPoint(board, cell);
@@ -209,19 +228,28 @@ function wall(x: number, y: number) {
 }
 
 // Boxes and the figure are groups moved with a CSS transform, so steps and pushes animate.
-function box(board: Board, cell: number) {
+function box(board: Board, cell: number, icon: PieceIcon | undefined) {
   const { x, y } = cellPoint(board, cell);
-  return svg`<g class="sk-box ${board.goals[cell] ? "done" : ""}" style="transform: translate(${x * CELL}px, ${y * CELL}px)">
+  const done = board.goals[cell] ? "done" : "";
+  if (hasPieceIcon(icon)) {
+    return svg`<g class="sk-box ${done}" style="transform: translate(${x * CELL}px, ${y * CELL}px)">
+      ${pieceIcon(icon, 4, 4, 92)}
+      <g class="sk-badge"><circle cx="78" cy="22" r="17"></circle><path d="M 70 22 L 76 28 L 86 16"></path></g>
+    </g>`;
+  }
+  return svg`<g class="sk-box ${done}" style="transform: translate(${x * CELL}px, ${y * CELL}px)">
     <rect class="sk-crate" x="12" y="12" width="76" height="76" rx="10"></rect>
     <path class="sk-slat" d="M 26 26 L 74 74 M 74 26 L 26 74"></path>
     <path class="sk-check" d="M 30 52 L 44 66 L 71 36"></path>
   </g>`;
 }
 
-function figure(board: Board, cell: number) {
+function figure(board: Board, cell: number, icon: PieceIcon | undefined) {
   const { x, y } = cellPoint(board, cell);
   return svg`<g class="sk-figure" style="transform: translate(${x * CELL}px, ${y * CELL}px)">
-    <circle class="sk-body" cx="50" cy="50" r="30"></circle>
-    <circle class="sk-face" cx="50" cy="44" r="13"></circle>
+    ${hasPieceIcon(icon)
+      ? pieceIcon(icon, 4, 4, 92)
+      : svg`<circle class="sk-body" cx="50" cy="50" r="30"></circle>
+          <circle class="sk-face" cx="50" cy="44" r="13"></circle>`}
   </g>`;
 }

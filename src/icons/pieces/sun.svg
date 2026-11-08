@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <polygon class="main" points="79.3,43.5 96,50 79.3,56.5"/>
+  <polygon class="main" points="75.3,66.1 82.5,82.5 66.1,75.3"/>
+  <polygon class="main" points="56.5,79.3 50,96 43.5,79.3"/>
+  <polygon class="main" points="33.9,75.3 17.5,82.5 24.7,66.1"/>
+  <polygon class="main" points="20.7,56.5 4,50 20.7,43.5"/>
+  <polygon class="main" points="24.7,33.9 17.5,17.5 33.9,24.7"/>
+  <polygon class="main" points="43.5,20.7 50,4 56.5,20.7"/>
+  <polygon class="main" points="66.1,24.7 82.5,17.5 75.3,33.9"/>
+  <circle class="main" cx="50" cy="50" r="24"/>
+  <circle class="detail" cx="50" cy="50" r="15"/>
+</svg>

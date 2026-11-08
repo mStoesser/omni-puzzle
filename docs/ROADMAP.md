@@ -679,17 +679,21 @@ und Regeln bleiben unberührt.
   Veröffentlichen, Speichern, Neuladen, Umbenennen, Löschen. Handy-Test offen.)
 
 ### M31 – Icon-Katalog
-- [ ] Icons als SVG-Dateien (`src/icons/pieces/<id>.svg`), per Vite `?raw` eingebunden (kein neues Paket, offline da).
+- [x] Icons als SVG-Dateien (`src/icons/pieces/<id>.svg`), per Vite `?raw` eingebunden (kein neues Paket, offline da).
   Regeln: einheitliche `viewBox`, nur Formen, Farben nur „Haupt“ und „Detail“ (färbt das Theme); ein Test prüft jede
   Datei. Icon-IDs bleiben stabil, der Katalog wächst nur; unbekannte IDs zeigen das Standard-Icon.
-- [ ] Icon-Rollen nur dort, wo die Form keine Spielinformation ist: Sokoban (Figur, Kiste, Ziel), Eis-Rutschen (Figur,
+  (`import.meta.glob` mit `?raw`; IDs in `core/icon-catalog.ts`, damit auch der Server sie kennt.)
+- [x] Icon-Rollen nur dort, wo die Form keine Spielinformation ist: Sokoban (Figur, Kiste, Ziel), Eis-Rutschen (Figur,
   Fels, Ziel), Lights Out (Lampe), eventuell Laser-Ziele. Rohre, Spiegel, Nonogramm, Klotski und Ausparken bekommen nur
   Farben.
-- [ ] `meta.theme` um Icon-IDs pro Icon-Rolle erweitern; die Prüfung kennt den Katalog.
-- [ ] Erste 10–15 Icons; Lizenzen prüfen (z. B. MIT/ISC, bei CC BY Namensnennung im Impressum).
-- [ ] Theme-Editor: Icon-Raster pro Icon-Rolle; vorgefertigte Themes bekommen passende Icons.
-- [ ] Kein Hochladen eigener SVGs (Skripte, Prüfung, Moderation); Rätsel enthalten nur IDs aus dem Katalog.
+  (Laser-Ziele ohne Icons, sie tragen schon Farbsymbole. Kiste im Ziel mit Icon: Plakette mit Häkchen.)
+- [x] `meta.theme` um Icon-IDs pro Icon-Rolle erweitern; die Prüfung kennt den Katalog.
+- [x] Erste 10–15 Icons; Lizenzen prüfen (z. B. MIT/ISC, bei CC BY Namensnennung im Impressum).
+  (15 Icons, selbst gezeichnet, also ohne fremde Lizenz.)
+- [x] Theme-Editor: Icon-Raster pro Icon-Rolle; vorgefertigte Themes bekommen passende Icons.
+- [x] Kein Hochladen eigener SVGs (Skripte, Prüfung, Moderation); Rätsel enthalten nur IDs aus dem Katalog.
 - [ ] Ansichten bei 390 und 1280 px, Handy-Test.
+  (390 px im Browser geprüft: Sokoban, Eis, Lights Out mit Icons, Kiste im Ziel, Icon-Raster. Handy-Test offen.)
 
 ## Phase 4: Ideen aus dem Redesign
 Funktionen aus dem Entwurf (`docs/design-handoff/`), die in M15 bewusst weggelassen wurden.

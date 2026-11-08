@@ -10,6 +10,7 @@ import {
   mix,
   parseHex,
   parseTheme,
+  sameColors,
   sameTheme,
 } from "./puzzle-theme.ts";
 import type { PuzzleTheme, ThemeColors } from "./puzzle-theme.ts";
@@ -25,7 +26,7 @@ test("parseTheme keeps a valid theme and lowercases its colors", () => {
 });
 
 test("parseTheme drops unknown roles and fields", () => {
-  const theme = parseTheme({ name: "x", icons: { figure: "cat" }, colors: { ...COLORS, glow: "#123456" } });
+  const theme = parseTheme({ name: "x", sounds: { win: "fanfare" }, colors: { ...COLORS, glow: "#123456" } });
   assert.deepEqual(theme, { colors: COLORS });
 });
 
@@ -47,6 +48,21 @@ test("parseTheme rejects missing roles, bad colors and oversized themes", () => 
   ]) {
     assert.equal(parseTheme(raw), null, JSON.stringify(raw)?.slice(0, 80));
   }
+});
+
+test("parseTheme keeps catalog icons and drops unknown roles and ids one by one", () => {
+  const theme = parseTheme({ colors: COLORS, icons: { figure: "cat", box: "unicorn", wings: "star", goal: "flag" } });
+  assert.deepEqual(theme, { colors: COLORS, icons: { figure: "cat", goal: "flag" } });
+  assert.deepEqual(parseTheme({ colors: COLORS, icons: { figure: "unicorn" } }), { colors: COLORS });
+  assert.deepEqual(parseTheme({ colors: COLORS, icons: "cat" }), { colors: COLORS });
+});
+
+test("sameColors ignores icons, sameTheme does not", () => {
+  const plain: PuzzleTheme = { colors: COLORS };
+  const cat: PuzzleTheme = { colors: COLORS, icons: { figure: "cat" } };
+  assert.ok(sameColors(plain, cat));
+  assert.ok(!sameTheme(plain, cat));
+  assert.ok(sameTheme(cat, { colors: { ...COLORS }, icons: { figure: "cat" } }));
 });
 
 test("sameTheme compares colors", () => {

@@ -4,7 +4,10 @@ import type { EditorSession } from "../../core/editor-session.ts";
 import { PUZZLE_LANGS } from "../../core/types.ts";
 import { THEME_PRESETS } from "../../core/theme-presets.ts";
 import type { PuzzleTheme, ThemeRole } from "../../core/puzzle-theme.ts";
-import { contrastProblems, sameTheme } from "../../core/puzzle-theme.ts";
+import { contrastProblems, detailOn, sameColors } from "../../core/puzzle-theme.ts";
+import { PIECE_ICONS } from "../../core/icon-catalog.ts";
+import type { IconRole, PieceIcon } from "../../core/icon-catalog.ts";
+import { pieceIcon } from "../piece-icons.ts";
 import { SAVED_THEME_LIMITS } from "../../core/saved-themes.ts";
 import type { SavedTheme } from "../../core/saved-themes.ts";
 import type { AnyPuzzleType, EditorContext, PuzzleLang, SolveResult } from "../../core/types.ts";
@@ -169,8 +172,9 @@ export function themeWarnings(type: AnyPuzzleType, theme: PuzzleTheme | undefine
 function themePicker(type: AnyPuzzleType, model: EditorViewModel, actions: EditorViewActions) {
   const roles = type.themeRoles ?? [];
   const { theme, savedThemes } = model;
-  const preset = theme ? THEME_PRESETS.find((p) => sameTheme(p.theme, theme)) : undefined;
-  const saved = theme && !preset ? savedThemes.find((p) => sameTheme(p.theme, theme)) : undefined;
+  // Recognized by colors: picking icons keeps the preset or template selected (and puzzles from before M31 match).
+  const preset = theme ? THEME_PRESETS.find((p) => sameColors(p.theme, theme)) : undefined;
+  const saved = theme && !preset ? savedThemes.find((p) => sameColors(p.theme, theme)) : undefined;
   const value = !theme ? "" : preset ? preset.id : saved ? `own:${saved.id}` : "custom";
   const choose = (e: Event) => {
     const id = (e.target as HTMLSelectElement).value;
@@ -207,6 +211,7 @@ function themePicker(type: AnyPuzzleType, model: EditorViewModel, actions: Edito
         : nothing}
     </div>
     ${theme ? themeColors(type, theme, saved, model.themeNotice, actions) : nothing}
+    ${theme && type.iconRoles ? themeIcons(type.iconRoles, theme, actions) : nothing}
     <p id="editor-theme-hint" class="editor-hint">${t("editorThemeHint")}</p>
   </div>`;
 }
@@ -241,6 +246,56 @@ function themeColors(type: AnyPuzzleType, theme: PuzzleTheme, saved: SavedTheme 
       </div>
       ${notice ? html`<p class="status-problem" role="alert">${t(notice)}</p>` : nothing}
     </div>
+  </details>`;
+}
+
+const ICON_ROLE_NAMES: Record<IconRole, MessageKey> = {
+  figure: "iconRoleFigure",
+  box: "iconRoleBox",
+  goal: "iconRoleGoal",
+  rock: "iconRoleRock",
+  lamp: "iconRoleLamp",
+};
+
+const ICON_NAMES: Record<PieceIcon, MessageKey> = {
+  cat: "iconCat", robot: "iconRobot", penguin: "iconPenguin", ghost: "iconGhost", gift: "iconGift", apple: "iconApple",
+  barrel: "iconBarrel", star: "iconStar", flag: "iconFlag", flower: "iconFlower", tree: "iconTree", cactus: "iconCactus",
+  rock: "iconRock", sun: "iconSun", moon: "iconMoon",
+};
+
+/** Which theme color an icon role is drawn in (as on the board). */
+const ICON_COLOR: Record<IconRole, ThemeRole> = { figure: "figure", box: "piece", goal: "target", rock: "wall", lamp: "done" };
+
+/** M31: an icon per icon role from the catalog, or the type's own drawing ("default"). Native radio buttons. */
+function themeIcons(roles: readonly IconRole[], theme: PuzzleTheme, actions: EditorViewActions) {
+  const choose = (role: IconRole, id: PieceIcon | null) => {
+    const icons = { ...theme.icons };
+    if (id) icons[role] = id;
+    else delete icons[role];
+    actions.setTheme(Object.keys(icons).length > 0 ? { colors: theme.colors, icons } : { colors: theme.colors });
+  };
+  return html`<details class="theme-edit">
+    <summary>${icon("puzzle", 16)}${t("editorThemeIcons")}</summary>
+    ${roles.map((role) => {
+      const main = theme.colors[ICON_COLOR[role]];
+      const style = `background: ${theme.colors.board}; --icon-main: ${main}; --icon-detail: ${detailOn(main)}`;
+      const current = theme.icons?.[role];
+      return html`<fieldset class="icon-choices">
+        <legend>${t(ICON_ROLE_NAMES[role])}</legend>
+        <label class="icon-choice">
+          <input type="radio" name="icon-${role}" .checked=${current === undefined} @change=${() => choose(role, null)} />
+          <span class="icon-choice-face" style=${style}><span class="icon-default">${t("editorThemeIconDefault")}</span></span>
+        </label>
+        ${PIECE_ICONS.map(
+          (id) => html`<label class="icon-choice" title=${t(ICON_NAMES[id])}>
+            <input type="radio" name="icon-${role}" .checked=${current === id} @change=${() => choose(role, id)} />
+            <span class="icon-choice-face" style=${style}>
+              <svg viewBox="0 0 100 100" role="img" aria-label=${t(ICON_NAMES[id])}>${pieceIcon(id, 0, 0, 100)}</svg>
+            </span>
+          </label>`,
+        )}
+      </fieldset>`;
+    })}
   </details>`;
 }
 

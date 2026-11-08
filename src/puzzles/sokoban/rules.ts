@@ -16,4 +16,5 @@ export const sokobanRules: PuzzleRules<SokobanData, SokobanState, SokobanMove> =
   solve,
   levels: { easy: 20, medium: 50 },
   themeRoles: ["board", "line", "wall", "figure", "piece", "target", "done"],
+  iconRoles: ["figure", "box", "goal"],
 };

@@ -2642,6 +2642,70 @@ a.icon-button {
   cursor: pointer;
 }
 
+/* Icon choice (M31): a grid of 44 px radio faces per part, previewed in the theme's colors. */
+.icon-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: var(--kk-space-2);
+  margin: 0;
+  padding: 0 var(--kk-space-3) var(--kk-space-3);
+  border: 0;
+}
+
+.icon-choices legend {
+  padding: 0 var(--kk-space-3) var(--kk-space-2);
+  color: var(--kk-muted);
+  font-size: 0.8125rem;
+}
+
+.icon-choice {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.icon-choice input {
+  position: absolute;
+  opacity: 0;
+}
+
+.icon-choice-face {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  border: 2px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+}
+
+.icon-choice-face svg {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-choice-face .main {
+  fill: var(--icon-main);
+}
+
+.icon-choice-face .detail {
+  fill: var(--icon-detail);
+}
+
+.icon-choice input:checked + .icon-choice-face {
+  border-color: var(--kk-brand, #ffd23f);
+  box-shadow: 0 0 0 2px var(--kk-brand, #ffd23f);
+}
+
+.icon-choice input:focus-visible + .icon-choice-face {
+  outline: 2px solid var(--focus, #2f6fdd);
+  outline-offset: 2px;
+}
+
+.icon-default {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--icon-main);
+}
+
 .theme-save {
   display: grid;
   gap: var(--kk-space-2);
