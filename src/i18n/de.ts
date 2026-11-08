@@ -658,6 +658,7 @@ export const de = {
   editorShortest: "Kürzeste Lösung",
   editorAutosaved: "automatisch gespeichert",
   editorSettings: "Einstellungen",
+  editorAppearance: "Sprache und Aussehen",
   editorLanguage: "Sprache des Rätsels",
   editorTheme: "Theme",
   editorThemeHint: "Farben des Spielfelds. Alle sehen das Rätsel so, im hellen wie im dunklen Modus.",

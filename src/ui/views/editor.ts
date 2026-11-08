@@ -70,6 +70,10 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
       ? html`<p class="check-fact desktop-only"><span>${t("editorShortest")}</span><strong>${tn("homeLevelMoves", model.solve.moves.length)}</strong></p>`
       : nothing}
     ${!canTest || model.verified || model.testPlay ? nothing : html`<p class="editor-hint">${t("statusNotVerified")}</p>`}
+  </section>`;
+  // Language and theme come last: they matter once the puzzle is built (M29/M30).
+  const appearance = html`<section class="editor-appearance" aria-labelledby="editor-appearance-title">
+    <h2 id="editor-appearance-title" class="editor-appearance-title">${t("editorAppearance")}</h2>
     <label class="editor-lang">
       <span>${t("editorLanguage")}</span>
       <select @change=${(e: Event) => actions.setLanguage((e.target as HTMLSelectElement).value as PuzzleLang)}>
@@ -122,6 +126,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
             <span class="editor-tools-undo">${undoRedo}</span>
           </div>
           <h2 class="editor-settings-title desktop-only">${t("editorSettings")}</h2>
+          ${appearance}
         </div>`}
     ${model.share
       ? shareDialog(model.share, actions.share, {

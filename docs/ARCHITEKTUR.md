@@ -882,7 +882,7 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   kann (`examplesIn(lang)`), per Link bleibt jedes spielbar. Der Fortschritt hängt nicht am Titel.
 - **Sprache pro Rätsel:** `meta.lang` ist optional, alte App-Versionen verwerfen das Feld, also bleibt `format: 1`.
   Der Inhaltsschlüssel (`progressKey`) ignoriert `meta`, ändert sich also nicht. Neue Rätsel bekommen die
-  Oberflächensprache, alte ohne Sprache ebenso beim nächsten Speichern; im Prüf-Panel des Editors ist sie änderbar.
+  Oberflächensprache, alte ohne Sprache ebenso beim nächsten Speichern; im Editor ist sie unter „Sprache und Aussehen“ änderbar.
   Ein Remix übernimmt die Sprache.
 - **Galerie** (Migration `0013_lang.sql`): Spalte `puzzles.lang` (`de`, `en` oder null), `publish_puzzle` übernimmt
   `meta.lang` (neuer Parameter mit Default, die alte Edge Function läuft weiter). Filter `lang` in der Route
@@ -941,7 +941,8 @@ Solver und Daten bleiben unberührt.
   (Rohre). Lights Out (Glühbirne), Laser (gefülltes Ziel) und Eis (Figur auf dem Ziel) hatten schon eins.
 - **Vorgefertigte Themes** (`core/theme-presets.ts`): Garten, Meer, Pastell, Nacht, Weltraum. Gespeichert werden die
   Farben; der Editor erkennt ein Preset an ihnen, sonst zeigt er „Eigenes“.
-- **Ansichten:** Auswahl „Theme“ mit Farbvorschau im Prüf-Panel des Editors; das Bau-Brett und Probespielen zeigen das
+- **Ansichten:** Auswahl „Theme“ mit Farbvorschau im Editor-Abschnitt „Sprache und Aussehen“ (ganz unten, auf dem
+  Desktop als Karte unter „Einstellungen“); das Bau-Brett und Probespielen zeigen das
   Theme. Spiel, Ketten und Rätsel des Tages übernehmen es über `loadDocument`. Galerie-Karten laden
   `theme:doc->meta->theme` mit (keine Migration) und färben das Platzhalter-Raster, ebenso „Meine Rätsel“.
 

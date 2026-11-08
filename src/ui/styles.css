@@ -2689,6 +2689,18 @@ a.icon-button {
   order: 4;
 }
 
+/* Language and theme (M29/M30): last, below tools and size; on desktop a card under the settings. */
+.editor-appearance {
+  order: 5;
+  padding-top: var(--kk-space-3);
+  border-top: 1px solid var(--kk-line);
+}
+
+.editor-appearance-title {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
 .editor-test {
   display: flex;
   flex: 1;
@@ -3280,6 +3292,8 @@ a.button.compact {
   .editor-body .ge-board {
     grid-column: 2;
     grid-row: 1 / -1;
+    /* Top, not centered: the column beside it can grow (theme colors), the board should not move. */
+    align-self: start;
     justify-self: center;
     width: min(100%, 600px, 74dvh);
   }
@@ -3343,6 +3357,18 @@ a.button.compact {
     border: 1px solid var(--kk-line);
     border-top: 0;
     border-radius: 0 0 var(--kk-radius-xl) var(--kk-radius-xl);
+    background: var(--kk-surface);
+  }
+
+  .editor-body:has(> .grid-editor) .editor-appearance {
+    grid-column: 3;
+    grid-row: 5;
+  }
+
+  .editor-appearance {
+    padding: var(--kk-space-4);
+    border: 1px solid var(--kk-line);
+    border-radius: var(--kk-radius-xl);
     background: var(--kk-surface);
   }
 

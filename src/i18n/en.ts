@@ -662,6 +662,7 @@ export const en: Messages = {
   editorShortest: "Shortest solution",
   editorAutosaved: "saved automatically",
   editorSettings: "Settings",
+  editorAppearance: "Language and look",
   editorLanguage: "Language of the puzzle",
   editorTheme: "Theme",
   editorThemeHint: "Colors of the board. Everyone sees the puzzle like this, in light and dark mode.",
