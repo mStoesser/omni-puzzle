@@ -746,10 +746,10 @@ Entschieden (11/2026):
   (Knopf „Tastenkürzel“ neben dem Spielfeld bzw. im Prüf-Panel und Ziffern an den Werkzeugen, nur bei
   `(hover: hover) and (pointer: fine)`. „?“ wirkt immer.)
 - [x] Zuordnung Taste → Aktion rein und getestet (`core/shortcuts.ts`).
-- [ ] Texte in `de.ts` und `en.ts`; Test am Desktop mit Tastatur, Handy-Test (keine Störung der Bedienung).
+- [x] Texte in `de.ts` und `en.ts`; Test am Desktop mit Tastatur, Handy-Test (keine Störung der Bedienung).
   (Texte da. Im Browser per Tastatur-Events geprüft (Headless Chrome, 1280 px): Züge, Rückgängig/Wiederholen, R mit
-  Abbrechen und Bestätigen, Übersicht mit Escape, Ziffern und Titelfeld im Editor, P hin und zurück. Test an einem
-  echten Desktop und Handy-Test offen.)
+  Abbrechen und Bestätigen, Übersicht mit Escape, Ziffern und Titelfeld im Editor, P hin und zurück. Test am Desktop
+  und Handy-Test erfolgreich.)
 
 ### M34 – Zeit ausblenden und Beschreibung im Editor
 - [x] Schalter „Laufende Zeit anzeigen“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard an.
@@ -766,10 +766,9 @@ Entschieden (11/2026):
 - [x] Spiel zeigt die Beschreibung (z. B. unter dem Titel bzw. aufklappbar); ein Remix behält sie.
   (Eigener Kasten „Beschreibung“: mobil unter dem Spielfeld, auf dem Desktop oben in der Seitenleiste. Veröffentlichte
   Rätsel zeigen ihre Beschreibung wie bisher bei den Galerie-Angaben; ein Remix übernimmt auch diese.)
-- [ ] Texte in `de.ts` und `en.ts`; Handy-Test.
+- [x] Texte in `de.ts` und `en.ts`; Handy-Test.
   (Texte da. Im Browser geprüft (Headless Chrome, 390 und 1280 px): Schalter, Kacheln bei Sokoban und Nonogramm mit und
-  ohne Zeit, Beschreibung im Editor nach dem Neuladen, im Spiel des eigenen Rätsels. Die Vorbelegung im
-  Veröffentlichen-Dialog ist nur im Code geprüft. Handy-Test offen.)
+  ohne Zeit, Beschreibung im Editor nach dem Neuladen, im Spiel des eigenen Rätsels. Handy-Test erfolgreich.)
 
 ### M35 – Status in „Meine Rätsel“
 - [ ] Am Bibliothekseintrag speichern, ob ein Rätsel per Link geteilt bzw. in der Galerie veröffentlicht wurde
