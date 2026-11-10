@@ -731,15 +731,25 @@ Entschieden (11/2026):
   erfolgreich.)
 
 ### M33 – Tastenkürzel
-- [ ] Spiel: Strg Z (Rückgängig), Strg Y bzw. Strg Umschalt Z (Wiederholen), R (Neustart, mit Bestätigung wie der Knopf).
+- [x] Spiel: Strg Z (Rückgängig), Strg Y bzw. Strg Umschalt Z (Wiederholen), R (Neustart, mit Bestätigung wie der Knopf).
   Pfeiltasten und WASD aus M16 bleiben.
-- [ ] Editor: Rückgängig/Wiederholen, Werkzeuge per Ziffer (1–9 in der Reihenfolge des Werkzeug-Rasters), Umschalten
+  (Abweichung: Der Knopf „Neustart“ fragt nicht nach. R fragt trotzdem, weil eine Taste leicht versehentlich gedrückt
+  wird und ein Neustart sich nicht rückgängig machen lässt. Beim Quiz gibt es kein Rückgängig, also auch kein Kürzel.)
+- [x] Editor: Rückgängig/Wiederholen, Werkzeuge per Ziffer (1–9 in der Reihenfolge des Werkzeug-Rasters), Umschalten
   Bauen/Probespielen.
-- [ ] Kürzel lösen nicht aus, solange ein Textfeld, eine Auswahl oder ein Dialog den Fokus hat; auf macOS gilt Cmd statt Strg.
-- [ ] Anzeige: Übersicht der Kürzel per „?“ (Dialog) und als `title`/`aria-keyshortcuts` an den Knöpfen; auf reinen
+  (Ziffer 0 für das zehnte Werkzeug (Laser), P für Bauen/Probespielen. Beim Probespielen gelten die Kürzel des Spiels.)
+- [x] Kürzel lösen nicht aus, solange ein Textfeld, eine Auswahl oder ein Dialog den Fokus hat; auf macOS gilt Cmd statt Strg.
+  (Auch nicht bei offenem Menü oder Sheet und nicht mit Alt bzw. AltGr. Züge haben Vorrang: Das Spielfeld verarbeitet
+  seine Tasten zuerst.)
+- [x] Anzeige: Übersicht der Kürzel per „?“ (Dialog) und als `title`/`aria-keyshortcuts` an den Knöpfen; auf reinen
   Touch-Geräten ausgeblendet.
-- [ ] Zuordnung Taste → Aktion rein und getestet (`core/shortcuts.ts`).
+  (Knopf „Tastenkürzel“ neben dem Spielfeld bzw. im Prüf-Panel und Ziffern an den Werkzeugen, nur bei
+  `(hover: hover) and (pointer: fine)`. „?“ wirkt immer.)
+- [x] Zuordnung Taste → Aktion rein und getestet (`core/shortcuts.ts`).
 - [ ] Texte in `de.ts` und `en.ts`; Test am Desktop mit Tastatur, Handy-Test (keine Störung der Bedienung).
+  (Texte da. Im Browser per Tastatur-Events geprüft (Headless Chrome, 1280 px): Züge, Rückgängig/Wiederholen, R mit
+  Abbrechen und Bestätigen, Übersicht mit Escape, Ziffern und Titelfeld im Editor, P hin und zurück. Test an einem
+  echten Desktop und Handy-Test offen.)
 
 ### M34 – Zeit ausblenden und Beschreibung im Editor
 - [ ] Schalter „Laufende Zeit anzeigen“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard an.

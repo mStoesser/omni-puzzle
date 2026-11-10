@@ -52,7 +52,16 @@ export function statusBadge(kind: StatusKind) {
   return html`<span class="badge badge-${kind}">${name ? icon(name, 14) : nothing}${t(text)}</span>`;
 }
 
-type IconButtonOptions = { label: string; icon: IconName; href?: string; onClick?: () => void; disabled?: boolean; pressed?: boolean };
+/** `shortcut` (M33): aria-keyshortcuts value and the short form for the tooltip (see core/shortcuts.ts). */
+type IconButtonOptions = {
+  label: string;
+  icon: IconName;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  pressed?: boolean;
+  shortcut?: { aria: string; hint: string };
+};
 
 /** 44×44 button or link with only an icon; `label` is its accessible name. */
 export function iconButton(o: IconButtonOptions) {
@@ -64,7 +73,8 @@ export function iconButton(o: IconButtonOptions) {
     type="button"
     class="icon-button"
     aria-label=${o.label}
-    title=${o.label}
+    title=${o.shortcut ? `${o.label} (${o.shortcut.hint})` : o.label}
+    aria-keyshortcuts=${o.shortcut?.aria ?? nothing}
     aria-pressed=${o.pressed === undefined ? nothing : String(o.pressed)}
     ?disabled=${o.disabled ?? false}
     @click=${o.onClick}

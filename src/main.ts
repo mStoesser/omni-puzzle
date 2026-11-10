@@ -71,6 +71,10 @@ import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
 import { accountView } from "./ui/views/account.ts";
 import type { AccountMessage, AccountViewModel, SyncViewModel } from "./ui/views/account.ts";
 import { editorView } from "./ui/views/editor.ts";
+import { shortcutsDialog } from "./ui/components/shortcuts-dialog.ts";
+import { isMac } from "./ui/keyboard.ts";
+import { keysStayInTarget, shortcutFor } from "./core/shortcuts.ts";
+import type { ShortcutContext } from "./core/shortcuts.ts";
 import { galleryView } from "./ui/views/gallery.ts";
 import { chainView } from "./ui/views/chain.ts";
 import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
@@ -142,6 +146,7 @@ type AppState = {
   dailyPreview: { id: string; preview: CardPreview | null } | null; // theme and preview for its card (M32)
   dailyDays: readonly string[]; // days whose puzzle was solved on this device (streak when signed out)
   savedThemes: readonly SavedTheme[]; // own theme templates on this device (M30)
+  shortcuts: boolean; // overview of the keyboard shortcuts is open (M33)
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -223,6 +228,7 @@ const store = createStore<AppState>({
   dailyPreview: null,
   dailyDays: dailies.parseLocalDays(browserStore.get(DAILY_DAYS_KEY)),
   savedThemes: [],
+  shortcuts: false,
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -255,7 +261,7 @@ function now() {
 
 function enterRoute(route: Route) {
   flushSave();
-  patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null });
+  patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
     case "home":
@@ -972,6 +978,7 @@ const playActions = {
   toggleLike,
   rate,
   openReport,
+  openShortcuts: () => patch({ shortcuts: true }),
   report: reportActions,
   leaderboard: leaderboardActions,
   // Remixing: the copy is a new, unverified draft of the creator.
@@ -1597,6 +1604,7 @@ const editorActions = {
   share: shareActions,
   openPublish,
   publish: publishActions,
+  openShortcuts: () => patch({ shortcuts: true }),
 };
 
 // --- Images ---
@@ -2337,7 +2345,13 @@ function page(state: AppState) {
     ${state.notice ? html`<p class="notice page-notice" role="alert">${t(state.notice)}</p>` : nothing}
     ${view(state)}
   `;
-  if (section === "focus") return html`<div class="page focus">${content}</div>`;
+  if (section === "focus") {
+    const context = state.shortcuts ? shortcutContext(state) : null;
+    return html`<div class="page focus">
+      ${content}
+      ${context ? shortcutsDialog(context, state.play?.session.type.controls?.undo !== false, () => patch({ shortcuts: false })) : nothing}
+    </div>`;
+  }
   const account = navAccount(state);
   const wide = state.route.name === "home" || state.route.name === "gallery";
   return html`<div class="with-tabbar">
@@ -2363,6 +2377,70 @@ function pageTitle(state: AppState): string {
     : (route.name === "new" || route.name === "edit") && state.editor ? t(state.editor.type.name)
     : "");
   return part ? `${part} – ${t("appTitle")}` : t("appTitle");
+}
+
+// --- Keyboard shortcuts (M33) ---
+
+/** Where shortcuts apply now: playing, building or test play in the editor; null elsewhere. */
+function shortcutContext(state: AppState): ShortcutContext | null {
+  if (navSection(state.route) !== "focus") return null;
+  if (state.route.name === "new" || state.route.name === "edit") {
+    if (!state.editor) return null;
+    return state.play?.origin === "test" ? "test" : "editor";
+  }
+  return state.play ? "play" : null;
+}
+
+function overlayOpen(): boolean {
+  if (document.querySelector("dialog[open]")) return true;
+  try {
+    return document.querySelector("[popover]:popover-open") !== null;
+  } catch {
+    return false; // browsers without the popover API have no open popovers either
+  }
+}
+
+function onShortcutKey(e: KeyboardEvent) {
+  // Puzzles handle their keys first (moves, Enter on a cell) and prevent the default; text fields keep theirs.
+  if (e.defaultPrevented || e.isComposing || keysStayInTarget(e.target as HTMLElement | null)) return;
+  // An open dialog, sheet or menu owns the keyboard (and the overview closes with Escape like every sheet).
+  if (overlayOpen()) return;
+  const state = store.get();
+  const context = shortcutContext(state);
+  if (!context) return;
+  const shortcut = shortcutFor(e, context, isMac());
+  if (!shortcut) return;
+  const play = state.play;
+  const undo = play?.session.type.controls?.undo !== false;
+  switch (shortcut.action) {
+    case "help":
+      patch({ shortcuts: true });
+      break;
+    case "undo":
+    case "redo":
+      if (context === "editor") editorActions[shortcut.action]();
+      else if (undo) playActions[shortcut.action]();
+      else return;
+      break;
+    case "restart":
+      // The button restarts at once; a key is easily hit by mistake, and a restart cannot be undone.
+      if (!play || play.session.history.length === 1) return;
+      e.preventDefault();
+      if (confirm(t("restartConfirm"))) playActions.restart();
+      return;
+    case "mode":
+      if (context === "editor") editorActions.testPlay();
+      else editorActions.backToEditor();
+      break;
+    case "tool": {
+      const tools = document.querySelectorAll<HTMLInputElement>('.grid-editor .palette input[name="tool"]');
+      const tool = tools[shortcut.index];
+      if (!tool) return;
+      tool.checked = true;
+      break;
+    }
+  }
+  e.preventDefault();
 }
 
 // Render loop: batch all store updates of one task into a single render.
@@ -2392,6 +2470,7 @@ document.addEventListener("visibilitychange", () => {
   else requestSync();
   onVisibility();
 });
+document.addEventListener("keydown", onShortcutKey);
 window.addEventListener("online", () => {
   void flushScoreQueue();
   requestSync();

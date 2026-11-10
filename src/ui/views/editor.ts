@@ -16,9 +16,11 @@ import type { MessageKey } from "../../i18n/t.ts";
 import { publishDialog } from "../components/publish-dialog.ts";
 import type { PublishDialogActions, PublishDialogModel } from "../components/publish-dialog.ts";
 import { shareDialog } from "../components/share-dialog.ts";
+import { shortcutsButton } from "../components/shortcuts-dialog.ts";
 import type { ShareDialogActions, ShareDialogModel } from "../components/share-dialog.ts";
 import { iconButton, segment, typeVars } from "../components/ui.ts";
 import { icon } from "../icons.ts";
+import { buttonShortcut } from "../keyboard.ts";
 import type { TemplateResult } from "lit-html";
 
 export type EditorViewModel = {
@@ -57,6 +59,7 @@ export type EditorViewActions = {
   share: ShareDialogActions;
   openPublish(): void;
   publish: PublishDialogActions;
+  openShortcuts(): void;
 };
 
 export function editorView(model: EditorViewModel, actions: EditorViewActions) {
@@ -64,8 +67,8 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
   const hasSolver = type.solve !== undefined;
   const { canTest, canShare } = readiness({ ...model, hasSolver });
   const mode = model.testPlay ? "test" : "build";
-  const undoRedo = html`${iconButton({ label: t("undo"), icon: "undo", onClick: actions.undo, disabled: !canUndoEdit(session) || mode === "test" })}
-  ${iconButton({ label: t("redo"), icon: "redo", onClick: actions.redo, disabled: !canRedoEdit(session) || mode === "test" })}`;
+  const undoRedo = html`${iconButton({ label: t("undo"), icon: "undo", onClick: actions.undo, disabled: !canUndoEdit(session) || mode === "test", shortcut: buttonShortcut("undo") })}
+  ${iconButton({ label: t("redo"), icon: "redo", onClick: actions.redo, disabled: !canRedoEdit(session) || mode === "test", shortcut: buttonShortcut("redo") })}`;
   const check = html`<section class="editor-check" aria-labelledby="editor-check-title">
     <h2 id="editor-check-title" class="desktop-only">${t("editorCheck")}</h2>
     ${checkLine(model, hasSolver)}
@@ -73,6 +76,7 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
       ? html`<p class="check-fact desktop-only"><span>${t("editorShortest")}</span><strong>${tn("homeLevelMoves", model.solve.moves.length)}</strong></p>`
       : nothing}
     ${!canTest || model.verified || model.testPlay ? nothing : html`<p class="editor-hint">${t("statusNotVerified")}</p>`}
+    ${shortcutsButton(actions.openShortcuts)}
   </section>`;
   // Language and theme come last: they matter once the puzzle is built (M29/M30).
   const appearance = html`<section class="editor-appearance" aria-labelledby="editor-appearance-title">

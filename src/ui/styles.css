@@ -4060,3 +4060,83 @@ a.daily-card:hover {
   width: 64px;
   height: 64px;
 }
+
+/* ===== Keyboard shortcuts (M33) ===== */
+/* Only where a keyboard is likely: a fine pointer that can hover. Phones and tablets do not show the button. */
+.kbd-only {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .kbd-only {
+    display: inline-flex;
+  }
+}
+
+.shortcuts-open {
+  justify-self: start;
+  align-self: flex-start;
+  gap: var(--kk-space-2);
+  padding-inline: var(--kk-space-2);
+}
+
+/* The digit of a tool, in the top right corner of its tile. */
+.tool > span {
+  position: relative;
+}
+
+.tool kbd.tool-key {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 0;
+  padding: 0 5px;
+  font-size: 0.7rem;
+  color: var(--kk-muted);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 2px 6px;
+  border: 1px solid var(--kk-line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--kk-surface-2);
+  color: var(--kk-text);
+  font: 600 0.85em/1.4 var(--kk-font-body);
+  text-align: center;
+}
+
+.shortcut-list {
+  display: grid;
+  gap: var(--kk-space-2);
+  margin: 0 0 var(--kk-space-4);
+}
+
+.shortcut-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-2) var(--kk-space-4);
+  padding: var(--kk-space-2) 0;
+  border-bottom: 1px solid var(--kk-line);
+}
+
+.shortcut-row dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kk-space-2);
+  margin: 0;
+}
+
+.shortcut-combo {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.shortcut-or {
+  color: var(--kk-muted);
+}

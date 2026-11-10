@@ -1,7 +1,8 @@
-import { html, svg } from "lit-html";
+import { html, nothing, svg } from "lit-html";
 import type { TemplateResult } from "lit-html";
 import { lineCells } from "../../core/grid.ts";
 import type { Point } from "../../core/grid.ts";
+import { TOOL_KEYS } from "../../core/shortcuts.ts";
 import { t } from "../../i18n/t.ts";
 import { tapCancel, tapEnd, tapStart } from "./tap.ts";
 
@@ -86,8 +87,12 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
               ? html`<span class="palette-group">${item.group}</span>`
               : null}
             <label class="tool">
-              <input type="radio" name="tool" value=${item.id} ?checked=${i === 0} />
-              <span><span aria-hidden="true">${item.icon}</span> ${item.label}</span>
+              <input type="radio" name="tool" value=${item.id} ?checked=${i === 0} aria-keyshortcuts=${toolKey(i) ?? nothing} />
+              <span
+                ><span aria-hidden="true">${item.icon}</span> ${item.label}${toolKey(i) === null
+                  ? nothing
+                  : html`<kbd class="kbd-only tool-key" aria-hidden="true">${toolKey(i)}</kbd>`}</span
+              >
             </label>
           `,
         )}
@@ -112,6 +117,11 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
       </div>
     </form>
   `;
+}
+
+/** The digit that selects the tool (M33, core/shortcuts.ts): 1–9, then 0; null for further tools. */
+function toolKey(index: number): string | null {
+  return index < TOOL_KEYS ? String((index + 1) % 10) : null;
 }
 
 function stepper(label: string, value: number, size: { min: number; max: number }, set: (value: number) => void) {

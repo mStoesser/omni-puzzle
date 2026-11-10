@@ -11,11 +11,13 @@ import { t, tn } from "../../i18n/t.ts";
 import { leaderboardOutcome, leaderboardSection } from "../components/leaderboard.ts";
 import type { LeaderboardActions, LeaderboardModel, LeaderboardViewer } from "../components/leaderboard.ts";
 import { reportDialog } from "../components/report-dialog.ts";
+import { shortcutsButton } from "../components/shortcuts-dialog.ts";
 import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
 import { iconButton, popoverMenu, sheet, stat, typeVars } from "../components/ui.ts";
 import type { MenuItem } from "../components/ui.ts";
 import { icon } from "../icons.ts";
 import type { IconName } from "../icons.ts";
+import { buttonShortcut } from "../keyboard.ts";
 
 /** Where the puzzle comes from: built-in example, share link, published, own library, or test play from the editor. */
 export type PlayOrigin = "example" | "shared" | "published" | "own" | "test";
@@ -78,6 +80,7 @@ export type PlayViewActions = {
   toggleLike(): void;
   rate(value: number): void;
   openReport(): void;
+  openShortcuts(): void;
   report: ReportDialogActions;
   leaderboard: LeaderboardActions;
 };
@@ -125,11 +128,11 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
         <nav class="play-controls ${showUndo ? "" : "single"}" aria-label=${t("playControls")}>
           ${showUndo
             ? html`
-                ${control("undo", t("undo"), actions.undo, !canUndo(session))}
-                ${control("redo", t("redo"), actions.redo, !canRedo(session))}
+                ${control("undo", t("undo"), actions.undo, !canUndo(session), "undo")}
+                ${control("redo", t("redo"), actions.redo, !canRedo(session), "redo")}
               `
             : nothing}
-          ${control("restart", t("restart"), actions.restart, session.history.length === 1)}
+          ${control("restart", t("restart"), actions.restart, session.history.length === 1, "restart")}
         </nav>
       </div>
       <aside class="play-side" aria-label=${t("playInfo")}>
@@ -156,6 +159,7 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
               ${icon("pencil", 18)}${t("playRemixTemplate")}
             </button>`
           : nothing}
+        ${options.embedded ? nothing : shortcutsButton(actions.openShortcuts)}
       </aside>
     </div>
 
@@ -186,8 +190,11 @@ function levelBox(levels: readonly PlayLevel[]) {
   </section>`;
 }
 
-function control(name: IconName, text: string, onClick: () => void, disabled: boolean) {
-  return html`<button class="play-control" ?disabled=${disabled} @click=${onClick}>${icon(name, 22)}<span>${text}</span></button>`;
+function control(name: IconName, text: string, onClick: () => void, disabled: boolean, shortcut: "undo" | "redo" | "restart") {
+  const keys = buttonShortcut(shortcut);
+  return html`<button class="play-control" title="${text} (${keys.hint})" aria-keyshortcuts=${keys.aria} ?disabled=${disabled} @click=${onClick}>
+    ${icon(name, 22)}<span>${text}</span>
+  </button>`;
 }
 
 

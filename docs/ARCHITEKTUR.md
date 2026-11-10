@@ -1023,6 +1023,25 @@ Solver und Daten bleiben unberührt.
 - **Reihenfolge beim Ausrollen:** Die App fragt `preview_data` ab; ohne die Migration schlägt die Galerie-Abfrage fehl.
   Also erst `0014_preview.sql` auf `dev` und `prod` einspielen, dann pushen.
 
+### Tastenkürzel (M33)
+
+- **Zuordnung** (`core/shortcuts.ts`, rein und getestet): `shortcutFor(taste, kontext, mac)` mit den Kontexten Spiel,
+  Editor und Probespielen im Editor. Strg bzw. Cmd + Z rückgängig, Strg Y oder Strg Umschalt Z wiederholen (Mac:
+  Cmd Umschalt Z), R Neustart (Spiel), Ziffern 1–9 und 0 Werkzeug (Editor), P Bauen/Probespielen, „?“ Übersicht.
+  Mit Alt nie: AltGr meldet auf vielen Tastaturen Strg + Alt.
+- **Ein Listener** am `document` (`main.ts`, `onShortcutKey`), aktiv nur in den Fokus-Ansichten mit Spiel oder Editor.
+  Er greift nicht, wenn das Spielfeld die Taste schon verarbeitet hat (`defaultPrevented`: Pfeile, WASD, Enter auf einer
+  Zelle), in Textfeldern, Auswahllisten und editierbarem Inhalt (`keysStayInTarget`; Textfelder behalten ihr eigenes
+  Rückgängig) und solange ein Dialog, Sheet oder Menü offen ist.
+- **Neustart per R** fragt nach (`confirm`), der Knopf nicht: Eine Taste ist schnell versehentlich gedrückt, und ein
+  Neustart verwirft den Verlauf.
+- **Werkzeuge** sind native Radiobuttons im Grid-Editor; die Ziffer setzt den n-ten auf `checked`. Der Quiz-Editor hat
+  keine Werkzeuge, dort tun Ziffern nichts.
+- **Anzeige:** Die Übersicht (`ui/components/shortcuts-dialog.ts`) listet nur, was im Kontext wirkt, mit „Strg“ bzw. „⌘“
+  aus i18n (`keyCtrl`). Knöpfe tragen `aria-keyshortcuts` und das Kürzel im `title`. Der Knopf „Tastenkürzel“ und die
+  Ziffern an den Werkzeugen erscheinen nur bei `(hover: hover) and (pointer: fine)` (Klasse `.kbd-only`), also nicht
+  auf Handys und Tablets.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
