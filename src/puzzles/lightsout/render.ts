@@ -8,8 +8,9 @@ import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import { PIECE_ICON_CSS, hasPieceIcon, pieceIcon } from "../../ui/piece-icons.ts";
 import type { Palette } from "../../ui/palette.ts";
+import { previewSvg } from "../../ui/preview.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
-import { height, isCell, lightsOn, width } from "./logic.ts";
+import { height, initState, isCell, lightsOn, width } from "./logic.ts";
 import type { LightsOutData, LightsOutMove, LightsOutState } from "./logic.ts";
 
 type Ctx = PlayContext<LightsOutData, LightsOutState, LightsOutMove>;
@@ -160,4 +161,9 @@ function keydown(e: KeyboardEvent, data: LightsOutData, x: number, y: number, ta
   next.setAttribute("tabindex", "0");
   next.focus();
   focused = ny * width(data) + nx;
+}
+
+/** Card preview (M32): the starting position. */
+export function renderPreview(data: LightsOutData, theme: PuzzleTheme | undefined) {
+  return previewSvg([-PAD, -PAD, width(data) * CELL + 2 * PAD, height(data) * CELL + 2 * PAD], boardLayers(data, initState(data), { theme }));
 }

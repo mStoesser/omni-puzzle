@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { SokobanData, SokobanMove, SokobanState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { sokobanRules } from "./rules.ts";
 
 export const sokoban: PuzzleType<SokobanData, SokobanState, SokobanMove> = {
@@ -16,4 +16,5 @@ export const sokoban: PuzzleType<SokobanData, SokobanState, SokobanMove> = {
   themeParts: { board: "skPartBoard", line: "skPartLine", wall: "skPartWall", figure: "skPartFigure", piece: "skPartPiece", target: "skPartTarget", done: "skPartDone" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };

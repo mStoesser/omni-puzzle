@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { KlotskiData, KlotskiMove, KlotskiState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { klotskiRules } from "./rules.ts";
 
 export const klotski: PuzzleType<KlotskiData, KlotskiState, KlotskiMove> = {
@@ -16,4 +16,5 @@ export const klotski: PuzzleType<KlotskiData, KlotskiState, KlotskiMove> = {
   themeParts: { board: "klPartBoard", line: "klPartLine", piece: "klPartPiece", accent: "klPartAccent", target: "klPartTarget" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };

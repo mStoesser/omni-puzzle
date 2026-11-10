@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { PipesData, PipesMove, PipesState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { pipesRules } from "./rules.ts";
 
 export const pipes: PuzzleType<PipesData, PipesState, PipesMove> = {
@@ -16,4 +16,5 @@ export const pipes: PuzzleType<PipesData, PipesState, PipesMove> = {
   themeParts: { board: "ppPartBoard", line: "ppPartLine", wall: "ppPartWall", figure: "ppPartFigure", piece: "ppPartPiece", done: "ppPartDone" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };

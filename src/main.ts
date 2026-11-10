@@ -38,6 +38,8 @@ import type { ModerationItem } from "./core/moderation.ts";
 import * as chains from "./core/chains.ts";
 import * as dailies from "./core/daily.ts";
 import type { Daily } from "./core/daily.ts";
+import { fetchCardPreview } from "./core/preview.ts";
+import type { CardPreview } from "./core/preview.ts";
 import type { ChainDraft } from "./core/chains.ts";
 import type { ReportReason } from "./core/moderation.ts";
 import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
@@ -137,6 +139,7 @@ type AppState = {
   theme: ThemeChoice;
   language: LanguageChoice; // M28; the language in effect is language() from i18n/t.ts
   daily: Daily | "loading" | "failed"; // the puzzle of the day (M26), loaded on the home page and #/daily
+  dailyPreview: { id: string; preview: CardPreview | null } | null; // theme and preview for its card (M32)
   dailyDays: readonly string[]; // days whose puzzle was solved on this device (streak when signed out)
   savedThemes: readonly SavedTheme[]; // own theme templates on this device (M30)
 };
@@ -217,6 +220,7 @@ const store = createStore<AppState>({
   theme: readTheme(),
   language: readLanguageChoice(),
   daily: "loading",
+  dailyPreview: null,
   dailyDays: dailies.parseLocalDays(browserStore.get(DAILY_DAYS_KEY)),
   savedThemes: [],
 });
@@ -474,11 +478,23 @@ async function loadDaily(): Promise<Daily | null> {
   try {
     const daily = await dailies.fetchDaily(api);
     patch({ daily });
+    if (daily.puzzle) void loadDailyPreview(daily.puzzle.id);
     return daily;
   } catch (error) {
     console.warn("daily", error);
     if (typeof store.get().daily === "string") patch({ daily: "failed" });
     return null;
+  }
+}
+
+/** Theme and preview for the home card; not awaited, the card shows the type symbol until then. */
+async function loadDailyPreview(id: string) {
+  if (!api || store.get().dailyPreview?.id === id) return;
+  try {
+    const preview = await fetchCardPreview(api, id);
+    patch({ dailyPreview: { id, preview } });
+  } catch (error) {
+    console.warn("daily preview", error); // only a picture: try again with the next load
   }
 }
 
@@ -522,7 +538,10 @@ function homeDaily(state: AppState): HomeDaily | null {
   if (!api || state.daily === "failed") return null;
   if (state.daily === "loading") return { status: "loading" };
   const now = dailyNow(state)!;
-  return state.daily.puzzle ? { status: "ready", puzzle: state.daily.puzzle, solved: now.solved, streak: now.streak } : { status: "none" };
+  const { puzzle } = state.daily;
+  if (!puzzle) return { status: "none" };
+  const preview = state.dailyPreview?.id === puzzle.id ? state.dailyPreview.preview : null;
+  return { status: "ready", puzzle, solved: now.solved, streak: now.streak, preview };
 }
 
 // --- Likes and ratings ---

@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { IceData, IceMove, IceState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { iceRules } from "./rules.ts";
 
 export const ice: PuzzleType<IceData, IceState, IceMove> = {
@@ -16,4 +16,5 @@ export const ice: PuzzleType<IceData, IceState, IceMove> = {
   themeParts: { board: "icePartBoard", line: "icePartLine", wall: "icePartWall", figure: "icePartFigure", accent: "icePartAccent", target: "icePartTarget", done: "icePartDone" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };

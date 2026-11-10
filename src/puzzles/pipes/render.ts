@@ -7,6 +7,7 @@ import type { MessageKey } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import type { Palette } from "../../ui/palette.ts";
+import { previewSvg } from "../../ui/preview.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
 import { BIT, canTurn, connected, currentMasks, height, initState, isFixed, maskAt, width } from "./logic.ts";
 import type { PipesData, PipesMove, PipesState } from "./logic.ts";
@@ -200,4 +201,9 @@ function keydown(e: KeyboardEvent, data: PipesData, x: number, y: number, turn: 
   next.setAttribute("tabindex", "0");
   next.focus();
   focused = ny * width(data) + nx;
+}
+
+/** Card preview (M32): the starting position. */
+export function renderPreview(data: PipesData, theme: PuzzleTheme | undefined) {
+  return previewSvg([-PAD, -PAD, width(data) * CELL + 2 * PAD, height(data) * CELL + 2 * PAD], boardLayers(data, initState(data), { theme }));
 }

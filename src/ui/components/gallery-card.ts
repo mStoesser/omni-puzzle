@@ -2,6 +2,8 @@ import { html, nothing } from "lit-html";
 import type { ChainItem } from "../../core/chains.ts";
 import type { GalleryItem } from "../../core/gallery.ts";
 import { averageRating, formatAverage } from "../../core/reactions.ts";
+import { previewData } from "../../core/preview.ts";
+import type { PreviewSource } from "../../core/preview.ts";
 import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { t, tn } from "../../i18n/t.ts";
@@ -10,10 +12,19 @@ import { timeAgo } from "../time.ts";
 import { langBadge, statusBadge, typeBadge, typeVars } from "./ui.ts";
 
 /**
- * Placeholder preview: a grid with the type symbol. The puzzles themselves are only rendered when played.
- * With a theme (M29) the grid takes the board's colors, and two parts show the piece and target colors.
+ * Preview of a puzzle (M32): its starting position, drawn by the type's renderPreview. Without preview data (a quiz,
+ * a card loaded before M32) or if the data cannot be drawn, a placeholder: a grid with the type symbol; with a
+ * theme (M29) the grid takes the board's colors, and two parts show the piece and target colors.
+ * `draft`: the source is an editor draft from the library (may have problems).
  */
-export function thumb(type: AnyPuzzleType | undefined, size: "list" | "tile", theme?: PuzzleTheme | null) {
+export function thumb(
+  type: AnyPuzzleType | undefined,
+  size: "list" | "tile",
+  theme?: PuzzleTheme | null,
+  preview?: { source: PreviewSource | null; draft?: boolean },
+) {
+  const board = previewBoard(type, theme ?? undefined, preview);
+  if (board) return html`<span class="thumb ${size} has-preview" style=${typeVars(type)} aria-hidden="true">${board}</span>`;
   const colors = theme && type?.themeRoles ? theme.colors : null;
   const style = colors
     ? `${typeVars(type)};--thumb-board:${colors.board};--thumb-line:${colors.line};--thumb-piece:${colors.piece};--thumb-target:${colors.target}`
@@ -22,6 +33,17 @@ export function thumb(type: AnyPuzzleType | undefined, size: "list" | "tile", th
     <span class="thumb-icon">${iconSvg(type?.icon ?? ICONS.puzzle, 14)}</span>
     ${colors ? html`<span class="thumb-part piece"></span><span class="thumb-part target"></span>` : nothing}
   </span>`;
+}
+
+function previewBoard(type: AnyPuzzleType | undefined, theme: PuzzleTheme | undefined, preview?: { source: PreviewSource | null; draft?: boolean }) {
+  if (!type?.renderPreview || !preview) return null;
+  const data = previewData(type, preview.source, { draft: preview.draft });
+  if (data === null) return null;
+  try {
+    return type.renderPreview(data, type.themeRoles ? theme : undefined);
+  } catch {
+    return null; // e.g. a draft the renderer cannot draw: the placeholder is good enough
+  }
 }
 
 function author(item: GalleryItem) {
@@ -37,7 +59,7 @@ function likes(item: GalleryItem) {
 export function galleryCard(item: GalleryItem, type: AnyPuzzleType | undefined, solved: boolean) {
   const average = averageRating(item.ratingSum, item.ratingCount);
   return html`<a class="puzzle-card" href="#/g/${item.id}">
-    ${thumb(type, "list", item.theme)}
+    ${thumb(type, "list", item.theme, { source: item.preview })}
     <span class="puzzle-card-body">
       <span class="puzzle-card-badges">${typeBadge(type, item.type)}${item.lang ? langBadge(item.lang) : nothing}${solved ? statusBadge("solved") : nothing}</span>
       <span class="puzzle-card-title">${item.title}</span>
@@ -60,7 +82,7 @@ export function galleryCard(item: GalleryItem, type: AnyPuzzleType | undefined, 
 /** A published puzzle as a grid tile (home page). */
 export function galleryTile(item: GalleryItem, type: AnyPuzzleType | undefined, solved: boolean) {
   return html`<a class="puzzle-tile" href="#/g/${item.id}">
-    ${thumb(type, "tile", item.theme)}
+    ${thumb(type, "tile", item.theme, { source: item.preview })}
     <span class="puzzle-tile-body">
       <span class="puzzle-tile-type typed" style=${typeVars(type)}>${type ? t(type.name) : item.type}</span>
       <span class="puzzle-card-title">${item.title}</span>

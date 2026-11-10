@@ -186,6 +186,7 @@ type PuzzleType<D, S, M> = {
   // --- Darstellung ---
   renderPlay(ctx: PlayContext<D, S, M>): TemplateResult;
   renderEditor(ctx: EditorContext<D>): TemplateResult;
+  renderPreview?(data: D, theme: PuzzleTheme | undefined): TemplateResult;  // M32: Startstellung für Karten
 };
 
 type SolveResult<M> =
@@ -999,6 +1000,28 @@ Solver und Daten bleiben unberührt.
 - **Editor:** „Figuren und Symbole“ unter der Theme-Auswahl, ein Raster aus 44-px-Radiobuttons je Icon-Rolle
   (Standard + Katalog), in den Farben des Themes. Vorlagen und eigene Themes werden an den Farben erkannt (`sameColors`),
   Icons zu wählen lässt die Auswahl also stehen. Die vorgefertigten Themes bringen passende Icons mit.
+
+### Vorschaubilder auf den Karten (M32)
+
+- **Plugin:** `renderPreview(data, theme)` zeichnet die Startstellung (`initState`) als `<svg>` mit `viewBox`, ohne feste
+  Größe, ohne Bedienung und Texte, `aria-hidden` (die Karte nennt Titel und Typ). Die Typen nutzen dafür ihre
+  `boardLayers` und `ui/preview.ts` (`previewSvg`); beim Laser fehlt die Inventar-Zeile. Das Nonogramm zeigt das leere
+  Gitter mit einem Punkt pro Hinweiszahl, die Zahlen wären auf der Karte unlesbar (und die Daten enthalten keine Lösung).
+  Jeder Typ mit `themeRoles` hat eine Vorschau, das Quiz keine; `src/puzzles/rules.test.ts` prüft das und zeichnet alle
+  Beispiele mit und ohne Theme.
+- **Server:** Die berechnete Spalte `preview_data(puzzles)` (`0014_preview.sql`, in PostgREST `select=preview:preview_data`)
+  liefert `{ typeVersion, data }`, aber `null` für Typen ohne Spielfeld (ein Quiz kann bis 128 KB Text haben) und für
+  Daten über 16 KB. Galerie, Startseite („Neu in der Galerie“) und Ketten-Schritte laden sie mit; die Karte „Rätsel des
+  Tages“ holt Theme und Vorschau mit einer eigenen kleinen Abfrage (`fetchCardPreview`), damit `daily_puzzle()` unverändert
+  bleibt und `#/daily` nicht wartet. Gemessen: eine Galerie-Seite mit 18 Rätseln wird um etwa 5 KB größer (gepackt < 1 KB).
+- **Prüfung** (`core/preview.ts`, rein): `previewData` schickt die Daten durch `loadDocument` (Migration, `validate`), in
+  „Meine Rätsel“ mit `draft: true` (`parseDraft`), damit auch Entwürfe mit Problemen eine Vorschau haben. Das Ergebnis wird
+  pro Quellobjekt gecacht. Was sich nicht laden oder zeichnen lässt (neuerer Typ, alte App, kaputte Daten), zeigt still das
+  Platzhalter-Raster von vorher.
+- **Wo:** Galerie-Karten (Liste und Raster), „Meine Rätsel“, Startseite, Ketten-Übersicht (nur offene und gelöste Schritte;
+  gesperrte verraten nichts), Karte „Rätsel des Tages“. Ketten-Karten in der Galerie behalten das Ketten-Symbol.
+- **Reihenfolge beim Ausrollen:** Die App fragt `preview_data` ab; ohne die Migration schlägt die Galerie-Abfrage fehl.
+  Also erst `0014_preview.sql` auf `dev` und `prod` einspielen, dann pushen.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

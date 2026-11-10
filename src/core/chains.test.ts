@@ -69,11 +69,14 @@ test("fetchChain maps the row and embeds the author", async () => {
 
 test("fetchStepPuzzles asks only for visible puzzles with valid ids", async () => {
   const calls: Call[] = [];
-  const map = await fetchStepPuzzles(fakeApi([{ status: 200, body: [{ id: id(1), title: "A", type: "laser" }] }], calls), [id(1), "evil),or=(x", id(2)]);
+  const body = [{ id: id(1), title: "A", type: "laser", theme: "night", preview: { typeVersion: 1, data: { width: 5 } } }];
+  const map = await fetchStepPuzzles(fakeApi([{ status: 200, body }], calls), [id(1), "evil),or=(x", id(2)]);
   const url = new URL(calls[0]!.url);
   assert.equal(url.searchParams.get("id"), `in.(${id(1)},${id(2)})`);
   assert.equal(url.searchParams.get("hidden"), "is.false");
-  assert.deepEqual([...map], [[id(1), { title: "A", type: "laser" }]]);
+  assert.match(url.searchParams.get("select")!, /preview:preview_data/);
+  // An invalid theme is dropped; the preview data is checked when it is drawn.
+  assert.deepEqual([...map], [[id(1), { title: "A", type: "laser", theme: null, preview: { typeVersion: 1, data: { width: 5 } } }]]);
   assert.equal((await fetchStepPuzzles(fakeApi([], []), [])).size, 0);
 });
 

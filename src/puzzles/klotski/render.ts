@@ -6,7 +6,8 @@ import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import type { Palette } from "../../ui/palette.ts";
-import { blockOrigin, exitSpan, reachable } from "./logic.ts";
+import { previewSvg } from "../../ui/preview.ts";
+import { blockOrigin, exitSpan, initState, reachable } from "./logic.ts";
 import type { Block, KlotskiData, KlotskiMove, KlotskiState } from "./logic.ts";
 
 type Ctx = PlayContext<KlotskiData, KlotskiState, KlotskiMove>;
@@ -301,4 +302,11 @@ function cancelDrag(e: PointerEvent) {
   element.classList.remove("dragging");
   show(element, drag.from);
   drag = null;
+}
+
+/** Card preview (M32): the starting position. */
+export function renderPreview(data: KlotskiData, theme: PuzzleTheme | undefined) {
+  const state = initState(data);
+  const positions = data.blocks.map((_, i) => blockOrigin(data, state, i));
+  return previewSvg([-PAD, -PAD, data.width * CELL + 2 * PAD, data.height * CELL + 2 * PAD], boardLayers(data, positions, { theme }));
 }

@@ -10,7 +10,8 @@ import { CELL } from "../../ui/components/grid-editor.ts";
 import { tapCancel, tapEnd, tapStart } from "../../ui/components/tap.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import type { Palette } from "../../ui/palette.ts";
-import { cellAt, emitterColor, inventoryLeft, isTurnable, minVersion, targetCount, traceBeams } from "./logic.ts";
+import { previewSvg } from "../../ui/preview.ts";
+import { cellAt, emitterColor, initState, inventoryLeft, isTurnable, minVersion, targetCount, traceBeams } from "./logic.ts";
 import type { Color, LaserCell, LaserData, LaserMove, LaserState, Orientation, PlacedCell } from "./logic.ts";
 import { LASER_COLORS } from "./rules.ts";
 
@@ -359,4 +360,9 @@ export function describeCell(data: LaserData, x: number, y: number, state?: Lase
       return `${t(tool)}, ${orientationText(orientation)}`;
     }
   }
+}
+
+/** Card preview (M32): the starting position, without the inventory row above the board. */
+export function renderPreview(data: LaserData, theme: PuzzleTheme | undefined) {
+  return previewSvg([-PAD, -PAD, data.width * CELL + 2 * PAD, data.height * CELL + 2 * PAD], boardLayers(data, initState(data), { theme }));
 }

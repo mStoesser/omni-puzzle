@@ -3,8 +3,9 @@ import { formatRoute } from "../../core/router.ts";
 import { DEFAULT_FILTER } from "../../core/gallery.ts";
 import type { GalleryItem } from "../../core/gallery.ts";
 import type { DailyPuzzle } from "../../core/daily.ts";
+import type { CardPreview } from "../../core/preview.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
-import { galleryTile } from "../components/gallery-card.ts";
+import { galleryTile, thumb } from "../components/gallery-card.ts";
 import { avatar } from "../components/nav.ts";
 import type { NavAccount } from "../components/nav.ts";
 import { sheet, statusBadge, typeBadge, typeTile, typeVars } from "../components/ui.ts";
@@ -22,7 +23,7 @@ export type HomeGallery = { newest: readonly GalleryItem[]; solved(contentKey: s
 export type HomeDaily =
   | { status: "loading" }
   | { status: "none" } // nothing to choose from (empty gallery)
-  | { status: "ready"; puzzle: DailyPuzzle; solved: boolean; streak: number };
+  | { status: "ready"; puzzle: DailyPuzzle; solved: boolean; streak: number; preview: CardPreview | null }; // preview: M32
 
 export type HomeViewModel = {
   types: readonly AnyPuzzleType[];
@@ -94,12 +95,12 @@ function dailyCard(daily: HomeDaily, types: readonly AnyPuzzleType[]) {
       </p>
     </section>`;
   }
-  const { puzzle, solved, streak } = daily;
+  const { puzzle, solved, streak, preview } = daily;
   const type = types.find((x) => x.id === puzzle.type);
   return html`<a class="daily-card typed" style=${typeVars(type)} href="#/daily">
     ${head}
     <span class="daily-card-main">
-      ${typeTile(type)}
+      ${preview?.source ? thumb(type, "list", preview.theme, { source: preview.source }) : typeTile(type)}
       <span class="daily-card-body">
         <span class="daily-card-title">${puzzle.title}</span>
         <span class="daily-card-badges">

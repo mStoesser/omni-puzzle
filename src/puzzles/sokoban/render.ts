@@ -9,8 +9,9 @@ import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import { PIECE_ICON_CSS, hasPieceIcon, pieceIcon } from "../../ui/piece-icons.ts";
 import type { Palette } from "../../ui/palette.ts";
+import { previewSvg } from "../../ui/preview.ts";
 import { directionKey, directionPad, swipeCancel, swipeEnd, swipeStart } from "../../ui/components/swipe.ts";
-import { boxesOnGoals, cellPoint, charAt, height, insideCells, neighbour, prepare, walkPath, width } from "./logic.ts";
+import { boxesOnGoals, cellPoint, charAt, height, initState, insideCells, neighbour, prepare, walkPath, width } from "./logic.ts";
 import type { Board, SokobanData, SokobanMove, SokobanState } from "./logic.ts";
 
 type Ctx = PlayContext<SokobanData, SokobanState, SokobanMove>;
@@ -252,4 +253,9 @@ function figure(board: Board, cell: number, icon: PieceIcon | undefined) {
       : svg`<circle class="sk-body" cx="50" cy="50" r="30"></circle>
           <circle class="sk-face" cx="50" cy="44" r="13"></circle>`}
   </g>`;
+}
+
+/** Card preview (M32): the starting position. */
+export function renderPreview(data: SokobanData, theme: PuzzleTheme | undefined) {
+  return previewSvg([-PAD, -PAD, width(data) * CELL + 2 * PAD, height(data) * CELL + 2 * PAD], boardLayers(data, initState(data), { theme }));
 }

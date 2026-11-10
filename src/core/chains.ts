@@ -2,7 +2,11 @@ import { ApiError, apiErrorText } from "./api.ts";
 import type { Api } from "./api.ts";
 import { afterCursor, PAGE_SIZE } from "./gallery.ts";
 import type { GalleryCursor, GallerySort } from "./gallery.ts";
+import { parsePreviewSource } from "./preview.ts";
+import type { PreviewSource } from "./preview.ts";
 import { PUBLISHED_ID } from "./published.ts";
+import { parseTheme } from "./puzzle-theme.ts";
+import type { PuzzleTheme } from "./puzzle-theme.ts";
 import type { MessageKey } from "../i18n/t.ts";
 
 // Puzzle chains (M24): an ordered list of published puzzles with a text before each one and a closing text.
@@ -41,7 +45,8 @@ export type ChainItem = Pick<Chain, "id" | "title" | "author" | "playCount" | "p
 export type OwnChain = Pick<Chain, "id" | "title" | "description" | "playCount" | "publishedAt" | "hidden"> & { stepCount: number };
 
 /** What the chain page needs of a step's puzzle; `null` = withdrawn, or hidden by moderation. */
-export type StepPuzzle = { title: string; type: string };
+/** `theme` and `preview` (M32) for the step's card preview. */
+export type StepPuzzle = { title: string; type: string; theme: PuzzleTheme | null; preview: PreviewSource | null };
 
 const KEY = /^[0-9a-f]{64}$/;
 
@@ -98,10 +103,10 @@ export async function fetchChain(api: Api, id: string): Promise<Chain | null> {
 export async function fetchStepPuzzles(api: Api, ids: readonly string[]): Promise<Map<string, StepPuzzle>> {
   const valid = ids.filter((id) => PUBLISHED_ID.test(id));
   if (valid.length === 0) return new Map();
-  const rows = await api.rest<{ id: string; title: string; type: string }[]>("puzzles", {
-    query: { id: `in.(${valid.join(",")})`, hidden: "is.false", select: "id,title,type" },
+  const rows = await api.rest<{ id: string; title: string; type: string; theme?: unknown; preview?: unknown }[]>("puzzles", {
+    query: { id: `in.(${valid.join(",")})`, hidden: "is.false", select: "id,title,type,theme:doc->meta->theme,preview:preview_data" },
   });
-  return new Map(rows.map((r) => [r.id, { title: r.title, type: r.type }]));
+  return new Map(rows.map((r) => [r.id, { title: r.title, type: r.type, theme: parseTheme(r.theme), preview: parsePreviewSource(r.preview) }]));
 }
 
 export type StepState = "solved" | "open" | "locked" | "unavailable";

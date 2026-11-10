@@ -707,16 +707,27 @@ Entschieden (11/2026):
 - **QR-Code** ist vorgezogen und kommt mit „Teilen aus dem Spiel“, weil beide das Teilen-Sheet betreffen.
 
 ### M32 – Vorschaubilder auf den Karten
-- [ ] Plugin-Schnittstelle: optional `renderPreview(data, theme)` zeichnet die Startstellung als statisches SVG ohne
+- [x] Plugin-Schnittstelle: optional `renderPreview(data, theme)` zeichnet die Startstellung als statisches SVG ohne
   Bedienung, ARIA versteckt (bewusste Core-Erweiterung, Regel 5). Alle Typen mit Spielfeld setzen sie um; das Quiz behält
   das Typ-Symbol.
-- [ ] Galerie-Abfrage um `doc->data` erweitern. Vorher messen, wie viel größer eine Galerie-Seite wird; bei zu großen
+  (Über die `boardLayers` der Typen und `ui/preview.ts`. Das Nonogramm zeigt das leere Gitter mit einem Punkt pro
+  Hinweiszahl. Ein Test prüft, dass genau die Typen mit `themeRoles` eine Vorschau haben, und zeichnet alle Beispiele.)
+- [x] Galerie-Abfrage um `doc->data` erweitern. Vorher messen, wie viel größer eine Galerie-Seite wird; bei zu großen
   Dokumenten (Grenze im Meilenstein festlegen) bleibt das Platzhalter-Raster.
-- [ ] Vorschau auf Galerie-Karten (Liste und Raster), in „Meine Rätsel“, auf der Startseite („Neu in der Galerie“),
+  (Statt `doc->data` die berechnete Spalte `preview_data` aus `0014_preview.sql`: `null` für das Quiz (bis 128 KB Text)
+  und über 16 KB. Gemessen: 18 Rätsel ≈ 5 KB mehr, gepackt < 1 KB.)
+- [x] Vorschau auf Galerie-Karten (Liste und Raster), in „Meine Rätsel“, auf der Startseite („Neu in der Galerie“),
   in Ketten (Übersicht, Karten) und auf der Karte „Rätsel des Tages“; das Theme des Rätsels wird übernommen.
-- [ ] Ungültige oder unbekannte Daten (neuerer Typ, alte App) fallen still auf das Platzhalter-Raster zurück.
-- [ ] Leistung: lange Galerie-Listen auf dem Handy flüssig (ggf. Vorschau erst beim Sichtbarwerden zeichnen).
+  (Ketten: in der Übersicht nur offene und gelöste Schritte, gesperrte verraten nichts; Ketten-Karten behalten das
+  Ketten-Symbol. Das Tagesrätsel lädt Theme und Vorschau mit einer eigenen kleinen Abfrage nach.)
+- [x] Ungültige oder unbekannte Daten (neuerer Typ, alte App) fallen still auf das Platzhalter-Raster zurück.
+  (`core/preview.ts` schickt alles durch `loadDocument`; „Meine Rätsel“ mit `draft: true`, also auch Entwürfe mit Problemen.)
+- [x] Leistung: lange Galerie-Listen auf dem Handy flüssig (ggf. Vorschau erst beim Sichtbarwerden zeichnen).
+  (16 Vorschauen ≈ 1 250 SVG-Knoten; verzögertes Zeichnen war nicht nötig. Auf dem Handy noch prüfen.)
+- [x] Migration `0014_preview.sql` auf `dev` und `prod` einspielen, **vor** dem Push (die App fragt `preview_data` ab).
 - [ ] Ansichten bei 390 und 1280 px, App hell und dunkel, Handy-Test.
+  (Im Browser gegen ein nachgebautes Backend geprüft (Headless Chrome, 390 und 1280 px, hell und dunkel): Galerie mit
+  allen Typen mit und ohne Theme, Startseite, Tagesrätsel, „Meine Rätsel“ mit Entwürfen, Ketten-Übersicht. Handy-Test offen.)
 
 ### M33 – Tastenkürzel
 - [ ] Spiel: Strg Z (Rückgängig), Strg Y bzw. Strg Umschalt Z (Wiederholen), R (Neustart, mit Bestätigung wie der Knopf).

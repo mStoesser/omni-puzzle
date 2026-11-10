@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { NonogramData, NonogramMove, NonogramState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { nonogramRules } from "./rules.ts";
 
 export const nonogram: PuzzleType<NonogramData, NonogramState, NonogramMove> = {
@@ -17,4 +17,5 @@ export const nonogram: PuzzleType<NonogramData, NonogramState, NonogramMove> = {
   themeParts: { board: "ngPartBoard", line: "ngPartLine", piece: "ngPartPiece", done: "ngPartDone" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };

@@ -49,7 +49,7 @@ function libraryEntry({ record, type, playable }: LibraryItem, actions: LibraryV
   ];
   return html`
     <li class="library-card">
-      ${thumb(type, "list", parseTheme(meta.theme))}
+      ${thumb(type, "list", parseTheme(meta.theme), { source: record.doc, draft: true })}
       <div class="library-card-body">
         <a class="library-card-link" href="#/edit/${record.id}">${title}</a>
         <span class="library-card-sub">

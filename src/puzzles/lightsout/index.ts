@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { LightsOutData, LightsOutMove, LightsOutState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { lightsOutRules } from "./rules.ts";
 
 export const lightsOut: PuzzleType<LightsOutData, LightsOutState, LightsOutMove> = {
@@ -16,4 +16,5 @@ export const lightsOut: PuzzleType<LightsOutData, LightsOutState, LightsOutMove>
   themeParts: { board: "loPartBoard", line: "loPartLine", piece: "loPartPiece", done: "loPartDone" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };

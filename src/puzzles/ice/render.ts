@@ -9,8 +9,9 @@ import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import { PIECE_ICON_CSS, hasPieceIcon, pieceIcon } from "../../ui/piece-icons.ts";
 import type { Palette } from "../../ui/palette.ts";
+import { previewSvg } from "../../ui/preview.ts";
 import { directionKey, directionPad, swipeCancel, swipeEnd, swipeStart } from "../../ui/components/swipe.ts";
-import { dirTowards, isSolved } from "./logic.ts";
+import { dirTowards, initState, isSolved } from "./logic.ts";
 import type { IceCell, IceData, IceMove, IceState } from "./logic.ts";
 
 type Ctx = PlayContext<IceData, IceState, IceMove>;
@@ -192,4 +193,9 @@ function figure(p: IceState, icon: PieceIcon | undefined) {
       : svg`<circle class="ice-body" cx="50" cy="50" r="30"></circle>
           <ellipse class="ice-belly" cx="50" cy="58" rx="16" ry="17"></ellipse>`}
   </g>`;
+}
+
+/** Card preview (M32): the starting position. */
+export function renderPreview(data: IceData, theme: PuzzleTheme | undefined) {
+  return previewSvg([-PAD, -PAD, data.width * CELL + 2 * PAD, data.height * CELL + 2 * PAD], boardLayers(data, initState(data), { theme }));
 }

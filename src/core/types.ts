@@ -151,6 +151,12 @@ export type PuzzleType<D, S, M> = PuzzleRules<D, S, M> & {
 
   renderPlay(ctx: PlayContext<D, S, M>): TemplateResult;
   renderEditor(ctx: EditorContext<D>): TemplateResult;
+  /**
+   * Preview for cards (M32): the starting position as a static <svg> that fills its box (viewBox, no fixed size),
+   * without controls or texts (the card has them), aria-hidden. Without it, the card shows the type symbol (quiz).
+   * Every type with themeRoles has one; supabase/migrations/0014_preview.sql sends data only for those.
+   */
+  renderPreview?(data: D, theme: PuzzleTheme | undefined): TemplateResult;
 };
 
 /** A puzzle type of unknown concrete types, as stored in the registry. */

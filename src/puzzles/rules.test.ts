@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { examples, examplesIn, registry } from "./index.ts";
 import { rulesRegistry } from "./rules.ts";
+import { THEME_PRESETS } from "../core/theme-presets.ts";
 import { paletteRoles } from "../ui/palette.ts";
 import type { Palette } from "../ui/palette.ts";
 import { PALETTE as ice } from "./ice/render.ts";
@@ -66,6 +67,25 @@ test("the puzzle of the day skips exactly the types without a leaderboard", () =
   const unranked = rulesRegistry.all().filter((t) => !t.ranking).map((t) => t.id).sort();
   assert.equal(lists.length, 2);
   for (const list of lists) assert.deepEqual(list, unranked, "update 0011_daily.sql in a new migration");
+});
+
+test("types with a board have a card preview, and the server sends preview data for exactly those", () => {
+  for (const type of registry.all()) assert.equal(typeof type.renderPreview === "function", Boolean(type.themeRoles), type.id);
+  const sql = readFileSync(new URL("../../supabase/migrations/0014_preview.sql", import.meta.url), "utf8");
+  const lists = [...sql.matchAll(/p\.type <> all \(array\[([^\]]*)\]\)/g)].map((m) => m[1]!.replaceAll("'", "").split(/,\s*/).sort());
+  const boardless = registry.all().filter((t) => !t.themeRoles).map((t) => t.id).sort();
+  assert.equal(lists.length, 1);
+  assert.deepEqual(lists[0], boardless, "update 0014_preview.sql in a new migration");
+});
+
+test("every card preview draws the examples' starting positions, with and without a theme", () => {
+  const theme = THEME_PRESETS[0]!.theme;
+  for (const { id, doc } of examples) {
+    const type = registry.get(doc.type)!;
+    if (!type.renderPreview) continue;
+    assert.ok(type.renderPreview(doc.data, undefined), id);
+    assert.ok(type.renderPreview(doc.data, theme), id);
+  }
 });
 
 test("examples have a title in every language; written ones are listed only in their language", () => {

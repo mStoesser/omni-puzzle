@@ -3,6 +3,8 @@ import { isLevel } from "./difficulty.ts";
 import type { Level } from "./difficulty.ts";
 import { isPuzzleLang } from "./types.ts";
 import type { PuzzleLang } from "./types.ts";
+import { parsePreviewSource } from "./preview.ts";
+import type { PreviewSource } from "./preview.ts";
 import { parseTheme } from "./puzzle-theme.ts";
 import type { PuzzleTheme } from "./puzzle-theme.ts";
 
@@ -31,6 +33,7 @@ export type GalleryItem = {
   level: Level | null;
   lang: PuzzleLang | null;
   theme: PuzzleTheme | null; // M29: colors of the board, for the card preview
+  preview: PreviewSource | null; // M32: starting position for the card; null for a quiz or very large data
   likeCount: number;
   playCount: number;
   ratingSum: number;
@@ -57,6 +60,7 @@ type Row = {
   difficulty: number | null;
   lang: string | null;
   theme?: unknown; // doc->meta->theme, untrusted
+  preview?: unknown; // preview_data(puzzles), untrusted
   like_count: number;
   play_count: number;
   rating_sum: number;
@@ -67,7 +71,7 @@ type Row = {
 };
 
 const SELECT =
-  "id,type,title,content_key,min_moves,difficulty,lang,theme:doc->meta->theme,like_count,play_count,rating_sum,rating_count," +
+  "id,type,title,content_key,min_moves,difficulty,lang,theme:doc->meta->theme,preview:preview_data,like_count,play_count,rating_sum,rating_count," +
   "published_at,hardness," +
   "author:profiles!puzzles_author_id_fkey(username)";
 
@@ -104,6 +108,7 @@ function toItem(row: Row): GalleryItem {
     level: isLevel(row.difficulty) ? row.difficulty : null,
     lang: isPuzzleLang(row.lang) ? row.lang : null,
     theme: parseTheme(row.theme),
+    preview: parsePreviewSource(row.preview),
     likeCount: row.like_count,
     playCount: row.play_count,
     ratingSum: row.rating_sum,

@@ -6,7 +6,8 @@ import { t } from "../../i18n/t.ts";
 import { CELL } from "../../ui/components/grid-editor.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import type { Palette } from "../../ui/palette.ts";
-import { blockOrigin, moveRange } from "./logic.ts";
+import { previewSvg } from "../../ui/preview.ts";
+import { blockOrigin, initState, moveRange } from "./logic.ts";
 import type { Block, RushHourData, RushHourMove, RushHourState } from "./logic.ts";
 
 type Ctx = PlayContext<RushHourData, RushHourState, RushHourMove>;
@@ -257,4 +258,9 @@ function resetDrag(element: SVGGraphicsElement) {
   element.removeAttribute("transform");
   element.classList.remove("dragging");
   drag = null;
+}
+
+/** Card preview (M32): the starting position. */
+export function renderPreview(data: RushHourData, theme: PuzzleTheme | undefined) {
+  return previewSvg([-PAD, -PAD, data.width * CELL + 2 * PAD, data.height * CELL + 2 * PAD], boardLayers(data, initState(data), { theme }));
 }

@@ -3,6 +3,7 @@ import type { Chain, ChainProgress, StepPuzzle } from "../../core/chains.ts";
 import type { Registry } from "../../core/registry.ts";
 import { t, tn } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
+import { thumb } from "../components/gallery-card.ts";
 import { reportDialog } from "../components/report-dialog.ts";
 import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
 import { iconButton, typeBadge } from "../components/ui.ts";
@@ -98,6 +99,7 @@ export function chainView(
         // Solved steps can be replayed, also those solved elsewhere once they are unlocked; the open one is next.
         const playable = complete || i <= progress.current!;
         const body = html`${head}
+          ${puzzle ? thumb(type, "list", puzzle.theme, { source: puzzle.preview }) : nothing}
           <span class="chain-step-body">
             <span class="chain-step-title">${puzzle?.title ?? ""}</span>
             <span class="chain-step-meta">

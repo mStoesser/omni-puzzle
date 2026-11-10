@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { LaserData, LaserMove, LaserState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { laserRules } from "./rules.ts";
 
 export const laser: PuzzleType<LaserData, LaserState, LaserMove> = {
@@ -15,4 +15,5 @@ export const laser: PuzzleType<LaserData, LaserState, LaserMove> = {
   themeParts: { board: "lsPartBoard", line: "lsPartLine", wall: "lsPartWall", figure: "lsPartFigure", piece: "lsPartPiece", target: "lsPartTarget", done: "lsPartDone", fixed: "lsPartFixed" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };

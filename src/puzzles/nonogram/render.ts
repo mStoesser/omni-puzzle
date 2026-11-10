@@ -5,6 +5,7 @@ import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import type { Palette } from "../../ui/palette.ts";
+import { previewSvg } from "../../ui/preview.ts";
 import { lineDone } from "./logic.ts";
 import type { Mark, NonogramData, NonogramMove, NonogramState } from "./logic.ts";
 
@@ -332,4 +333,37 @@ export function editorLayers(data: NonogramData, image: readonly string[], marke
     ${gridLines(data)}
     ${[...marked].map((i) => svg`<rect class="ng-mark" x=${(i % data.width) * U + 8} y=${Math.floor(i / data.width) * U + 8} width=${U - 16} height=${U - 16} rx="10"></rect>`)}
   </g>`;
+}
+
+// Card preview (M32): the empty grid with a dot per clue number. The numbers themselves would be unreadable on a card.
+const PREVIEW_STYLE = svg`<style>
+  ${paletteCss(PALETTE)}
+  .ng-pv-paper { fill: var(--ng-paper); }
+  .ng-pv-cells { fill: var(--ng-paper); stroke: var(--ng-line5); stroke-width: 6; }
+  .ng-pv-clue { fill: var(--ng-clue); }
+  .ng-pv .ng-line { stroke: var(--ng-line); stroke-width: 3; }
+  .ng-pv .ng-line.five { stroke: var(--ng-line5); stroke-width: 5; }
+</style>`;
+
+export function renderPreview(data: NonogramData, theme: PuzzleTheme | undefined) {
+  const left = Math.max(1, ...data.rows.map((c) => c.length)) * CLUE_X * U;
+  const top = Math.max(1, ...data.cols.map((c) => c.length)) * CLUE_Y * U;
+  const dot = (x: number, y: number) => svg`<circle class="ng-pv-clue" cx=${x} cy=${y} r="18"></circle>`;
+  const rowDots = data.rows.flatMap((clue, y) => clue.map((_, k) => dot(left - (clue.length - k - 0.5) * CLUE_X * U, top + (y + 0.5) * U)));
+  const colDots = data.cols.flatMap((clue, x) => clue.map((_, k) => dot(left + (x + 0.5) * U, top - (clue.length - k - 0.5) * CLUE_Y * U)));
+  const pad = 20;
+  const w = left + data.width * U;
+  const h = top + data.height * U;
+  return previewSvg(
+    [-pad, -pad, w + 2 * pad, h + 2 * pad],
+    svg`<g class="ng ng-pv" style=${paletteStyle(PALETTE, theme)}>
+      ${PREVIEW_STYLE}
+      <rect class="ng-pv-paper" x=${-pad} y=${-pad} width=${w + 2 * pad} height=${h + 2 * pad}></rect>
+      ${rowDots} ${colDots}
+      <g transform="translate(${left} ${top})">
+        <rect class="ng-pv-cells" width=${data.width * U} height=${data.height * U}></rect>
+        ${gridLines(data)}
+      </g>
+    </g>`,
+  );
 }

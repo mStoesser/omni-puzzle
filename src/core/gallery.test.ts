@@ -19,6 +19,7 @@ test("galleryQuery: filters and keyset cursor", () => {
   assert.equal(q.lang, "eq.en");
   assert.match(q.select!, /,lang,/);
   assert.match(q.select!, /,theme:doc->meta->theme,/); // M29: the card shows the board colors
+  assert.match(q.select!, /,preview:preview_data,/); // M32: starting position for the card
   assert.equal(q.difficulty, "eq.2");
   assert.equal(q.order, "like_count.desc,id.desc");
   assert.equal(q.or, '(like_count.lt."5",and(like_count.eq."5",id.lt.abc))');
@@ -42,6 +43,7 @@ test("fetchGalleryPage detects the next page with one extra row", async () => {
     hardness: 100003,
     author: i === 0 ? null : { username: "fan" },
     theme: i === 1 ? { colors: { board: "#ffffff", line: "#dddddd", wall: "#555555", figure: "#000000", piece: "#333333", accent: "#666666", target: "#222222", done: "#777777" } } : i === 0 ? { colors: "<script>" } : null,
+    preview: i === 1 ? { typeVersion: 1, data: { width: 6 } } : null,
   });
   const replies = [[row(0), row(1), row(2)], [row(2)]];
   const fetch = (async () => new Response(JSON.stringify(replies.shift()))) as typeof globalThis.fetch;
@@ -54,6 +56,8 @@ test("fetchGalleryPage detects the next page with one extra row", async () => {
   assert.equal(first.items[1]!.level, 1);
   assert.equal(first.items[0]!.theme, null); // invalid themes are ignored
   assert.equal(first.items[1]!.theme?.colors.board, "#ffffff");
+  assert.equal(first.items[0]!.preview, null);
+  assert.deepEqual(first.items[1]!.preview, { typeVersion: 1, data: { width: 6 } }); // checked when drawn
   assert.deepEqual(first.next, { value: 9, id: "id1" });
 
   const last = await fetchGalleryPage(api, filter, first.next, 2);

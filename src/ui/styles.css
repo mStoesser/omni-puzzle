@@ -1812,6 +1812,24 @@ a.icon-button {
   color: var(--type);
 }
 
+/* A real preview (M32): the board fills the box, keeping its aspect ratio; no placeholder grid. */
+.thumb.has-preview {
+  overflow: hidden;
+  background-image: none;
+  padding: 4px;
+}
+
+.thumb.tile.has-preview {
+  padding: 8px;
+}
+
+.thumb .preview-board {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 .tile-scroller {
   display: flex;
   gap: var(--kk-space-3);
@@ -4029,4 +4047,16 @@ a.daily-card:hover {
 .sync-status svg {
   flex: none;
   color: var(--kk-muted);
+}
+
+/* Previews on chain steps (M32): smaller than on gallery cards; locked steps show none (no spoilers). */
+.chain-step .thumb.list {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--kk-radius-sm);
+}
+
+.daily-card .thumb.list {
+  width: 64px;
+  height: 64px;
 }

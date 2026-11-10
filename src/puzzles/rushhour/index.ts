@@ -2,7 +2,7 @@ import { svg } from "lit-html";
 import type { PuzzleType } from "../../core/types.ts";
 import { problems, renderEditor } from "./editor.ts";
 import type { RushHourData, RushHourMove, RushHourState } from "./logic.ts";
-import { renderPlay } from "./render.ts";
+import { renderPlay, renderPreview } from "./render.ts";
 import { rushHourRules } from "./rules.ts";
 
 export const rushHour: PuzzleType<RushHourData, RushHourState, RushHourMove> = {
@@ -15,4 +15,5 @@ export const rushHour: PuzzleType<RushHourData, RushHourState, RushHourMove> = {
   themeParts: { board: "rhPartBoard", line: "rhPartLine", piece: "rhPartPiece", accent: "rhPartAccent", target: "rhPartTarget" },
   renderPlay,
   renderEditor,
+  renderPreview,
 };
