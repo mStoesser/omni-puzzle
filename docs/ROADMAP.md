@@ -723,11 +723,12 @@ Entschieden (11/2026):
 - [x] Ungültige oder unbekannte Daten (neuerer Typ, alte App) fallen still auf das Platzhalter-Raster zurück.
   (`core/preview.ts` schickt alles durch `loadDocument`; „Meine Rätsel“ mit `draft: true`, also auch Entwürfe mit Problemen.)
 - [x] Leistung: lange Galerie-Listen auf dem Handy flüssig (ggf. Vorschau erst beim Sichtbarwerden zeichnen).
-  (16 Vorschauen ≈ 1 250 SVG-Knoten; verzögertes Zeichnen war nicht nötig. Auf dem Handy noch prüfen.)
+  (16 Vorschauen ≈ 1 250 SVG-Knoten; verzögertes Zeichnen war nicht nötig. Auf dem Handy flüssig.)
 - [x] Migration `0014_preview.sql` auf `dev` und `prod` einspielen, **vor** dem Push (die App fragt `preview_data` ab).
-- [ ] Ansichten bei 390 und 1280 px, App hell und dunkel, Handy-Test.
+- [x] Ansichten bei 390 und 1280 px, App hell und dunkel, Handy-Test.
   (Im Browser gegen ein nachgebautes Backend geprüft (Headless Chrome, 390 und 1280 px, hell und dunkel): Galerie mit
-  allen Typen mit und ohne Theme, Startseite, Tagesrätsel, „Meine Rätsel“ mit Entwürfen, Ketten-Übersicht. Handy-Test offen.)
+  allen Typen mit und ohne Theme, Startseite, Tagesrätsel, „Meine Rätsel“ mit Entwürfen, Ketten-Übersicht. Handy-Test
+  erfolgreich.)
 
 ### M33 – Tastenkürzel
 - [ ] Spiel: Strg Z (Rückgängig), Strg Y bzw. Strg Umschalt Z (Wiederholen), R (Neustart, mit Bestätigung wie der Knopf).
