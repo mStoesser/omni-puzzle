@@ -697,25 +697,106 @@ und Regeln bleiben unberührt.
 
 ## Phase 4: Ideen aus dem Redesign
 Funktionen aus dem Entwurf (`docs/design-handoff/`), die in M15 bewusst weggelassen wurden.
-Vor dem Umsetzen jeweils entscheiden, ob sie kommen sollen.
-- [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche).
-- [ ] Zeitmessung beim Spielen (Stat-Kachel „Zeit“, im Gelöst-Sheet statt „Bestwert“). → vorgezogen nach M25.
-- [ ] Schwierigkeitsstufe im Editor anzeigen (Live-Prüfung und Prüf-Panel).
-- [ ] „Lösung abspielen“ im Prüf-Panel des Editors.
-- [ ] Teilen per QR-Code im Teilen-Sheet.
-- [ ] Töne & Vibration (Schalter unter Profil › Darstellung).
-- [ ] Status-Filter in „Meine Rätsel“ (Alle · Entwürfe · Geteilt · Gespeichert).
-- [ ] Status-Badges „In der Galerie“, „Per Link geteilt“ und „Gespeichert“ (dafür muss gespeichert werden,
-  ob ein Rätsel geteilt oder veröffentlicht wurde).
-- [ ] Karte „Weiterspielen“ auf der Startseite (zuletzt offenes Rätsel mit Zwischenstand speichern).
-- [ ] Suche nach Titel oder Autor (Startseite, Galerie, Desktop-Navigation).
-- [ ] Teilen direkt aus dem Spiel (Knopf im Spiel-Kopf bzw. im Mehr-Menü).
-- [ ] Tastenkürzel im Spiel und Editor (z. B. Strg Z, R, Werkzeuge per Ziffer) und ihre Anzeige.
-- [ ] Beschreibung (optional) schon im Editor statt erst beim Veröffentlichen.
-- [ ] Echte Vorschaubilder der Rätsel auf den Karten statt des Platzhalter-Rasters.
-- [ ] Linien-Symbole statt Emojis auch in den Rätsel-Editoren (Werkzeug-Raster, „Bild hinzufügen“ im Quiz).
+
+Entschieden (11/2026):
+- **Reihenfolge** nach Priorität: Vorschaubilder, Tastenkürzel, Zeit ausblenden und Beschreibung, Status in „Meine Rätsel“,
+  Weiterspielen, Suche, Teilen aus dem Spiel mit QR-Code, Linien-Symbole im Editor mit Tönen und Vibration.
+- **Hinweis-Knopf** kommt vorerst nicht (siehe „Irgendwann“); die Steuerleiste bleibt bei drei Schaltflächen.
+- **Status „Gespeichert“** entfällt vorerst; es gibt die Badges „In der Galerie“ und „Per Link geteilt“, sonst „Entwurf“.
+- **Weiterspielen:** Es gibt immer nur **einen** letzten Stand, und er wird nur lokal gespeichert (kein Sync).
+- **QR-Code** ist vorgezogen und kommt mit „Teilen aus dem Spiel“, weil beide das Teilen-Sheet betreffen.
+
+### M32 – Vorschaubilder auf den Karten
+- [ ] Plugin-Schnittstelle: optional `renderPreview(data, theme)` zeichnet die Startstellung als statisches SVG ohne
+  Bedienung, ARIA versteckt (bewusste Core-Erweiterung, Regel 5). Alle Typen mit Spielfeld setzen sie um; das Quiz behält
+  das Typ-Symbol.
+- [ ] Galerie-Abfrage um `doc->data` erweitern. Vorher messen, wie viel größer eine Galerie-Seite wird; bei zu großen
+  Dokumenten (Grenze im Meilenstein festlegen) bleibt das Platzhalter-Raster.
+- [ ] Vorschau auf Galerie-Karten (Liste und Raster), in „Meine Rätsel“, auf der Startseite („Neu in der Galerie“),
+  in Ketten (Übersicht, Karten) und auf der Karte „Rätsel des Tages“; das Theme des Rätsels wird übernommen.
+- [ ] Ungültige oder unbekannte Daten (neuerer Typ, alte App) fallen still auf das Platzhalter-Raster zurück.
+- [ ] Leistung: lange Galerie-Listen auf dem Handy flüssig (ggf. Vorschau erst beim Sichtbarwerden zeichnen).
+- [ ] Ansichten bei 390 und 1280 px, App hell und dunkel, Handy-Test.
+
+### M33 – Tastenkürzel
+- [ ] Spiel: Strg Z (Rückgängig), Strg Y bzw. Strg Umschalt Z (Wiederholen), R (Neustart, mit Bestätigung wie der Knopf).
+  Pfeiltasten und WASD aus M16 bleiben.
+- [ ] Editor: Rückgängig/Wiederholen, Werkzeuge per Ziffer (1–9 in der Reihenfolge des Werkzeug-Rasters), Umschalten
+  Bauen/Probespielen.
+- [ ] Kürzel lösen nicht aus, solange ein Textfeld, eine Auswahl oder ein Dialog den Fokus hat; auf macOS gilt Cmd statt Strg.
+- [ ] Anzeige: Übersicht der Kürzel per „?“ (Dialog) und als `title`/`aria-keyshortcuts` an den Knöpfen; auf reinen
+  Touch-Geräten ausgeblendet.
+- [ ] Zuordnung Taste → Aktion rein und getestet (`core/shortcuts.ts`).
+- [ ] Texte in `de.ts` und `en.ts`; Test am Desktop mit Tastatur, Handy-Test (keine Störung der Bedienung).
+
+### M34 – Zeit ausblenden und Beschreibung im Editor
+- [ ] Schalter „Laufende Zeit anzeigen“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard an.
+  Die Zeit wird weiter gemessen (Bestzeit, Ranglisten); nur die Stat-Kachel im Spiel verschwindet.
+- [ ] **Entscheidung im Meilenstein:** Zeigt der Gelöst-Dialog bei ausgeblendeter Zeit die Zeit trotzdem an, und
+  Ranglisten nach Zeit (Nonogramm)?
+- [ ] Editor: optionales Feld „Beschreibung“ im Prüf-Panel (`meta.description`, gleiche Längengrenze wie beim
+  Veröffentlichen); Teilen per Link nimmt sie mit, der Veröffentlichen-Dialog übernimmt sie als Vorbelegung.
+- [ ] Spiel zeigt die Beschreibung (z. B. unter dem Titel bzw. aufklappbar); ein Remix behält sie.
+- [ ] Texte in `de.ts` und `en.ts`; Handy-Test.
+
+### M35 – Status in „Meine Rätsel“
+- [ ] Am Bibliothekseintrag speichern, ob ein Rätsel per Link geteilt bzw. in der Galerie veröffentlicht wurde
+  (optionale Felder, keine neue IndexedDB-Version, falls vermeidbar). Gesetzt beim Kopieren/Senden des Links bzw. nach
+  erfolgreichem Veröffentlichen; bereits veröffentlichte Rätsel über `content_key` aus „Meine Veröffentlichungen“ nachtragen.
+- [ ] **Entscheidung im Meilenstein:** Werden die Status-Felder über M27 mitsynchronisiert?
+- [ ] Gilt der Status nach einer Änderung am Rätsel noch (anderer Inhaltsschlüssel = neues Rätsel)? Vorschlag:
+  „In der Galerie“ nur, solange der Inhalt dem veröffentlichten entspricht.
+- [ ] Status-Badges „In der Galerie“, „Per Link geteilt“, sonst „Entwurf“ (Optik laut `DESIGN_SPEC.md`).
+- [ ] Filter „Alle · Entwürfe · Geteilt“ als Chips; Filter in der Route, Wechsel ersetzt den Verlaufseintrag.
+- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Handy-Test.
+
+### M36 – Weiterspielen
+- [ ] Ein einziger letzter Stand, nur lokal (IndexedDB `meta` oder eigener Eintrag): Quelle bzw. Route des Rätsels,
+  Inhaltsschlüssel, Zugfolge (`path` aus M25) und bisherige Zeit; kein gespeicherter Zustand.
+- [ ] Fortsetzen spielt die Zugfolge mit `applyMove` nach; passt sie nicht mehr (Rätsel geändert, ungültiger Zug), startet
+  das Rätsel frisch und der Stand wird verworfen.
+- [ ] Gespeichert wird nach jedem Zug (gedrosselt) und beim Verlassen; beim Lösen wird der Stand gelöscht.
+- [ ] Gilt für alle Quellen: eigene Rätsel, Beispiele, Links, Galerie, Ketten-Schritte und Tagesrätsel. Ranglisten
+  und Tagesrangliste bleiben korrekt (Zeit und Zugfolge des fortgesetzten Versuchs).
+- [ ] Startseite: Karte „Weiterspielen“ mit Vorschau (aus M32), Typ, Titel und Zugzahl; auf dem Desktop neben
+  „Bau dein eigenes Rätsel“ laut Entwurf. Ohne Stand keine Karte.
+- [ ] Datenschutzerklärung prüfen (lokal gespeicherter Spielstand).
+- [ ] Texte in `de.ts` und `en.ts`; Handy-Test (App schließen und wieder öffnen).
+
+### M37 – Suche
+- [ ] Migration: `pg_trgm`-Index auf Titel und Anzeigename des Autors; Suche über die Galerie-Abfrage bzw. eine Funktion,
+  kombinierbar mit Typ-, Stufen- und Sprachfilter und der Keyset-Pagination.
+- [ ] **Entscheidung im Meilenstein:** Werden auch Ketten durchsucht? Gibt es eine lokale Suche in „Meine Rätsel“?
+- [ ] Route `#/gallery?q=…`; Eingabe gedrosselt, Mindestlänge (z. B. 2 Zeichen), Eingaben werden sicher escaped.
+- [ ] Suchfeld im Kopf der Startseite und in der Desktop-Navigation; beide führen in die Galerie.
+- [ ] Leere Ergebnisse mit Hinweis; ohne Backend ist die Suche ausgeblendet.
+- [ ] Migration auf `dev` und `prod` einspielen; live testen, Texte in `de.ts` und `en.ts`, Handy-Test.
+
+### M38 – Teilen aus dem Spiel und QR-Code
+- [ ] Teilen-Knopf im Spiel-Kopf bzw. im Mehr-Menü; je nach Quelle `#/g/<id>`, `#/c/<id>` oder `#/p/<code>`
+  (eigene Rätsel, Beispiele, Links). Tagesrätsel teilt den Galerie-Link.
+- [ ] Teilen-Sheet im Spiel: Linkfeld, Kopieren, Senden an … (Web Share API), QR-Code; Veröffentlichen nur im Editor.
+- [ ] `core/qr.ts`: eigener QR-Encoder (Byte-Modus, Reed-Solomon, Masken, Versionen bis 40), rein und mit bekannten
+  Referenzcodes getestet; Ausgabe als Modulraster, gezeichnet als SVG (kein neues Paket, Regel 1).
+- [ ] QR-Code im Teilen-Sheet (Spiel und Editor), hoher Kontrast unabhängig vom App-Theme, Ruhezone.
+- [ ] Lange Links (bis 2 000 Zeichen) auf dem Handy scannen; ab welcher Länge der Code zu dicht ist, festlegen und dann
+  einen Hinweis statt des Codes zeigen.
+- [ ] Texte in `de.ts` und `en.ts`; Handy-Test mit zwei Geräten.
+
+### M39 – Linien-Symbole im Editor, Töne und Vibration
+- [ ] Linien-Symbole statt Emojis in allen Rätsel-Editoren (Werkzeug-Raster, „Bild hinzufügen“ im Quiz), Stil wie
+  `ui/icons.ts` (viewBox 24×24, Strich 2, runde Enden), mit `aria-label`.
+- [ ] Töne per Web Audio erzeugt (keine Audiodateien): Zug, ungültiger Zug, gelöst; leise und kurz.
+- [ ] Vibration per `navigator.vibrate`, wo verfügbar (fehlt unter iOS); keine Fehlermeldung, wenn nicht.
+- [ ] Schalter „Töne & Vibration“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard aus.
+- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Handy-Test (Android und iOS).
 
 ## Irgendwann
+- [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
+  Stellung (Solver von einem Zustand aus, Core-Erweiterung), Typen ohne Solver (Nonogramm, Quiz), zählt eine Lösung
+  mit Hinweis für Ranglisten und Tagesrätsel, Solver-Laufzeit auf dem Handy (ggf. Web Worker).
+- [ ] Schwierigkeitsstufe im Editor anzeigen (Live-Prüfung und Prüf-Panel).
+- [ ] „Lösung abspielen“ im Prüf-Panel des Editors.
 - [ ] App-Store-Versionen per Capacitor. Vorher prüfen: neue Pakete (Regel 1), Entwicklerkonten und Kosten, Store-Regeln
   für nutzergenerierte Inhalte.
 - [ ] Escape-Modus mit Codes: Rätsel geben einen Code aus, der ein Schloss in der Kette öffnet (baut auf M24 auf).
