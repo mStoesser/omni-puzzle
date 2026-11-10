@@ -752,14 +752,24 @@ Entschieden (11/2026):
   echten Desktop und Handy-Test offen.)
 
 ### M34 – Zeit ausblenden und Beschreibung im Editor
-- [ ] Schalter „Laufende Zeit anzeigen“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard an.
+- [x] Schalter „Laufende Zeit anzeigen“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard an.
   Die Zeit wird weiter gemessen (Bestzeit, Ranglisten); nur die Stat-Kachel im Spiel verschwindet.
-- [ ] **Entscheidung im Meilenstein:** Zeigt der Gelöst-Dialog bei ausgeblendeter Zeit die Zeit trotzdem an, und
+  (Segment „Laufende Zeit im Spiel: Anzeigen · Ausblenden“, Schlüssel `knobelkiste-timer`. Ausgeblendet rendert die Seite
+  auch nicht mehr jede Sekunde neu.)
+- [x] **Entscheidung im Meilenstein:** Zeigt der Gelöst-Dialog bei ausgeblendeter Zeit die Zeit trotzdem an, und
   Ranglisten nach Zeit (Nonogramm)?
-- [ ] Editor: optionales Feld „Beschreibung“ im Prüf-Panel (`meta.description`, gleiche Längengrenze wie beim
+  (Entschieden: Nur die laufende Uhr verschwindet. Gelöst-Dialog, Bestzeit-Kachel und Ranglisten bleiben wie bisher.)
+- [x] Editor: optionales Feld „Beschreibung“ im Prüf-Panel (`meta.description`, gleiche Längengrenze wie beim
   Veröffentlichen); Teilen per Link nimmt sie mit, der Veröffentlichen-Dialog übernimmt sie als Vorbelegung.
-- [ ] Spiel zeigt die Beschreibung (z. B. unter dem Titel bzw. aufklappbar); ein Remix behält sie.
+  (Abweichung: nicht im Prüf-Panel, sondern als erstes Feld im Abschnitt „Beschreibung, Sprache und Aussehen“, wo schon
+  die anderen Angaben fürs Rätsel stehen. Höchstens 2 000 Zeichen, leer bleibt sie weg.)
+- [x] Spiel zeigt die Beschreibung (z. B. unter dem Titel bzw. aufklappbar); ein Remix behält sie.
+  (Eigener Kasten „Beschreibung“: mobil unter dem Spielfeld, auf dem Desktop oben in der Seitenleiste. Veröffentlichte
+  Rätsel zeigen ihre Beschreibung wie bisher bei den Galerie-Angaben; ein Remix übernimmt auch diese.)
 - [ ] Texte in `de.ts` und `en.ts`; Handy-Test.
+  (Texte da. Im Browser geprüft (Headless Chrome, 390 und 1280 px): Schalter, Kacheln bei Sokoban und Nonogramm mit und
+  ohne Zeit, Beschreibung im Editor nach dem Neuladen, im Spiel des eigenen Rätsels. Die Vorbelegung im
+  Veröffentlichen-Dialog ist nur im Code geprüft. Handy-Test offen.)
 
 ### M35 – Status in „Meine Rätsel“
 - [ ] Am Bibliothekseintrag speichern, ob ein Rätsel per Link geteilt bzw. in der Galerie veröffentlicht wurde

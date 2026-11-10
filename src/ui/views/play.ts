@@ -35,6 +35,7 @@ export type PlayViewModel = {
   minMoves: number | null; // shortest solution, if known
   lang?: PuzzleLang; // language of the puzzle's texts (M28); a remix keeps it
   theme?: PuzzleTheme; // colors of the board (M29); a remix keeps it
+  description?: string; // the creator's description (M34, meta.description); published puzzles show theirs in `published`
   level?: { index: number; total: number }; // position among the examples of its type (1-based)
   next?: { href: string; title: string; label?: string }; // the following example or chain step; `label` replaces the button text
   chain?: { story: string }; // a step of a chain: the text before the puzzle
@@ -45,7 +46,8 @@ export type PlayViewModel = {
 };
 
 /** Numbers beside the board: best results so far (null = not solved before) and the running time. */
-export type PlayStats = { bestMoves: number | null; bestTimeMs: number | null; timeMs: number };
+/** `showTimer` (M34): the player's setting; false hides only the running time, the solved sheet still shows it. */
+export type PlayStats = { bestMoves: number | null; bestTimeMs: number | null; timeMs: number; showTimer: boolean };
 
 export type PlayLevel = { href: string; title: string; current: boolean; solved: boolean; minMoves: number | null };
 
@@ -137,16 +139,22 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
       </div>
       <aside class="play-side" aria-label=${t("playInfo")}>
         ${showMoves
-          ? html`<div class="stats play-stats four">
+          ? html`<div class="stats play-stats ${stats.showTimer ? "four" : ""}">
               <span class="stats-live" aria-live="polite">${stat(t("moves"), moves)}</span> ${stat(t("playGoal"), model.minMoves ?? "–")}
-              ${stat(t("playBest"), best ?? "–")} ${stat(t("playTime"), formatDuration(stats.timeMs))}
+              ${stat(t("playBest"), best ?? "–")} ${stats.showTimer ? stat(t("playTime"), formatDuration(stats.timeMs)) : nothing}
             </div>`
           : type.ranking === "time"
-            ? html`<div class="stats play-stats two">
-                ${stat(t("playTime"), formatDuration(stats.timeMs))}
+            ? html`<div class="stats play-stats ${stats.showTimer ? "two" : "one"}">
+                ${stats.showTimer ? stat(t("playTime"), formatDuration(stats.timeMs)) : nothing}
                 ${stat(t("playBestTime"), stats.bestTimeMs === null ? "–" : formatDuration(stats.bestTimeMs))}
               </div>`
             : nothing}
+        ${model.description && !model.published
+          ? html`<section class="box play-description" aria-labelledby="play-description">
+              <h2 id="play-description" class="label">${t("playDescription")}</h2>
+              <p lang=${model.lang ?? nothing}>${model.description}</p>
+            </section>`
+          : nothing}
         <section class="play-how">
           <h2 class="desktop-only">${t("playHow")}</h2>
           <p class="play-hint">${t(type.description)}</p>

@@ -888,7 +888,7 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   kann (`examplesIn(lang)`), per Link bleibt jedes spielbar. Der Fortschritt hängt nicht am Titel.
 - **Sprache pro Rätsel:** `meta.lang` ist optional, alte App-Versionen verwerfen das Feld, also bleibt `format: 1`.
   Der Inhaltsschlüssel (`progressKey`) ignoriert `meta`, ändert sich also nicht. Neue Rätsel bekommen die
-  Oberflächensprache, alte ohne Sprache ebenso beim nächsten Speichern; im Editor ist sie unter „Sprache und Aussehen“ änderbar.
+  Oberflächensprache, alte ohne Sprache ebenso beim nächsten Speichern; im Editor ist sie unter „Sprache und Aussehen“ (seit M34 „Beschreibung, Sprache und Aussehen“) änderbar.
   Ein Remix übernimmt die Sprache.
 - **Galerie** (Migration `0013_lang.sql`): Spalte `puzzles.lang` (`de`, `en` oder null), `publish_puzzle` übernimmt
   `meta.lang` (neuer Parameter mit Default, die alte Edge Function läuft weiter). Filter `lang` in der Route
@@ -947,7 +947,7 @@ Solver und Daten bleiben unberührt.
   (Rohre). Lights Out (Glühbirne), Laser (gefülltes Ziel) und Eis (Figur auf dem Ziel) hatten schon eins.
 - **Vorgefertigte Themes** (`core/theme-presets.ts`): Garten, Meer, Pastell, Nacht, Weltraum. Gespeichert werden die
   Farben; der Editor erkennt ein Preset an ihnen, sonst zeigt er „Eigenes“.
-- **Ansichten:** Auswahl „Theme“ mit Farbvorschau im Editor-Abschnitt „Sprache und Aussehen“ (ganz unten, auf dem
+- **Ansichten:** Auswahl „Theme“ mit Farbvorschau im Editor-Abschnitt „Sprache und Aussehen“ (seit M34 „Beschreibung, Sprache und Aussehen“; ganz unten, auf dem
   Desktop als Karte unter „Einstellungen“); das Bau-Brett und Probespielen zeigen das
   Theme. Spiel, Ketten und Rätsel des Tages übernehmen es über `loadDocument`. Galerie-Karten laden
   `theme:doc->meta->theme` mit (keine Migration) und färben das Platzhalter-Raster, ebenso „Meine Rätsel“.
@@ -1041,6 +1041,18 @@ Solver und Daten bleiben unberührt.
   aus i18n (`keyCtrl`). Knöpfe tragen `aria-keyshortcuts` und das Kürzel im `title`. Der Knopf „Tastenkürzel“ und die
   Ziffern an den Werkzeugen erscheinen nur bei `(hover: hover) and (pointer: fine)` (Klasse `.kbd-only`), also nicht
   auf Handys und Tablets.
+
+### Zeit ausblenden und Beschreibung im Editor (M34)
+
+- **Laufende Zeit:** Einstellung pro Gerät im `localStorage` (`knobelkiste-timer` = `hidden`, sonst angezeigt;
+  `ui/play-settings.ts`), unter Profil › Darstellung. Ausgeblendet fehlt nur die Kachel „Zeit“ im Spiel; der Timer läuft
+  weiter (Bestzeit, Ranglisten, Gelöst-Dialog), die Seite rendert dann aber nicht mehr jede Sekunde neu.
+- **Beschreibung:** `meta.description` gab es in der Hülle schon (höchstens 2 000 Zeichen, gleich `PUBLISH.maxDescription`).
+  Der Editor hält sie im `EditorState` (nicht in der Undo-Historie, wie der Titel), `toDocument` übernimmt sie getrimmt
+  und lässt sie leer weg. Teilen per Link nimmt sie mit; der Inhaltsschlüssel ignoriert `meta`, sie ändert also weder
+  Fortschritt noch Duplikat-Erkennung. Beim Veröffentlichen ist sie die Vorbelegung des Dialogs und landet wie bisher in der
+  Spalte `description`; das veröffentlichte Dokument trägt sie nicht. Ein Remix übernimmt die Beschreibung aus dem
+  Dokument bzw. aus der Galerie-Spalte.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

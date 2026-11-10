@@ -113,6 +113,14 @@ test("readiness: sharing needs verification and a non-negative solver result", (
   assert.equal(readiness({ ...ok, hasSolver: false, solve: null }).canShare, true);
 });
 
+test("toDocument keeps a description (M34), trimmed, and leaves out a blank one", () => {
+  const session = createEditorSession({ n: 1 }, "Titel");
+  const info = { type: "x", typeVersion: 1, createdAt: "2026-11-10T10:00:00.000Z", verified: false, solve: null };
+  assert.equal(toDocument(session, { ...info, description: "  Ein Tipp.\n" }).meta.description, "Ein Tipp.");
+  assert.equal("description" in toDocument(session, { ...info, description: "   " }).meta, false);
+  assert.equal("description" in toDocument(session, info).meta, false);
+});
+
 test("toDocument builds the envelope from the current editor state", () => {
   const session = updateData(createEditorSession({ n: 1 }, "Titel"), { n: 2 });
   const info = { type: "x", typeVersion: 3, createdAt: "2026-10-29T10:00:00.000Z" };

@@ -7,6 +7,7 @@ import { sheet } from "./ui.ts";
 export type PublishDialogModel = {
   title: string;
   author: string;
+  description: string; // M34: from the editor, the creator can still change it here
   state: "confirm" | "busy" | "done";
   error: MessageKey | null;
   /** After success: the new puzzle; after a duplicate: the existing one. */
@@ -54,7 +55,7 @@ export function publishDialog(model: PublishDialogModel, actions: PublishDialogA
               <p class="notice">${t("publishImmutable")}</p>
               <label class="field">
                 <span>${t("publishDescription")}</span>
-                <textarea name="description" rows="3" maxlength=${PUBLISH.maxDescription}></textarea>
+                <textarea name="description" rows="3" maxlength=${PUBLISH.maxDescription} .value=${model.description}></textarea>
                 <span class="hint">${t("publishDescriptionHint", { max: PUBLISH.maxDescription })}</span>
               </label>
               ${model.error

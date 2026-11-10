@@ -2,6 +2,7 @@ import { html, nothing } from "lit-html";
 import { canRedoEdit, canUndoEdit, currentData, readiness } from "../../core/editor-session.ts";
 import type { EditorSession } from "../../core/editor-session.ts";
 import { PUZZLE_LANGS } from "../../core/types.ts";
+import { PUBLISH } from "../../core/publish.ts";
 import { THEME_PRESETS } from "../../core/theme-presets.ts";
 import type { PuzzleTheme, ThemeRole } from "../../core/puzzle-theme.ts";
 import { contrastProblems, detailOn, sameColors } from "../../core/puzzle-theme.ts";
@@ -36,6 +37,7 @@ export type EditorViewModel = {
   publish: PublishDialogModel | null; // open publish dialog
   images: EditorContext<unknown>["images"];
   lang: PuzzleLang; // language of the puzzle's texts (M28), preset to the UI language
+  description: string; // M34: optional, for players and the gallery
   theme?: PuzzleTheme; // colors of the board (M29); undefined = default colors
   savedThemes: readonly SavedTheme[]; // own templates on this device (M30)
   themeNotice?: MessageKey; // why saving a template failed
@@ -48,6 +50,7 @@ export type EditorViewActions = {
   undo(): void;
   redo(): void;
   setTitle(title: string): void;
+  setDescription(description: string): void;
   setLanguage(lang: PuzzleLang): void;
   setTheme(theme: PuzzleTheme | undefined): void;
   saveTheme(name: string): void;
@@ -81,6 +84,17 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
   // Language and theme come last: they matter once the puzzle is built (M29/M30).
   const appearance = html`<section class="editor-appearance" aria-labelledby="editor-appearance-title">
     <h2 id="editor-appearance-title" class="editor-appearance-title">${t("editorAppearance")}</h2>
+    <label class="field editor-description">
+      <span>${t("editorDescription")}</span>
+      <textarea
+        rows="3"
+        maxlength=${PUBLISH.maxDescription}
+        lang=${model.lang}
+        .value=${model.description}
+        @input=${(e: Event) => actions.setDescription((e.target as HTMLTextAreaElement).value)}
+      ></textarea>
+      <span class="hint">${t("editorDescriptionHint")}</span>
+    </label>
     <label class="editor-lang">
       <span>${t("editorLanguage")}</span>
       <select @change=${(e: Event) => actions.setLanguage((e.target as HTMLSelectElement).value as PuzzleLang)}>

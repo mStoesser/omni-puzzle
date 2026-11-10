@@ -1191,6 +1191,10 @@ a.icon-button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.stats.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Only the move count is announced; the time changes every second. */
 .stats-live {
   display: contents;
@@ -2783,6 +2787,15 @@ a.icon-button {
   font-size: 1.0625rem;
 }
 
+/* M34: the description comes first in this section. */
+.editor-description {
+  margin-top: var(--kk-space-3);
+}
+
+.editor-description textarea {
+  resize: vertical;
+}
+
 .editor-test {
   display: flex;
   flex: 1;
@@ -3039,6 +3052,11 @@ a.button.compact {
   margin: var(--kk-space-6) 0 var(--kk-space-2);
 }
 
+.settings-hint {
+  margin: var(--kk-space-2) 0 0;
+  color: var(--kk-muted);
+}
+
 .sign-out {
   margin-top: var(--kk-space-6);
 }
@@ -3114,6 +3132,23 @@ a.button.compact {
   margin: var(--kk-space-3) auto 0;
 }
 
+/* The creator's description (M34): on phones below the hint, like the details of a published puzzle. */
+.play-side .play-description {
+  order: 4;
+  display: grid;
+  gap: var(--kk-space-1);
+  width: 100%;
+  max-width: 560px;
+  margin: var(--kk-space-3) auto 0;
+}
+
+.play-description p {
+  margin: 0;
+  font-weight: 400;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .play-controls {
   order: 10;
   margin-top: var(--kk-space-4);
@@ -3150,6 +3185,7 @@ a.button.compact {
   .play-side > *,
   .play-side > .play-stats,
   .play-side > .published-info,
+  .play-side > .play-description,
   .play-side > .leaderboard,
   .play-stage > * {
     order: 0;

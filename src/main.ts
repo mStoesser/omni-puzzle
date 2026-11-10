@@ -73,6 +73,7 @@ import type { AccountMessage, AccountViewModel, SyncViewModel } from "./ui/views
 import { editorView } from "./ui/views/editor.ts";
 import { shortcutsDialog } from "./ui/components/shortcuts-dialog.ts";
 import { isMac } from "./ui/keyboard.ts";
+import { readShowTimer, storeShowTimer } from "./ui/play-settings.ts";
 import { keysStayInTarget, shortcutFor } from "./core/shortcuts.ts";
 import type { ShortcutContext } from "./core/shortcuts.ts";
 import { galleryView } from "./ui/views/gallery.ts";
@@ -106,6 +107,7 @@ type EditorState = {
   createdAt: string;
   lang: PuzzleLang; // M28: the UI language for new puzzles and old ones without a language
   theme?: PuzzleTheme; // M29: colors of the board; undefined = default colors
+  description: string; // M34: meta.description, "" = none
   themeNotice?: MessageKey; // M30: why saving a theme template failed
   type: AnyPuzzleType;
   session: EditorSession<unknown>;
@@ -147,6 +149,7 @@ type AppState = {
   dailyDays: readonly string[]; // days whose puzzle was solved on this device (streak when signed out)
   savedThemes: readonly SavedTheme[]; // own theme templates on this device (M30)
   shortcuts: boolean; // overview of the keyboard shortcuts is open (M33)
+  showTimer: boolean; // running time while playing (M34), per device
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -229,6 +232,7 @@ const store = createStore<AppState>({
   dailyDays: dailies.parseLocalDays(browserStore.get(DAILY_DAYS_KEY)),
   savedThemes: [],
   shortcuts: false,
+  showTimer: readShowTimer(),
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -423,6 +427,7 @@ function startPlay(
     progressKey: progressKey(doc),
     ...(doc.meta.lang ? { lang: doc.meta.lang } : {}),
     ...(doc.meta.theme ? { theme: doc.meta.theme } : {}),
+    ...(doc.meta.description ? { description: doc.meta.description } : {}),
     images: extra.images ?? localImages,
     minMoves: doc.meta.minMoves ?? null,
     timer: IDLE_TIMER,
@@ -796,7 +801,7 @@ function solveTime(timer: PlayViewModel["timer"]) {
   return Math.max(1, Math.round(elapsedMs(timer, performance.now())));
 }
 
-// While the time runs, the page renders once a second, so the "time" tile counts up.
+// While the time runs, the page renders once a second, so the "time" tile counts up (not when it is hidden, M34).
 let tick: ReturnType<typeof setInterval> | undefined;
 function ensureTicking(timer: PlayViewModel["timer"]) {
   if (isRunning(timer) && tick === undefined) {
@@ -807,7 +812,7 @@ function ensureTicking(timer: PlayViewModel["timer"]) {
         tick = undefined;
         return;
       }
-      scheduleRender();
+      if (store.get().showTimer) scheduleRender();
     }, 1000);
   }
 }
@@ -989,12 +994,18 @@ const playActions = {
     if (play.published) await downloadImages(play.published.id, type.imageKeys?.(data) ?? []);
     const record: PuzzleRecord = {
       id: newPuzzleId(),
-      doc: { format: 1, type: type.id, typeVersion: type.version, meta: { title: play.title, createdAt: now(), lang: play.lang ?? language(), ...(play.theme ? { theme: play.theme } : {}) }, data },
+      doc: { format: 1, type: type.id, typeVersion: type.version, meta: { title: play.title, createdAt: now(), lang: play.lang ?? language(), ...(play.theme ? { theme: play.theme } : {}), ...remixDescription(play) }, data },
       updatedAt: now(),
     };
     if (await save((s) => s.putPuzzle(record))) location.hash = formatRoute({ name: "edit", id: record.id });
   },
 };
+
+/** A remix keeps the description (M34): a published puzzle has it in its own column, others in meta. */
+function remixDescription(play: PlayViewModel): { description?: string } {
+  const description = (play.published?.description || play.description || "").trim();
+  return description ? { description } : {};
+}
 
 // --- Gallery ---
 
@@ -1319,6 +1330,7 @@ function newEditor(typeId: string) {
     id: newPuzzleId(),
     createdAt: now(),
     lang: language(),
+    description: "",
     type,
     session: editing.createEditorSession(type.createDefault(), t("untitled")),
     verifiedData: undefined,
@@ -1341,6 +1353,7 @@ async function openEditor(route: Route & { name: "edit" }) {
       createdAt: doc.meta.createdAt,
       lang: doc.meta.lang ?? language(),
       ...(doc.meta.theme ? { theme: doc.meta.theme } : {}),
+      description: doc.meta.description ?? "",
       type,
       session: editing.createEditorSession(doc.data, doc.meta.title),
       verifiedData: doc.meta.verified ? doc.data : undefined,
@@ -1374,6 +1387,7 @@ function editorDocument(editor: EditorState): PuzzleDocument {
     createdAt: editor.createdAt,
     lang: editor.lang,
     ...(editor.theme ? { theme: editor.theme } : {}),
+    description: editor.description,
     verified: isVerified(editor),
     solve: cachedSolve(editing.currentData(editor.session)),
   });
@@ -1515,7 +1529,7 @@ function openPublish() {
   if (editor.theme && themeRoles && contrastProblems(editor.theme, { roles: themeRoles, fixed: themeFixed }).length > 0) return;
   patch({
     share: null,
-    publish: { title: editor.session.title, author: account.profile.username, state: "confirm", error: null, publishedId: null },
+    publish: { title: editor.session.title, author: account.profile.username, description: editor.description.trim(), state: "confirm", error: null, publishedId: null },
   });
 }
 
@@ -1561,6 +1575,12 @@ const editorActions = {
   undo: () => updateEditor(editing.undoEdit),
   redo: () => updateEditor(editing.redoEdit),
   setTitle: (title: string) => updateEditor((s) => editing.setTitle(s, title)),
+  setDescription: (description: string) => {
+    const editor = store.get().editor;
+    if (!editor || editor.description === description) return;
+    patch({ editor: { ...editor, description } });
+    editorChanged();
+  },
   setLanguage: (lang: PuzzleLang) => {
     const editor = store.get().editor;
     if (!editor || editor.lang === lang) return;
@@ -2216,6 +2236,7 @@ function view(state: AppState) {
       const extras = {
         theme: state.theme,
         language: state.language,
+        showTimer: state.showTimer,
         stats: { solved: [...state.progress.values()].filter((r) => r.solved).length, built: state.library?.length ?? 0 },
       };
       return accountView(auth ? state.account : null, auth ? accountActions : null, extras, profileActions);
@@ -2263,6 +2284,7 @@ function view(state: AppState) {
           publish: state.publish,
           images: editorImages,
           lang: editor.lang,
+          description: editor.description,
           ...(editor.theme ? { theme: editor.theme } : {}),
           ...(editor.themeNotice ? { themeNotice: editor.themeNotice } : {}),
           savedThemes: state.savedThemes,
@@ -2281,6 +2303,7 @@ function playStats(state: AppState): PlayStats {
     bestMoves: record?.solved ? record.bestMoves : null,
     bestTimeMs: record?.solved ? (record.bestTimeMs ?? null) : null,
     timeMs: state.play ? elapsedMs(state.play.timer, performance.now()) : 0,
+    showTimer: state.showTimer,
   };
 }
 
@@ -2324,6 +2347,10 @@ const profileActions = {
     applyLanguage(choice);
     patch({ language: choice }); // renders everything again in the new language
     void updateMailLanguage();
+  },
+  setShowTimer: (show: boolean) => {
+    storeShowTimer(show);
+    patch({ showTimer: show });
   },
 };
 

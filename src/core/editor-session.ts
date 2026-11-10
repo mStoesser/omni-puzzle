@@ -84,11 +84,14 @@ export function toDocument<D>(
     createdAt: string;
     lang?: PuzzleLang;
     theme?: PuzzleTheme;
+    description?: string; // M34; empty or blank = none
     verified: boolean;
     solve: SolveResult<unknown> | null;
   },
 ): PuzzleDocument<D> {
   const meta: PuzzleMeta = { title: session.title, createdAt: info.createdAt };
+  const description = info.description?.trim();
+  if (description) meta.description = description;
   if (info.lang) meta.lang = info.lang;
   if (info.theme) meta.theme = info.theme;
   if (info.verified) meta.verified = true;

@@ -50,12 +50,14 @@ export type AccountPanel = "name" | "password" | "publications" | "chains";
 export type ProfileExtras = {
   theme: ThemeChoice;
   language: LanguageChoice;
+  showTimer: boolean; // M34: running time while playing
   stats: { solved: number; built: number };
 };
 
 export type ProfileActions = {
   setTheme(theme: ThemeChoice): void;
   setLanguage(choice: LanguageChoice): void;
+  setShowTimer(show: boolean): void;
 };
 
 /** Actions resolve to true on success, so the view can clear the form. */
@@ -126,6 +128,17 @@ export function accountView(model: AccountViewModel | null, actions: AccountActi
       extras.language,
       profileActions.setLanguage,
     )}
+    <p class="label settings-label" id="settings-timer">${t("profileTimer")}</p>
+    ${segment<"show" | "hide">(
+      t("profileTimer"),
+      [
+        { value: "show", label: t("timerShow") },
+        { value: "hide", label: t("timerHide") },
+      ],
+      extras.showTimer ? "show" : "hide",
+      (value) => profileActions.setShowTimer(value === "show"),
+    )}
+    <p class="hint settings-hint">${t("profileTimerHint")}</p>
 
     <p class="label settings-label">${t("profileLegal")}</p>
     <ul class="settings">
