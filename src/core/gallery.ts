@@ -15,10 +15,51 @@ export const GALLERY_SORTS: readonly GallerySort[] = ["new", "likes", "plays", "
 export type GalleryView = "puzzles" | "chains";
 export const CHAIN_SORTS: readonly GallerySort[] = ["new", "plays"];
 
-/** What the gallery shows; part of the route, so back navigation and links keep it. */
-/** `lang` (M28): null = all languages, including puzzles without one. */
-export type GalleryFilter = { view: GalleryView; type: string | null; level: Level | null; lang: PuzzleLang | null; sort: GallerySort };
-export const DEFAULT_FILTER: GalleryFilter = { view: "puzzles", type: null, level: null, lang: null, sort: "new" };
+/**
+ * What the gallery shows; part of the route, so back navigation and links keep it.
+ * `lang` (M28): null = all languages, including puzzles without one. `q` (M37): search by title or author, in both
+ * views; null = no search (normalized by normalizeSearch).
+ */
+export type GalleryFilter = {
+  view: GalleryView;
+  type: string | null;
+  level: Level | null;
+  lang: PuzzleLang | null;
+  sort: GallerySort;
+  q: string | null;
+};
+export const DEFAULT_FILTER: GalleryFilter = { view: "puzzles", type: null, level: null, lang: null, sort: "new", q: null };
+
+// --- Search (M37) ---
+
+/** Shorter searches find too much to be useful; longer ones are cut. */
+export const SEARCH = { minLength: 2, maxLength: 60, maxWords: 5 } as const;
+
+/**
+ * The search as the user meant it, without characters that have a meaning in PostgREST filters or LIKE patterns
+ * (`*`, `%`, `_`, commas, parentheses, quotes, backslashes …): they become spaces. Letters, digits, spaces, dots,
+ * apostrophes and hyphens stay. null if too short.
+ */
+export function normalizeSearch(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const clean = raw
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N}\s.'’-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, SEARCH.maxLength)
+    .trim();
+  return clean.length >= SEARCH.minLength ? clean : null;
+}
+
+/**
+ * The PostgREST `and` filter for a normalized search: every word must occur in `search_text` (lowercase title and
+ * author name, supabase/migrations/0015_search.sql). Values are quoted, so dots and apostrophes are safe.
+ */
+export function searchCondition(q: string): string {
+  const words = [...new Set(q.toLowerCase().split(" ").filter(Boolean))].slice(0, SEARCH.maxWords);
+  return `(${words.map((word) => `search_text.ilike."*${word}*"`).join(",")})`;
+}
 
 export const PAGE_SIZE = 20;
 
@@ -87,6 +128,7 @@ export function galleryQuery(filter: GalleryFilter, cursor: GalleryCursor | null
   if (filter.type) query.type = `eq.${filter.type}`;
   if (filter.level) query.difficulty = `eq.${filter.level}`;
   if (filter.lang) query.lang = `eq.${filter.lang}`;
+  if (filter.q) query.and = searchCondition(filter.q);
   if (cursor) query.or = afterCursor(column, cursor);
   return query;
 }
@@ -139,8 +181,9 @@ export async function fetchGalleryPage(
 export function parseGalleryFilter(search: string): GalleryFilter {
   const params = new URLSearchParams(search);
   const sort = params.get("sort") as GallerySort | null;
+  const q = normalizeSearch(params.get("q"));
   if (params.get("view") === "chains") {
-    return { view: "chains", type: null, level: null, lang: null, sort: sort !== null && CHAIN_SORTS.includes(sort) ? sort : "new" };
+    return { view: "chains", type: null, level: null, lang: null, sort: sort !== null && CHAIN_SORTS.includes(sort) ? sort : "new", q };
   }
   const type = params.get("type");
   const level = Number(params.get("level"));
@@ -151,6 +194,7 @@ export function parseGalleryFilter(search: string): GalleryFilter {
     level: isLevel(level) ? level : null,
     lang: isPuzzleLang(lang) ? lang : null,
     sort: sort !== null && GALLERY_SORTS.includes(sort) ? sort : "new",
+    q,
   };
 }
 
@@ -162,5 +206,6 @@ export function formatGalleryFilter(filter: GalleryFilter): string {
   if (filter.level) params.set("level", String(filter.level));
   if (filter.lang) params.set("lang", filter.lang);
   if (filter.sort !== "new") params.set("sort", filter.sort);
+  if (filter.q) params.set("q", filter.q);
   return params.toString();
 }

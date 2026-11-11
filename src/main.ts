@@ -7,7 +7,7 @@ import type { Api } from "./core/api.ts";
 import { SESSION_KEY, createAuth } from "./core/auth.ts";
 import type { KeyValueStore, Session } from "./core/auth.ts";
 import { DocumentError, loadDocument, shareableDocument } from "./core/document.ts";
-import { DEFAULT_FILTER, fetchGalleryPage } from "./core/gallery.ts";
+import { DEFAULT_FILTER, fetchGalleryPage, normalizeSearch } from "./core/gallery.ts";
 import type { GalleryCursor, GalleryFilter, GalleryItem } from "./core/gallery.ts";
 import * as editing from "./core/editor-session.ts";
 import type { EditorSession } from "./core/editor-session.ts";
@@ -159,6 +159,7 @@ type AppState = {
   publishedKeys: { userId: string; keys: ReadonlySet<string> } | null;
   sharedKeys: readonly string[]; // M35: content keys whose link was copied or sent on this device, newest first
   resume: Resume | null; // M36: the unfinished puzzle last played on this device ("Weiterspielen")
+  libraryQuery: string; // M37: local title search in the library; cleared when leaving it
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -245,6 +246,7 @@ const store = createStore<AppState>({
   publishedKeys: null,
   sharedKeys: [],
   resume: null,
+  libraryQuery: "",
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -304,7 +306,10 @@ function enterRoute(route: Route) {
       break;
     case "library":
       // Switching the filter (M35) only replaces the route; the loaded library stays.
-      if (previous.name !== "library" || store.get().library === null) void loadLibrary();
+      if (previous.name !== "library" || store.get().library === null) {
+        patch({ libraryQuery: "" });
+        void loadLibrary();
+      }
       break;
     case "play":
       void openPlay(route);
@@ -1141,7 +1146,7 @@ async function loadGalleryPage(route: Route & { name: "gallery" }) {
   try {
     const page =
       route.filter.view === "chains"
-        ? { chains: await chains.fetchChainPage(api, route.filter.sort, gallery.next) }
+        ? { chains: await chains.fetchChainPage(api, route.filter.sort, gallery.next, route.filter.q) }
         : { puzzles: await fetchGalleryPage(api, route.filter, gallery.next) };
     if (!isCurrent(route)) return;
     const next = page.chains?.next ?? page.puzzles?.next ?? null;
@@ -2059,6 +2064,7 @@ function libraryWithStatus(state: AppState) {
 const libraryActions = {
   openBuild: () => patch({ buildSheet: true }),
   setFilter: (filter: LibraryFilter) => location.replace(formatRoute({ name: "library", filter })),
+  setQuery: (query: string) => patch({ libraryQuery: query }),
   duplicate: async (id: string) => {
     const record = store.get().library?.find((item) => item.record.id === id)?.record;
     if (!record) return;
@@ -2391,7 +2397,7 @@ function view(state: AppState) {
       }
       return state.moderation ? moderationView(state.moderation, registry, moderationActions) : nothing;
     case "library":
-      return html`${libraryView(libraryWithStatus(state), state.route.filter, libraryActions, syncApi !== null && state.account.user !== null)} ${siteFooter()}`;
+      return html`${libraryView(libraryWithStatus(state), state.route.filter, state.libraryQuery, libraryActions, syncApi !== null && state.account.user !== null)} ${siteFooter()}`;
     case "imprint":
       return imprintView();
     case "privacy":
@@ -2522,7 +2528,13 @@ const homeActions = {
   openType: (id: string) => patch({ typeSheet: id }),
   closeType: () => patch({ typeSheet: null }),
   openBuild: () => patch({ buildSheet: true }),
+  search: searchGallery,
 };
+
+/** Search from the home page or the navigation (M37): the gallery with the search, puzzles view, no other filters. */
+function searchGallery(value: string) {
+  location.hash = formatRoute({ name: "gallery", filter: { ...DEFAULT_FILTER, q: normalizeSearch(value) } });
+}
 
 const navActions = {
   openBuild: () => patch({ buildSheet: true }),
@@ -2546,7 +2558,7 @@ function page(state: AppState) {
   const account = navAccount(state);
   const wide = state.route.name === "home" || state.route.name === "gallery";
   return html`<div class="with-tabbar">
-    ${topNav(section, api !== null, account, navActions.openBuild)}
+    ${topNav(section, api !== null, account, navActions.openBuild, searchGallery)}
     <div class="page ${wide ? "wide" : ""}">${content}</div>
     ${tabBar(section, api !== null, navActions.openBuild)}
     ${state.buildSheet ? buildSheet(registry.all(), navActions.closeBuild) : nothing}

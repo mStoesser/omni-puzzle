@@ -7,6 +7,7 @@ import type { CardPreview } from "../../core/preview.ts";
 import type { Resume } from "../../core/resume.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { galleryTile, thumb } from "../components/gallery-card.ts";
+import { searchField } from "../components/search-field.ts";
 import { avatar } from "../components/nav.ts";
 import type { NavAccount } from "../components/nav.ts";
 import { sheet, statusBadge, typeBadge, typeTile, typeVars } from "../components/ui.ts";
@@ -41,6 +42,7 @@ export type HomeViewActions = {
   openType(id: string): void;
   closeType(): void;
   openBuild(): void;
+  search(value: string): void; // M37: opens the gallery with this search
 };
 
 export function homeView(model: HomeViewModel, actions: HomeViewActions) {
@@ -56,6 +58,9 @@ export function homeView(model: HomeViewModel, actions: HomeViewActions) {
       ${model.account.username ? html`<p>${t("homeHello", { name: model.account.username })}</p>` : nothing}
       <h1>${t("homeHeadline")}</h1>
     </div>
+    ${model.gallery
+      ? searchField({ id: "home-search", label: t("searchLabel"), placeholder: t("searchPlaceholder"), value: "", onSubmit: actions.search, extraClass: "home-search mobile-only" })
+      : nothing}
 
     ${model.resume ? resumeCard(model.resume, types) : nothing}
     <div class="home-top ${model.daily ? "with-daily" : ""}">${model.daily ? dailyCard(model.daily, types) : nothing}${buildCard(types, actions)}</div>

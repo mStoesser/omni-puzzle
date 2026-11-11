@@ -1,6 +1,6 @@
 import { ApiError, apiErrorText } from "./api.ts";
 import type { Api } from "./api.ts";
-import { afterCursor, PAGE_SIZE } from "./gallery.ts";
+import { afterCursor, PAGE_SIZE, searchCondition } from "./gallery.ts";
 import type { GalleryCursor, GallerySort } from "./gallery.ts";
 import { parsePreviewSource } from "./preview.ts";
 import type { PreviewSource } from "./preview.ts";
@@ -154,8 +154,11 @@ export function isUnlocked(progress: ChainProgress, index: number): boolean {
 
 const CHAIN_SORT_COLUMN: Partial<Record<GallerySort, "published_at" | "play_count">> = { new: "published_at", plays: "play_count" };
 
-/** PostgREST query parameters for one page of chains; sorts other than "new" and "plays" fall back to "new". */
-export function chainGalleryQuery(sort: GallerySort, cursor: GalleryCursor | null, limit: number): Record<string, string> {
+/**
+ * PostgREST query parameters for one page of chains; sorts other than "new" and "plays" fall back to "new".
+ * `q` (M37): a normalized search by title or author.
+ */
+export function chainGalleryQuery(sort: GallerySort, cursor: GalleryCursor | null, limit: number, q: string | null = null): Record<string, string> {
   const column = CHAIN_SORT_COLUMN[sort] ?? "published_at";
   const query: Record<string, string> = {
     select: `id,title,steps,play_count,published_at,${AUTHOR}`,
@@ -163,6 +166,7 @@ export function chainGalleryQuery(sort: GallerySort, cursor: GalleryCursor | nul
     order: `${column}.desc,id.desc`,
     limit: String(limit),
   };
+  if (q) query.and = searchCondition(q);
   if (cursor) query.or = afterCursor(column, cursor);
   return query;
 }
@@ -171,9 +175,10 @@ export async function fetchChainPage(
   api: Api,
   sort: GallerySort,
   cursor: GalleryCursor | null,
+  q: string | null = null,
   pageSize = PAGE_SIZE,
 ): Promise<{ items: ChainItem[]; next: GalleryCursor | null }> {
-  const rows = await api.rest<Row[]>("chains", { query: chainGalleryQuery(sort, cursor, pageSize + 1) });
+  const rows = await api.rest<Row[]>("chains", { query: chainGalleryQuery(sort, cursor, pageSize + 1, q) });
   const page = rows.slice(0, pageSize);
   const last = page.at(-1);
   const column = CHAIN_SORT_COLUMN[sort] ?? "published_at";

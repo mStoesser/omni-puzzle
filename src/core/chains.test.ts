@@ -113,7 +113,7 @@ test("chainGalleryQuery: newest or most played, without hidden chains, with keys
 
 test("fetchChainPage returns the step keys and the next cursor", async () => {
   const row = (n: number) => ({ id: `c${n}`, title: `K${n}`, steps: [step(1), step(2)], play_count: 9 - n, published_at: "t", author: null });
-  const page = await fetchChainPage(fakeApi([{ status: 200, body: [row(0), row(1), row(2)] }], []), "plays", null, 2);
+  const page = await fetchChainPage(fakeApi([{ status: 200, body: [row(0), row(1), row(2)] }], []), "plays", null, null, 2);
   assert.deepEqual(page.items.map((i) => i.id), ["c0", "c1"]);
   assert.deepEqual(page.items[0]!.stepKeys, [key(1), key(2)]);
   assert.equal(page.items[0]!.author, null);
@@ -173,4 +173,9 @@ test("publishChain sends trimmed texts and only the puzzle ids; errors map to te
   assert.equal(chainErrorText(refused), "chainUnavailablePuzzle");
   assert.equal(chainErrorText(new ApiError("rate-limited", 429, "daily-limit", "PT429")), "chainDailyLimit");
   assert.equal(chainErrorText(new ApiError("offline", 0)), "apiOffline");
+});
+
+test("chainGalleryQuery searches title and author like the puzzles", () => {
+  assert.equal(chainGalleryQuery("new", null, 21, "Lager").and, '(search_text.ilike."*lager*")');
+  assert.equal(chainGalleryQuery("new", null, 21).and, undefined);
 });

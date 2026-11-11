@@ -1,11 +1,12 @@
 import { html, nothing } from "lit-html";
-import { LIBRARY_FILTERS, matchesFilter } from "../../core/library-status.ts";
+import { LIBRARY_FILTERS, matchesFilter, matchesTitle } from "../../core/library-status.ts";
 import type { LibraryFilter, LibraryStatus } from "../../core/library-status.ts";
 import { parseTheme } from "../../core/puzzle-theme.ts";
 import type { PuzzleRecord } from "../../core/storage.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { t, tn } from "../../i18n/t.ts";
 import { thumb } from "../components/gallery-card.ts";
+import { searchField } from "../components/search-field.ts";
 import { chip, popoverMenu, statusBadge, typeVars } from "../components/ui.ts";
 import type { MenuItem } from "../components/ui.ts";
 import { icon } from "../icons.ts";
@@ -24,6 +25,7 @@ export type LibraryViewActions = {
   remove(id: string): void;
   openBuild(): void;
   setFilter(filter: LibraryFilter): void;
+  setQuery(query: string): void; // M37: local title search
 };
 
 const FILTER_TEXT = { all: "libraryFilterAll", drafts: "libraryFilterDrafts", shared: "libraryFilterShared" } as const;
@@ -36,15 +38,27 @@ const EMPTY_TEXT = { all: "libraryEmpty", drafts: "libraryEmptyDrafts", shared: 
 export function libraryView(
   items: readonly (LibraryItem & { status: LibraryStatus })[] | null,
   filter: LibraryFilter,
+  query: string,
   actions: LibraryViewActions,
   synced = false,
 ) {
-  const shown = items?.filter((item) => matchesFilter(item.status, filter)) ?? null;
+  const shown = items?.filter((item) => matchesFilter(item.status, filter) && matchesTitle(item.record.doc.meta.title || t("untitled"), query)) ?? null;
   return html`
     <header class="page-head with-action">
       <h1>${t("library")}</h1>
       <button class="compact" @click=${actions.openBuild}>${icon("plus", 18)}${t("libraryNewShort")}</button>
     </header>
+    ${items !== null && items.length > 0
+      ? searchField({
+          id: "library-search",
+          label: t("librarySearchLabel"),
+          placeholder: t("librarySearchPlaceholder"),
+          value: query,
+          onInput: actions.setQuery,
+          onSubmit: actions.setQuery,
+          extraClass: "library-search",
+        })
+      : nothing}
     ${items !== null && items.length > 0
       ? html`<div class="chips library-filter" role="group" aria-label=${t("libraryFilter")}>
           ${LIBRARY_FILTERS.map((f) => chip(t(FILTER_TEXT[f]), f === filter, () => actions.setFilter(f)))}
@@ -53,7 +67,9 @@ export function libraryView(
     ${shown === null
       ? html`<p role="status">${t("loading")}</p>`
       : shown.length === 0
-        ? html`<p class="empty">${t(items!.length === 0 ? "libraryEmpty" : EMPTY_TEXT[filter])}</p>`
+        ? html`<p class="empty">
+            ${items!.length === 0 ? t("libraryEmpty") : query.trim() ? t("librarySearchEmpty", { q: query.trim() }) : t(EMPTY_TEXT[filter])}
+          </p>`
         : html`<ul class="card-list">${shown.map((item) => libraryEntry(item, actions))}</ul>`}
     <p class="info-box">${icon("info", 18)}<span>${t(synced ? "librarySyncedHint" : "libraryLocalHint")}</span></p>
   `;

@@ -4,6 +4,7 @@ import {
   addSharedKey,
   formatLibraryFilter,
   libraryStatus,
+  matchesTitle,
   matchesFilter,
   MAX_SHARED_KEYS,
   parseLibraryFilter,
@@ -59,4 +60,11 @@ test("shared keys: newest first, no duplicates, capped, malformed ones dropped",
   assert.equal(added.length, MAX_SHARED_KEYS);
   assert.equal(added[0], key(9999));
   assert.equal(added.at(-1), key(MAX_SHARED_KEYS - 1));
+});
+
+test("the local title search needs every word, in any case and order", () => {
+  assert.equal(matchesTitle("Große Lagerhalle", "lager"), true);
+  assert.equal(matchesTitle("Große Lagerhalle", "HALLE große"), true);
+  assert.equal(matchesTitle("Große Lagerhalle", "lager kiste"), false);
+  assert.equal(matchesTitle("Große Lagerhalle", "  "), true);
 });

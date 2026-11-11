@@ -39,6 +39,13 @@ export function matchesFilter(status: LibraryStatus, filter: LibraryFilter): boo
   return filter === "shared" ? shared : !shared;
 }
 
+/** Local title search in the library (M37): every word must occur in the title, ignoring case. Empty matches all. */
+export function matchesTitle(title: string, query: string): boolean {
+  const words = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const haystack = title.toLocaleLowerCase();
+  return words.every((word) => haystack.includes(word));
+}
+
 /** The query part of the library route ("filter=drafts"); anything else is "all". */
 export function parseLibraryFilter(search: string): LibraryFilter {
   const value = new URLSearchParams(search).get("filter");

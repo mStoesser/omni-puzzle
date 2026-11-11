@@ -1,13 +1,14 @@
 import { html, nothing } from "lit-html";
 import { LEVELS } from "../../core/difficulty.ts";
 import type { ChainItem } from "../../core/chains.ts";
-import { CHAIN_SORTS, DEFAULT_FILTER, GALLERY_SORTS } from "../../core/gallery.ts";
+import { CHAIN_SORTS, DEFAULT_FILTER, GALLERY_SORTS, normalizeSearch } from "../../core/gallery.ts";
 import type { GalleryFilter, GalleryItem, GallerySort, GalleryView } from "../../core/gallery.ts";
 import type { Registry } from "../../core/registry.ts";
 import { LANG_NAMES, t, tn } from "../../i18n/t.ts";
 import { isPuzzleLang, PUZZLE_LANGS } from "../../core/types.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { chainCard, galleryCard } from "../components/gallery-card.ts";
+import { searchField } from "../components/search-field.ts";
 import { chip, segment } from "../components/ui.ts";
 import { icon } from "../icons.ts";
 
@@ -33,6 +34,17 @@ const SORT_TEXT: Record<GallerySort, MessageKey> = {
   plays: "gallerySortPlays",
   hardest: "gallerySortHardest",
 };
+
+// Typing searches after a short pause (M37); Enter searches at once.
+const SEARCH_DELAY_MS = 400;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+function search(filter: GalleryFilter, value: string, actions: GalleryViewActions, delay: number) {
+  clearTimeout(searchTimer);
+  const q = normalizeSearch(value);
+  if (q === filter.q) return; // e.g. a single letter: nothing to ask the server yet
+  searchTimer = setTimeout(() => actions.setFilter({ ...filter, q }), delay);
+}
 
 /** `solved(contentKey)` tells whether the puzzle was solved on this device. */
 export function galleryView(
@@ -63,10 +75,20 @@ export function galleryView(
           { value: "chains", label: t("galleryViewChains"), icon: "chain" },
         ],
         filter.view,
-        (view) => actions.setFilter({ ...DEFAULT_FILTER, view }),
+        (view) => actions.setFilter({ ...DEFAULT_FILTER, view, q: filter.q }),
       )}
       ${chains ? html`<a class="button secondary" href="#/chain/new">${icon("plus", 18)}${t("chainNewButton")}</a>` : nothing}
     </div>
+
+    ${searchField({
+      id: "gallery-search",
+      label: t(chains ? "searchChainsLabel" : "searchLabel"),
+      placeholder: t(chains ? "searchChainsPlaceholder" : "searchPlaceholder"),
+      value: filter.q ?? "",
+      onInput: (value) => search(filter, value, actions, SEARCH_DELAY_MS),
+      onSubmit: (value) => search(filter, value, actions, 0),
+      extraClass: "gallery-search",
+    })}
 
     ${chains
       ? nothing
@@ -100,7 +122,11 @@ export function galleryView(
       ? html`<p role="status">${t("loading")}</p>`
       : html`
           ${count === 0 && model.status !== "error"
-            ? html`<p class="empty">${chains ? t("galleryChainsEmpty") : filtered ? t("galleryEmptyFiltered") : t("galleryEmpty")}</p>`
+            ? html`<p class="empty">
+                ${filter.q
+                  ? t("gallerySearchEmpty", { q: filter.q })
+                  : chains ? t("galleryChainsEmpty") : filtered ? t("galleryEmptyFiltered") : t("galleryEmpty")}
+              </p>`
             : chains
               ? html`<ul class="card-list">
                   ${model.chains.map((item) => html`<li>${chainCard(item, item.stepKeys.filter(solved).length)}</li>`)}

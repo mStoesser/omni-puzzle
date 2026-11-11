@@ -819,13 +819,25 @@ Entschieden (11/2026):
   erfolgreich.)
 
 ### M37 – Suche
-- [ ] Migration: `pg_trgm`-Index auf Titel und Anzeigename des Autors; Suche über die Galerie-Abfrage bzw. eine Funktion,
+- [x] Migration: `pg_trgm`-Index auf Titel und Anzeigename des Autors; Suche über die Galerie-Abfrage bzw. eine Funktion,
   kombinierbar mit Typ-, Stufen- und Sprachfilter und der Keyset-Pagination.
-- [ ] **Entscheidung im Meilenstein:** Werden auch Ketten durchsucht? Gibt es eine lokale Suche in „Meine Rätsel“?
-- [ ] Route `#/gallery?q=…`; Eingabe gedrosselt, Mindestlänge (z. B. 2 Zeichen), Eingaben werden sicher escaped.
-- [ ] Suchfeld im Kopf der Startseite und in der Desktop-Navigation; beide führen in die Galerie.
-- [ ] Leere Ergebnisse mit Hinweis; ohne Backend ist die Suche ausgeblendet.
+  (`0015_search.sql`: Spalten `author_name` (per Trigger, auch nach Umbenennungen) und `search_text` = lower(Titel +
+  Autor) mit Trigramm-Index, für Rätsel und Ketten. Die App filtert wortweise per `and`, die Pagination bleibt bei `or`.
+  Lokal in einem Wegwerf-Postgres mit nachgebauten Supabase-Rollen und dem echten PostgREST v12 geprüft: Einfügen über
+  `publish_puzzle`/`publish_chain`, Umbenennen, Titel ändern, Lesen als `anon`, Kontolöschung, Index bei 20 000 Zeilen.)
+- [x] **Entscheidung im Meilenstein:** Werden auch Ketten durchsucht? Gibt es eine lokale Suche in „Meine Rätsel“?
+  (Entschieden: Ketten ja, das Suchfeld wirkt in beiden Ansichten der Galerie. „Meine Rätsel“ bekommt einen lokalen
+  Titelfilter, kombinierbar mit den Status-Chips.)
+- [x] Route `#/gallery?q=…`; Eingabe gedrosselt, Mindestlänge (z. B. 2 Zeichen), Eingaben werden sicher escaped.
+  (400 ms nach dem Tippen, Enter sofort; höchstens 60 Zeichen und 5 Wörter. Zeichen mit Bedeutung in PostgREST oder LIKE
+  (`* % _ , ( ) " \` …) werden zu Leerzeichen, die Werte stehen in Anführungszeichen.)
+- [x] Suchfeld im Kopf der Startseite und in der Desktop-Navigation; beide führen in die Galerie.
+  (Startseite nur mobil (auf dem Desktop hat die Navigation es), in der Navigation nicht auf der Galerie-Seite selbst.)
+- [x] Leere Ergebnisse mit Hinweis; ohne Backend ist die Suche ausgeblendet.
 - [ ] Migration auf `dev` und `prod` einspielen; live testen, Texte in `de.ts` und `en.ts`, Handy-Test.
+  (Texte da. Im Browser gegen ein nachgebautes Backend geprüft (Headless Chrome, 390 und 1280 px): Tippen, ein
+  Buchstabe fragt nicht, Wörter kombiniert, Ketten-Ansicht, leeres Ergebnis, Suche von Startseite und Navigation,
+  lokaler Titelfilter. Migration, Live-Test und Handy-Test offen. **Migration vor dem Push einspielen.**)
 
 ### M38 – Teilen aus dem Spiel und QR-Code
 - [ ] Teilen-Knopf im Spiel-Kopf bzw. im Mehr-Menü; je nach Quelle `#/g/<id>`, `#/c/<id>` oder `#/p/<code>`

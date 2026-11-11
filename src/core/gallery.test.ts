@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createApi } from "./api.ts";
-import { DEFAULT_FILTER, fetchGalleryPage, formatGalleryFilter, galleryQuery, parseGalleryFilter } from "./gallery.ts";
+import { DEFAULT_FILTER, fetchGalleryPage, formatGalleryFilter, galleryQuery, normalizeSearch, parseGalleryFilter, searchCondition } from "./gallery.ts";
 
 test("galleryQuery: default is newest first, without hidden puzzles", () => {
   const q = galleryQuery(DEFAULT_FILTER, null, 21);
@@ -14,7 +14,7 @@ test("galleryQuery: default is newest first, without hidden puzzles", () => {
 });
 
 test("galleryQuery: filters and keyset cursor", () => {
-  const q = galleryQuery({ view: "puzzles", type: "laser", level: 2, lang: "en", sort: "likes" }, { value: 5, id: "abc" }, 21);
+  const q = galleryQuery({ view: "puzzles", type: "laser", level: 2, lang: "en", sort: "likes", q: null }, { value: 5, id: "abc" }, 21);
   assert.equal(q.type, "eq.laser");
   assert.equal(q.lang, "eq.en");
   assert.match(q.select!, /,lang,/);
@@ -66,7 +66,7 @@ test("fetchGalleryPage detects the next page with one extra row", async () => {
 });
 
 test("gallery filters round-trip through the route; junk falls back to defaults", () => {
-  const filter = { view: "puzzles" as const, type: "laser", level: 3 as const, lang: "de" as const, sort: "hardest" as const };
+  const filter = { view: "puzzles" as const, type: "laser", level: 3 as const, lang: "de" as const, sort: "hardest" as const, q: null };
   assert.deepEqual(parseGalleryFilter(formatGalleryFilter(filter)), filter);
   assert.equal(formatGalleryFilter(DEFAULT_FILTER), "");
   assert.equal(formatGalleryFilter(filter), "type=laser&level=3&lang=de&sort=hardest");
@@ -75,8 +75,38 @@ test("gallery filters round-trip through the route; junk falls back to defaults"
 
 test("the chain view keeps only its own sorts and drops type and level", () => {
   const chains = parseGalleryFilter("view=chains&type=laser&level=2&lang=en&sort=plays");
-  assert.deepEqual(chains, { view: "chains", type: null, level: null, lang: null, sort: "plays" });
+  assert.deepEqual(chains, { view: "chains", type: null, level: null, lang: null, sort: "plays", q: null });
   assert.equal(formatGalleryFilter(chains), "view=chains&sort=plays");
   assert.equal(parseGalleryFilter("view=chains&sort=likes").sort, "new");
   assert.equal(parseGalleryFilter("view=other").view, "puzzles");
+});
+
+test("normalizeSearch keeps letters, digits, dots, apostrophes and hyphens; the rest becomes spaces", () => {
+  assert.equal(normalizeSearch("  Große   Halle "), "Große Halle");
+  assert.equal(normalizeSearch("laser_lisa"), "laser lisa"); // _ is a LIKE wildcard
+  assert.equal(normalizeSearch("a*b%c,d(e)f\"g\\h"), "a b c d e f g h");
+  assert.equal(normalizeSearch("O'Brien's Spiegel-Welt 2.0"), "O'Brien's Spiegel-Welt 2.0");
+  assert.equal(normalizeSearch("x"), null);
+  assert.equal(normalizeSearch("*,"), null);
+  assert.equal(normalizeSearch(null), null);
+  assert.equal(normalizeSearch("y".repeat(100))!.length, 60);
+});
+
+test("searchCondition: every word must occur, lowercase, quoted, at most five words", () => {
+  assert.equal(searchCondition("Große Halle"), '(search_text.ilike."*große*",search_text.ilike."*halle*")');
+  assert.equal(searchCondition("a a b"), '(search_text.ilike."*a*",search_text.ilike."*b*")');
+  assert.equal(searchCondition("1 2 3 4 5 6 7").split("ilike").length - 1, 5);
+});
+
+test("the search lives in the route, in both views, and combines with filters and the cursor", () => {
+  const filter = parseGalleryFilter("type=laser&q=Spiegel%20Lisa");
+  assert.equal(filter.q, "Spiegel Lisa");
+  assert.equal(formatGalleryFilter(filter), "type=laser&q=Spiegel+Lisa");
+  assert.equal(parseGalleryFilter("view=chains&q=Lager").q, "Lager");
+  assert.equal(parseGalleryFilter("q=a").q, null);
+  const query = galleryQuery(filter, { value: 3, id: "x" }, 21);
+  assert.equal(query.and, '(search_text.ilike."*spiegel*",search_text.ilike."*lisa*")');
+  assert.equal(query.type, "eq.laser");
+  assert.match(query.or!, /published_at/);
+  assert.equal(galleryQuery(DEFAULT_FILTER, null, 21).and, undefined);
 });

@@ -4,6 +4,7 @@ import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { icon, logo } from "../icons.ts";
 import type { IconName } from "../icons.ts";
+import { searchField } from "./search-field.ts";
 import { sheet, typeTile } from "./ui.ts";
 
 /** Main sections; null = a page outside the navigation (imprint, moderation …). */
@@ -42,7 +43,8 @@ export function tabBar(active: NavSection, gallery: boolean, openBuild: () => vo
 }
 
 /** Desktop navigation bar: logo, sections, build button and avatar. */
-export function topNav(active: NavSection, gallery: boolean, account: NavAccount, openBuild: () => void) {
+/** `search` (M37): searches the gallery; left out without a backend and on the gallery page, which has its own field. */
+export function topNav(active: NavSection, gallery: boolean, account: NavAccount, openBuild: () => void, search?: (value: string) => void) {
   const links = ITEMS.filter((item) => item.section !== "account" && (gallery || item.section !== "gallery"));
   return html`<header class="topnav">
     <div class="topnav-inner">
@@ -51,6 +53,9 @@ export function topNav(active: NavSection, gallery: boolean, account: NavAccount
         ${links.map((item) => html`<a class="topnav-link" href=${item.href} aria-current=${current(item, active)}>${t(item.text)}</a>`)}
       </nav>
       <span class="topnav-spacer"></span>
+      ${gallery && search && active !== "gallery"
+        ? searchField({ id: "nav-search", label: t("searchLabel"), placeholder: t("searchPlaceholder"), value: "", onSubmit: search, extraClass: "topnav-search" })
+        : nothing}
       <button class="primary topnav-build" @click=${openBuild}>${icon("plus", 18)}${t("navBuildLong")}</button>
       ${avatar(account, active === "account")}
     </div>

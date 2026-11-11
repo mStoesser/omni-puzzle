@@ -1085,6 +1085,24 @@ Solver und Daten bleiben unberührt.
 - **Ranglisten:** Der fortgesetzte Versuch schickt beim Lösen die ganze Zugfolge und die Zeit beider Teile; beim
   Tagesrätsel gilt die Route `#/daily`, an einem neuen Tag passt der Inhalt nicht mehr und der Eintrag verfällt.
 
+### Suche (M37)
+
+- **Datenbank** (`0015_search.sql`): PostgREST kann kein `or` über eine eigene Spalte und eine eingebettete Tabelle
+  (den Autornamen) bilden, und die Galerie braucht `or` schon für die Keyset-Pagination. Deshalb tragen `puzzles` und
+  `chains` den Autornamen selbst (`author_name`, gesetzt per Trigger beim Einfügen und nach jeder Umbenennung in
+  `profiles`) und eine generierte Spalte `search_text` = lower(Titel + Autor) mit `pg_trgm`-GIN-Index (nur sichtbare
+  Zeilen). Ein geänderter Titel aktualisiert sie von selbst.
+- **Abfrage** (`core/gallery.ts`): `normalizeSearch` macht aus der Eingabe höchstens 60 Zeichen aus Buchstaben, Ziffern,
+  Leerzeichen, Punkt, Apostroph und Bindestrich (alles andere wird Leerzeichen, auch `_`, ein LIKE-Platzhalter), unter
+  2 Zeichen keine Suche. `searchCondition` verlangt jedes Wort (höchstens 5): `and=(search_text.ilike."*wort*",…)`.
+  Das kombiniert sich mit Typ, Stufe, Sprache, Sortierung und Cursor; Ketten nutzen dieselbe Bedingung.
+- **Route:** `q` im Galerie-Filter, für beide Ansichten; der Wechsel Rätsel/Ketten behält die Suche.
+- **Oberfläche** (`ui/components/search-field.ts`): ein Formular mit `role="search"`. Der Wert wird als Attribut gesetzt,
+  damit ein Rendern während des Tippens nichts überschreibt. In der Galerie sucht es 400 ms nach dem Tippen (Enter
+  sofort) und ersetzt dabei den Verlaufseintrag; Startseite (mobil) und Desktop-Navigation öffnen die Galerie mit der Suche.
+- **„Meine Rätsel“:** ein lokaler Titelfilter (`matchesTitle`, jedes Wort, ohne Groß- und Kleinschreibung), nicht in der
+  Route; er gilt, bis man die Bibliothek verlässt.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
