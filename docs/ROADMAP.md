@@ -789,10 +789,9 @@ Entschieden (11/2026):
   (Selbst gelöste, nicht geteilte Rätsel behalten „verifiziert“, zählen aber zu den Entwürfen.)
 - [x] Filter „Alle · Entwürfe · Geteilt“ als Chips; Filter in der Route, Wechsel ersetzt den Verlaufseintrag.
   (`#/library?filter=drafts|shared`; ein Filterwechsel lädt die Bibliothek nicht neu.)
-- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Handy-Test.
+- [x] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Handy-Test.
   (Texte da. Im Browser geprüft (Headless Chrome, 390 px): Link kopieren → „Per Link geteilt“, Filter, Änderung →
-  Entwurf, Rückgängig → wieder geteilt. „In der Galerie“ nur in Tests (Abfrage, Statuslogik). Handy-Test und ein
-  Blick gegen `dev` mit eigenen Veröffentlichungen offen.)
+  Entwurf, Rückgängig → wieder geteilt. „In der Galerie“ in Tests (Abfrage, Statuslogik). Handy-Test erfolgreich.)
 
 ### M36 – Weiterspielen
 - [x] Ein einziger letzter Stand, nur lokal (IndexedDB `meta` oder eigener Eintrag): Quelle bzw. Route des Rätsels,
@@ -812,11 +811,12 @@ Entschieden (11/2026):
   „Bau dein eigenes Rätsel“ laut Entwurf. Ohne Stand keine Karte.
   (Abweichung: eine eigene Zeile über „Rätsel des Tages“ und „Bau dein eigenes Rätsel“, die seit M26 nebeneinander stehen.)
 - [x] Datenschutzerklärung prüfen (lokal gespeicherter Spielstand).
-  (Ein Satz ergänzt (deutsch und englisch), Stand 2026-11-11. Bitte gegenlesen.)
-- [ ] Texte in `de.ts` und `en.ts`; Handy-Test (App schließen und wieder öffnen).
+  (Ein Satz ergänzt (deutsch und englisch), Stand 2026-11-11; gegengelesen.)
+- [x] Texte in `de.ts` und `en.ts`; Handy-Test (App schließen und wieder öffnen).
   (Texte da. Im Browser geprüft (Headless Chrome, 390 und 1280 px): Züge → Karte, Fortsetzen über die Karte, Zeit läuft
   erst mit dem nächsten Zug, Neuladen auf der Adresse, Rückgängig danach, Neustart und Lösen löschen den Stand. Beim
-  Schließen kann die Zeit seit dem letzten Speichern (bis etwa eine Sekunde nach dem letzten Zug) fehlen. Handy-Test offen.)
+  Schließen kann die Zeit seit dem letzten Speichern (bis etwa eine Sekunde nach dem letzten Zug) fehlen. Handy-Test
+  erfolgreich.)
 
 ### M37 – Suche
 - [ ] Migration: `pg_trgm`-Index auf Titel und Anzeigename des Autors; Suche über die Galerie-Abfrage bzw. eine Funktion,
