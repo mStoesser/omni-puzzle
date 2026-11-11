@@ -2875,6 +2875,25 @@ a.icon-button {
   margin: 0;
 }
 
+/* M38: black on white in every theme; the white square includes the quiet zone. */
+.share-qr {
+  display: grid;
+  justify-items: center;
+  gap: var(--kk-space-2);
+  text-align: center;
+}
+
+.share-qr[hidden] {
+  display: none;
+}
+
+.qr-code {
+  display: block;
+  width: min(100%, 20rem);
+  height: auto;
+  border-radius: var(--kk-radius-sm);
+}
+
 .checklist {
   display: grid;
   gap: var(--kk-space-1);

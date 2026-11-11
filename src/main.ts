@@ -72,7 +72,8 @@ import type { MessageKey } from "./i18n/t.ts";
 import { examples, examplesIn, registry } from "./puzzles/index.ts";
 import type { Example } from "./puzzles/index.ts";
 import type { PublishDialogModel } from "./ui/components/publish-dialog.ts";
-import type { ShareDialogModel } from "./ui/components/share-dialog.ts";
+import { shareDialog } from "./ui/components/share-dialog.ts";
+import type { ShareDialogModel, SharePublish } from "./ui/components/share-dialog.ts";
 import { accountView } from "./ui/views/account.ts";
 import type { AccountMessage, AccountViewModel, SyncViewModel } from "./ui/views/account.ts";
 import { editorView } from "./ui/views/editor.ts";
@@ -451,6 +452,8 @@ function startPlay(
     images: extra.images ?? localImages,
     minMoves: doc.meta.minMoves ?? null,
     timer: IDLE_TIMER,
+    // Own puzzles like in the editor: only once the creator solved them. Hidden ones are not in the gallery.
+    shareable: origin === "own" ? doc.meta.verified === true : extra.published?.hidden !== true,
   };
   if (origin === "example") Object.assign(play, exampleNeighbours(route));
   if (extra.localId !== undefined) play.localId = extra.localId;
@@ -1090,6 +1093,7 @@ const playActions = {
   rate,
   openReport,
   openShortcuts: () => patch({ shortcuts: true }),
+  openShare: () => void openPlayShare(),
   report: reportActions,
   leaderboard: leaderboardActions,
   // Remixing: the copy is a new, unverified draft of the creator.
@@ -1594,6 +1598,9 @@ function flushSave() {
 
 // --- Sharing ---
 
+/** The share sheet in the game has no publishing: that stays in the editor. */
+const NO_PUBLISH: SharePublish = { publishing: null, username: null, minMoves: null, theme: null, openPublish: () => {} };
+
 const shareActions = {
   copied: (ok: boolean) => {
     const share = store.get().share;
@@ -1605,8 +1612,49 @@ const shareActions = {
     const key = store.get().share?.contentKey;
     if (key) markShared(key);
   },
+  toggleQr: () => store.set((state) => (state.share ? { ...state, share: { ...state.share, qr: !state.share.qr } } : state)),
   close: () => patch({ share: null }),
 };
+
+function appUrl(route: Route) {
+  return `${location.origin}${location.pathname}${formatRoute(route)}`;
+}
+
+/**
+ * M38: the share sheet in the game. Published puzzles (also the daily one) share their gallery link, chain steps the
+ * chain, share links themselves; examples and own puzzles get a link with the whole puzzle, like in the editor.
+ */
+async function openPlayShare() {
+  const { play, route, chain } = store.get();
+  if (!play?.shareable) return;
+  const base: ShareDialogModel = { title: play.title, url: null, copy: "idle", contentKey: null, hasImages: false, qr: false };
+  if (route.name === "chain" && chain) {
+    return patch({ share: { ...base, title: chain.chain.title, chain: true, url: appUrl({ name: "chain", id: chain.chain.id, step: null }) } });
+  }
+  if (play.published) return patch({ share: { ...base, url: appUrl({ name: "published", id: play.published.id }) } });
+  if (route.name === "shared") return patch({ share: { ...base, url: appUrl(route) } });
+  if (route.name !== "play") return;
+
+  const raw = exampleById(route.id)?.doc ?? (await (await storage).getPuzzle(route.id))?.doc;
+  if (!raw || !isCurrent(route)) return;
+  let doc: PuzzleDocument;
+  try {
+    doc = shareableDocument(raw, registry);
+  } catch (error) {
+    console.warn(error); // it was played, so it loads; just in case
+    return;
+  }
+  const own = play.origin === "own";
+  const share: ShareDialogModel = {
+    ...base,
+    title: doc.meta.title,
+    hasImages: (play.session.type.imageKeys?.(doc.data).length ?? 0) > 0,
+    contentKey: own ? progressKey(doc) : null, // M35: an own puzzle sent by link is marked as shared
+  };
+  patch({ share });
+  const url = appUrl({ name: "shared", code: await encodeDocument(doc) });
+  store.set((state) => (state.share === share ? { ...state, share: { ...share, url } } : state));
+}
 
 async function openShare() {
   const editor = store.get().editor;
@@ -1619,10 +1667,9 @@ async function openShare() {
     return;
   }
   const hasImages = (editor.type.imageKeys?.(doc.data).length ?? 0) > 0;
-  const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", hasImages, contentKey: progressKey(doc) };
+  const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", hasImages, contentKey: progressKey(doc), qr: false };
   patch({ share });
-  const code = await encodeDocument(doc);
-  const url = `${location.origin}${location.pathname}${formatRoute({ name: "shared", code })}`;
+  const url = appUrl({ name: "shared", code: await encodeDocument(doc) });
   store.set((state) => (state.share === share ? { ...state, share: { ...share, url } } : state));
 }
 
@@ -2436,7 +2483,7 @@ function view(state: AppState) {
         play = { ...play, daily: now?.day === daily.day ? { ...daily, streak: now.streak } : daily };
       }
       if (play.origin === "example" && state.route.name === "play") play = { ...play, levels: exampleLevels(state, state.route.id) };
-      return playView(play, playStats(state), playActions);
+      return html`${playView(play, playStats(state), playActions)}${state.share ? shareDialog(state.share, shareActions, NO_PUBLISH) : nothing}`;
     }
     case "chainNew":
       return chainEditorView(state.chainEditor, state.account.user !== null, registry, chainEditorActions);

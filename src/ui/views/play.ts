@@ -43,6 +43,8 @@ export type PlayViewModel = {
   daily?: { day: string; streak?: number };
   levels?: readonly PlayLevel[]; // all examples of the type, shown beside the board on desktop
   timer: Timer; // play time of this attempt
+  /** M38: the puzzle can be passed on (not in test play, own puzzles only once the creator solved them). */
+  shareable?: boolean;
 };
 
 /** Numbers beside the board: best results so far (null = not solved before) and the running time. */
@@ -83,6 +85,7 @@ export type PlayViewActions = {
   rate(value: number): void;
   openReport(): void;
   openShortcuts(): void;
+  openShare(): void;
   report: ReportDialogActions;
   leaderboard: LeaderboardActions;
 };
@@ -162,6 +165,9 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
         ${model.published ? publishedInfo(model.published, best !== null || session.solved, actions) : nothing}
         ${model.published?.leaderboard ? leaderboardSection(model.published.leaderboard, model.published.viewer ?? "signed-out", actions.leaderboard) : nothing}
         ${model.levels ? levelBox(model.levels) : nothing}
+        ${model.shareable
+          ? html`<button class="secondary block play-share desktop-only" @click=${actions.openShare}>${icon("share", 18)}${t("share")}</button>`
+          : nothing}
         ${remixable
           ? html`<button class="secondary block play-remix desktop-only" @click=${actions.copyToLibrary}>
               ${icon("pencil", 18)}${t("playRemixTemplate")}
@@ -206,9 +212,10 @@ function control(name: IconName, text: string, onClick: () => void, disabled: bo
 }
 
 
-/** Remix (copy into the library), edit for own puzzles, report for published ones. */
+/** Share, remix (copy into the library), edit for own puzzles, report for published ones. */
 function menuItems(model: PlayViewModel, actions: PlayViewActions): MenuItem[] {
   const items: MenuItem[] = [];
+  if (model.shareable) items.push({ icon: "share", text: t("share"), onClick: actions.openShare });
   if (model.origin === "example" || model.origin === "shared" || model.origin === "published") {
     items.push({ icon: "pencil", text: t("remix"), onClick: actions.copyToLibrary });
   }

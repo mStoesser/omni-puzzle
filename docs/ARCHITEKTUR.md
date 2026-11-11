@@ -1103,6 +1103,22 @@ Solver und Daten bleiben unberührt.
 - **„Meine Rätsel“:** ein lokaler Titelfilter (`matchesTitle`, jedes Wort, ohne Groß- und Kleinschreibung), nicht in der
   Route; er gilt, bis man die Bibliothek verlässt.
 
+### Teilen aus dem Spiel und QR-Code (M38)
+
+- **Welcher Link** (`openPlayShare` in `main.ts`): Veröffentlichte Rätsel und das Tagesrätsel teilen `#/g/<id>`,
+  Schritte einer Kette die Kette (`#/c/<id>`), geteilte Links sich selbst; Beispiele und eigene Rätsel bekommen wie im
+  Editor einen Link mit dem ganzen Rätsel (`#/p/<code>`). Eigene Rätsel nur, wenn sie geprüft sind (`meta.verified`),
+  und das Teilen zählt für „Per Link geteilt“ (M35). Versteckte Rätsel und das Probespielen haben keinen Teilen-Knopf.
+- **Oberfläche:** „Teilen“ im Mehr-Menü des Spiels, auf dem Desktop zusätzlich als Knopf in der Seitenleiste. Das Sheet
+  ist dasselbe wie im Editor (`share-dialog.ts`), ohne den Weg „Veröffentlichen“.
+- **QR-Encoder** (`core/qr.ts`, rein): Byte-Modus, Versionen 1–40, alle vier Fehlerkorrekturstufen, Reed-Solomon über
+  GF(256), acht Masken mit Strafpunkten nach dem Standard. Die kleinste passende Version bei Stufe L, dann die Stufe so
+  hoch, wie es in dieser Version noch passt. `qrPath` liefert die dunklen Module als SVG-Pfad (eine Zeile je Lauf).
+  Getestet gegen Referenzmatrizen aus segno für alle 40 Versionen; alle ließen sich mit zxing-cpp zurücklesen.
+- **Im Sheet** (`ui/components/qr-code.ts`): eingeklappt, auf Knopfdruck schwarz auf Weiß mit 4 Modulen Ruhezone,
+  unabhängig vom Theme, höchstens 20rem breit. Über `QR_MAX_LENGTH` = 1 800 Zeichen (Handy-Test: bis dahin zuverlässig
+  lesbar, Version 31) steht statt des Codes ein Hinweis.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.

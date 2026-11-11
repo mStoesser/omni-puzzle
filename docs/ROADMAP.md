@@ -840,15 +840,20 @@ Entschieden (11/2026):
   lokaler Titelfilter. Migration, Live-Test und Handy-Test offen. **Migration vor dem Push einspielen.**)
 
 ### M38 – Teilen aus dem Spiel und QR-Code
-- [ ] Teilen-Knopf im Spiel-Kopf bzw. im Mehr-Menü; je nach Quelle `#/g/<id>`, `#/c/<id>` oder `#/p/<code>`
+- [x] Teilen-Knopf im Spiel-Kopf bzw. im Mehr-Menü; je nach Quelle `#/g/<id>`, `#/c/<id>` oder `#/p/<code>`
   (eigene Rätsel, Beispiele, Links). Tagesrätsel teilt den Galerie-Link.
-- [ ] Teilen-Sheet im Spiel: Linkfeld, Kopieren, Senden an … (Web Share API), QR-Code; Veröffentlichen nur im Editor.
-- [ ] `core/qr.ts`: eigener QR-Encoder (Byte-Modus, Reed-Solomon, Masken, Versionen bis 40), rein und mit bekannten
+- [x] Teilen-Sheet im Spiel: Linkfeld, Kopieren, Senden an … (Web Share API), QR-Code; Veröffentlichen nur im Editor.
+- [x] `core/qr.ts`: eigener QR-Encoder (Byte-Modus, Reed-Solomon, Masken, Versionen bis 40), rein und mit bekannten
   Referenzcodes getestet; Ausgabe als Modulraster, gezeichnet als SVG (kein neues Paket, Regel 1).
-- [ ] QR-Code im Teilen-Sheet (Spiel und Editor), hoher Kontrast unabhängig vom App-Theme, Ruhezone.
-- [ ] Lange Links (bis 2 000 Zeichen) auf dem Handy scannen; ab welcher Länge der Code zu dicht ist, festlegen und dann
+- [x] QR-Code im Teilen-Sheet (Spiel und Editor), hoher Kontrast unabhängig vom App-Theme, Ruhezone.
+- [x] Lange Links (bis 2 000 Zeichen) auf dem Handy scannen; ab welcher Länge der Code zu dicht ist, festlegen und dann
   einen Hinweis statt des Codes zeigen.
 - [ ] Texte in `de.ts` und `en.ts`; Handy-Test mit zwei Geräten.
+  (Texte da. „Teilen“ im Mehr-Menü (Desktop zusätzlich in der Seitenleiste), QR-Code eingeklappt im Sheet. Der Encoder
+  stimmt für alle 40 Versionen, 4 Stufen und 8 Masken Modul für Modul mit segno überein; Screenshots in Handy-Auflösung
+  bis 2 000 Zeichen ließen sich mit zxing-cpp lesen. Handy-Test mit einer Testseite (Codes von 300 bis 2 000 Zeichen,
+  gleiche Größe wie im Sheet): zuverlässig bis 1 800 Zeichen, daher `QR_MAX_LENGTH` = 1 800. Handy-Test des Teilens
+  im Spiel offen.)
 
 ### M39 – Linien-Symbole im Editor, Töne und Vibration
 - [ ] Linien-Symbole statt Emojis in allen Rätsel-Editoren (Werkzeug-Raster, „Bild hinzufügen“ im Quiz), Stil wie
