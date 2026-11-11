@@ -834,7 +834,7 @@ Entschieden (11/2026):
 - [x] Suchfeld im Kopf der Startseite und in der Desktop-Navigation; beide führen in die Galerie.
   (Startseite nur mobil (auf dem Desktop hat die Navigation es), in der Navigation nicht auf der Galerie-Seite selbst.)
 - [x] Leere Ergebnisse mit Hinweis; ohne Backend ist die Suche ausgeblendet.
-- [ ] Migration auf `dev` und `prod` einspielen; live testen, Texte in `de.ts` und `en.ts`, Handy-Test.
+- [x] Migration auf `dev` und `prod` einspielen; live testen, Texte in `de.ts` und `en.ts`, Handy-Test.
   (Texte da. Im Browser gegen ein nachgebautes Backend geprüft (Headless Chrome, 390 und 1280 px): Tippen, ein
   Buchstabe fragt nicht, Wörter kombiniert, Ketten-Ansicht, leeres Ergebnis, Suche von Startseite und Navigation,
   lokaler Titelfilter. Migration, Live-Test und Handy-Test offen. **Migration vor dem Push einspielen.**)
