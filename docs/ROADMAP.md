@@ -848,12 +848,12 @@ Entschieden (11/2026):
 - [x] QR-Code im Teilen-Sheet (Spiel und Editor), hoher Kontrast unabhängig vom App-Theme, Ruhezone.
 - [x] Lange Links (bis 2 000 Zeichen) auf dem Handy scannen; ab welcher Länge der Code zu dicht ist, festlegen und dann
   einen Hinweis statt des Codes zeigen.
-- [ ] Texte in `de.ts` und `en.ts`; Handy-Test mit zwei Geräten.
+- [x] Texte in `de.ts` und `en.ts`; Handy-Test mit zwei Geräten.
   (Texte da. „Teilen“ im Mehr-Menü (Desktop zusätzlich in der Seitenleiste), QR-Code eingeklappt im Sheet. Der Encoder
   stimmt für alle 40 Versionen, 4 Stufen und 8 Masken Modul für Modul mit segno überein; Screenshots in Handy-Auflösung
   bis 2 000 Zeichen ließen sich mit zxing-cpp lesen. Handy-Test mit einer Testseite (Codes von 300 bis 2 000 Zeichen,
-  gleiche Größe wie im Sheet): zuverlässig bis 1 800 Zeichen, daher `QR_MAX_LENGTH` = 1 800. Handy-Test des Teilens
-  im Spiel offen.)
+  gleiche Größe wie im Sheet): zuverlässig bis 1 800 Zeichen, daher `QR_MAX_LENGTH` = 1 800. Teilen im Spiel auf dem
+  Handy getestet.)
 
 ### M39 – Linien-Symbole im Editor, Töne und Vibration
 - [ ] Linien-Symbole statt Emojis in allen Rätsel-Editoren (Werkzeug-Raster, „Bild hinzufügen“ im Quiz), Stil wie
