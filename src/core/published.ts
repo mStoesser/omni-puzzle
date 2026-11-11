@@ -96,6 +96,17 @@ export async function listOwnPublications(api: Api, userId: string): Promise<Own
   }));
 }
 
+/**
+ * Content keys of the user's own visible puzzles (M35): "In der Galerie" in the library. Hidden ones (moderation) are
+ * not in the gallery; withdrawn ones no longer exist.
+ */
+export async function ownPublishedKeys(api: Api, userId: string): Promise<Set<string>> {
+  const rows = await api.rest<{ content_key: unknown }[]>("puzzles", {
+    query: { author_id: `eq.${userId}`, hidden: "is.false", select: "content_key" },
+  });
+  return new Set(rows.map((row) => row.content_key).filter((key): key is string => typeof key === "string"));
+}
+
 /** Publishes via the Edge Function, which checks the puzzle itself. Returns the new id. */
 export async function publishPuzzle(api: Api, request: PublishRequest): Promise<string> {
   return (await api.functions<{ id: string }>("publish", { body: request })).id;

@@ -16,11 +16,14 @@ import {
   findByContentKey,
   listOwnPublications,
   publishErrorText,
+  ownPublishedKeys,
   publishPuzzle,
   registerPlay,
   updatePublication,
   withdrawPublication,
 } from "./core/published.ts";
+import { SHARED_KEYS_KEY, addSharedKey, libraryStatus, parseSharedKeys } from "./core/library-status.ts";
+import type { LibraryFilter } from "./core/library-status.ts";
 import type { PublishedPuzzle } from "./core/published.ts";
 import {
   fetchModerationQueue,
@@ -150,6 +153,9 @@ type AppState = {
   savedThemes: readonly SavedTheme[]; // own theme templates on this device (M30)
   shortcuts: boolean; // overview of the keyboard shortcuts is open (M33)
   showTimer: boolean; // running time while playing (M34), per device
+  /** M35: content keys of the signed-in user's visible published puzzles; null = not loaded or signed out. */
+  publishedKeys: { userId: string; keys: ReadonlySet<string> } | null;
+  sharedKeys: readonly string[]; // M35: content keys whose link was copied or sent on this device, newest first
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -233,6 +239,8 @@ const store = createStore<AppState>({
   savedThemes: [],
   shortcuts: false,
   showTimer: readShowTimer(),
+  publishedKeys: null,
+  sharedKeys: [],
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -264,6 +272,7 @@ function now() {
 // --- Routes ---
 
 function enterRoute(route: Route) {
+  const previous = store.get().route;
   flushSave();
   patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
   if (route.name !== "account") resetAccountForm();
@@ -289,7 +298,8 @@ function enterRoute(route: Route) {
       void openPublished(route);
       break;
     case "library":
-      void loadLibrary();
+      // Switching the filter (M35) only replaces the route; the loaded library stays.
+      if (previous.name !== "library" || store.get().library === null) void loadLibrary();
       break;
     case "play":
       void openPlay(route);
@@ -1489,8 +1499,16 @@ function flushSave() {
 // --- Sharing ---
 
 const shareActions = {
-  copied: (ok: boolean) =>
-    store.set((state) => (state.share ? { ...state, share: { ...state.share, copy: ok ? "copied" : "failed" } } : state)),
+  copied: (ok: boolean) => {
+    const share = store.get().share;
+    if (!share) return;
+    patch({ share: { ...share, copy: ok ? "copied" : "failed" } });
+    if (ok && share.contentKey) markShared(share.contentKey);
+  },
+  sent: () => {
+    const key = store.get().share?.contentKey;
+    if (key) markShared(key);
+  },
   close: () => patch({ share: null }),
 };
 
@@ -1505,7 +1523,7 @@ async function openShare() {
     return;
   }
   const hasImages = (editor.type.imageKeys?.(doc.data).length ?? 0) > 0;
-  const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", hasImages };
+  const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", hasImages, contentKey: progressKey(doc) };
   patch({ share });
   const code = await encodeDocument(doc);
   const url = `${location.origin}${location.pathname}${formatRoute({ name: "shared", code })}`;
@@ -1553,6 +1571,7 @@ async function publish(description: string) {
     const images = await imagesForUpload(editor.type.imageKeys?.(doc.data) ?? []);
     const id = await publishPuzzle(api, { doc, title: doc.meta.title, description, images });
     setPublish({ state: "done", publishedId: id });
+    addPublishedKey(progressKey(doc)); // the server computes the same key
     setAccount({ publications: null }); // reload on the account page
   } catch (error) {
     console.warn(error);
@@ -1877,17 +1896,19 @@ async function resolveSync(choice: "merge" | "replace") {
 // --- Library ---
 
 async function loadLibrary() {
+  void loadPublishedKeys();
   const records = await (await storage).listPuzzles();
   const items = records.flatMap((record): LibraryItem[] => {
     try {
       const { type } = loadDocument(record.doc, registry, { draft: true });
-      let playable = true;
+      // The content key (M35) is that of the checked document, as when sharing or publishing; drafts with problems have none.
+      let contentKey: string | null = null;
       try {
-        loadDocument(record.doc, registry);
+        contentKey = progressKey(loadDocument(record.doc, registry).doc);
       } catch {
-        playable = false;
+        contentKey = null;
       }
-      return [{ record, type, playable }];
+      return [{ record, type, playable: contentKey !== null, contentKey }];
     } catch {
       return []; // unknown or broken entries stay in storage but are not listed
     }
@@ -1896,8 +1917,57 @@ async function loadLibrary() {
   void removeUnusedImages(items);
 }
 
+/** "In der Galerie" (M35): loaded with the library, kept until the user changes. Best effort. */
+async function loadPublishedKeys() {
+  const user = store.get().account.user;
+  if (!api || !user) return;
+  try {
+    const keys = await ownPublishedKeys(api, user.id);
+    if (store.get().account.user?.id === user.id) patch({ publishedKeys: { userId: user.id, keys } });
+  } catch (error) {
+    console.warn("published keys", error); // the library shows link and draft badges only
+  }
+}
+
+function addPublishedKey(key: string) {
+  store.set((state) => {
+    const known = state.publishedKeys;
+    const user = state.account.user;
+    if (!user || (known && known.userId !== user.id)) return state;
+    return { ...state, publishedKeys: { userId: user.id, keys: new Set([...(known?.keys ?? []), key]) } };
+  });
+}
+
+async function loadSharedKeys() {
+  try {
+    patch({ sharedKeys: parseSharedKeys(await (await storage).getMeta(SHARED_KEYS_KEY)) });
+  } catch (error) {
+    console.warn(error);
+  }
+}
+
+/** A link was copied or sent (M35): the puzzle in exactly this form counts as shared on this device. */
+function markShared(key: string) {
+  const list = addSharedKey(store.get().sharedKeys, key);
+  if (list === store.get().sharedKeys) return;
+  patch({ sharedKeys: list });
+  void storage.then((s) => s.putMeta(SHARED_KEYS_KEY, list)).catch((error: unknown) => console.warn(error));
+}
+
+/** The library with each puzzle's status (M35). */
+function libraryWithStatus(state: AppState) {
+  if (!state.library) return null;
+  const user = state.account.user;
+  const known = {
+    published: user && state.publishedKeys?.userId === user.id ? state.publishedKeys.keys : null,
+    shared: new Set(state.sharedKeys),
+  };
+  return state.library.map((item) => ({ ...item, status: libraryStatus(item.contentKey, item.record.doc.meta.verified === true, known) }));
+}
+
 const libraryActions = {
   openBuild: () => patch({ buildSheet: true }),
+  setFilter: (filter: LibraryFilter) => location.replace(formatRoute({ name: "library", filter })),
   duplicate: async (id: string) => {
     const record = store.get().library?.find((item) => item.record.id === id)?.record;
     if (!record) return;
@@ -2035,6 +2105,7 @@ function onSession(session: Session | null) {
   if (user) void updateMailLanguage();
   const { route } = store.get();
   if (user && route.name === "account") void loadPublications();
+  if (user && route.name === "library") void loadPublishedKeys(); // M35: "In der Galerie" is the account's
   // The draft belongs to the account that started it.
   patch({ chainEditor: null });
   if (route.name === "chainNew") void openChainEditor(route);
@@ -2227,7 +2298,7 @@ function view(state: AppState) {
       }
       return state.moderation ? moderationView(state.moderation, registry, moderationActions) : nothing;
     case "library":
-      return html`${libraryView(state.library, libraryActions, syncApi !== null && state.account.user !== null)} ${siteFooter()}`;
+      return html`${libraryView(libraryWithStatus(state), state.route.filter, libraryActions, syncApi !== null && state.account.user !== null)} ${siteFooter()}`;
     case "imprint":
       return imprintView();
     case "privacy":
@@ -2522,4 +2593,5 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 void loadProgress();
 void loadSavedThemes();
+void loadSharedKeys();
 scheduleRender();

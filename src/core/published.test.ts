@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ApiError, createApi } from "./api.ts";
-import { PUBLISHED_ID, fetchPublished, listOwnPublications, publishErrorText, publishPuzzle } from "./published.ts";
+import { PUBLISHED_ID, fetchPublished, listOwnPublications, ownPublishedKeys, publishErrorText, publishPuzzle } from "./published.ts";
 
 type Call = { url: string; init: RequestInit };
 
@@ -67,4 +67,14 @@ test("publishErrorText falls back to API texts; ids are UUIDs", () => {
   assert.equal(publishErrorText(new ApiError("offline", 0)), "apiOffline");
   assert.ok(PUBLISHED_ID.test(ROW.id));
   assert.ok(!PUBLISHED_ID.test("../etc"));
+});
+
+test("ownPublishedKeys asks for the author's visible puzzles and returns their content keys", async () => {
+  const calls: Call[] = [];
+  const keys = await ownPublishedKeys(fakeApi([{ status: 200, body: [{ content_key: "a".repeat(64) }, { content_key: null }] }], calls), "u1");
+  assert.deepEqual([...keys], ["a".repeat(64)]);
+  const url = new URL(calls[0]!.url);
+  assert.equal(url.searchParams.get("author_id"), "eq.u1");
+  assert.equal(url.searchParams.get("hidden"), "is.false");
+  assert.equal(url.searchParams.get("select"), "content_key");
 });

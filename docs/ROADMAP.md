@@ -771,15 +771,28 @@ Entschieden (11/2026):
   ohne Zeit, Beschreibung im Editor nach dem Neuladen, im Spiel des eigenen Rätsels. Handy-Test erfolgreich.)
 
 ### M35 – Status in „Meine Rätsel“
-- [ ] Am Bibliothekseintrag speichern, ob ein Rätsel per Link geteilt bzw. in der Galerie veröffentlicht wurde
+- [x] Am Bibliothekseintrag speichern, ob ein Rätsel per Link geteilt bzw. in der Galerie veröffentlicht wurde
   (optionale Felder, keine neue IndexedDB-Version, falls vermeidbar). Gesetzt beim Kopieren/Senden des Links bzw. nach
   erfolgreichem Veröffentlichen; bereits veröffentlichte Rätsel über `content_key` aus „Meine Veröffentlichungen“ nachtragen.
-- [ ] **Entscheidung im Meilenstein:** Werden die Status-Felder über M27 mitsynchronisiert?
-- [ ] Gilt der Status nach einer Änderung am Rätsel noch (anderer Inhaltsschlüssel = neues Rätsel)? Vorschlag:
+  (Abweichung: nicht am Eintrag, sondern über Inhaltsschlüssel. „In der Galerie“ kommt aus den Schlüsseln der eigenen
+  sichtbaren Veröffentlichungen (Abfrage beim Öffnen der Bibliothek), „Per Link geteilt“ aus einer Liste geteilter
+  Schlüssel im IndexedDB-Store `meta`. So bleiben Einträge und Sync unberührt, und bereits Veröffentlichtes ist ohne
+  Nachtragen dabei.)
+- [x] **Entscheidung im Meilenstein:** Werden die Status-Felder über M27 mitsynchronisiert?
+  (Entschieden: nein. „In der Galerie“ gilt trotzdem auf jedem Gerät des Kontos, „Per Link geteilt“ nur auf dem Gerät,
+  auf dem der Link kopiert oder gesendet wurde.)
+- [x] Gilt der Status nach einer Änderung am Rätsel noch (anderer Inhaltsschlüssel = neues Rätsel)? Vorschlag:
   „In der Galerie“ nur, solange der Inhalt dem veröffentlichten entspricht.
-- [ ] Status-Badges „In der Galerie“, „Per Link geteilt“, sonst „Entwurf“ (Optik laut `DESIGN_SPEC.md`).
-- [ ] Filter „Alle · Entwürfe · Geteilt“ als Chips; Filter in der Route, Wechsel ersetzt den Verlaufseintrag.
+  (Entschieden wie vorgeschlagen, auch für „Per Link geteilt“. Titel, Beschreibung und Theme ändern den Status nicht;
+  Rückgängig bis zum geteilten Stand bringt ihn zurück.)
+- [x] Status-Badges „In der Galerie“, „Per Link geteilt“, sonst „Entwurf“ (Optik laut `DESIGN_SPEC.md`).
+  (Selbst gelöste, nicht geteilte Rätsel behalten „verifiziert“, zählen aber zu den Entwürfen.)
+- [x] Filter „Alle · Entwürfe · Geteilt“ als Chips; Filter in der Route, Wechsel ersetzt den Verlaufseintrag.
+  (`#/library?filter=drafts|shared`; ein Filterwechsel lädt die Bibliothek nicht neu.)
 - [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Handy-Test.
+  (Texte da. Im Browser geprüft (Headless Chrome, 390 px): Link kopieren → „Per Link geteilt“, Filter, Änderung →
+  Entwurf, Rückgängig → wieder geteilt. „In der Galerie“ nur in Tests (Abfrage, Statuslogik). Handy-Test und ein
+  Blick gegen `dev` mit eigenen Veröffentlichungen offen.)
 
 ### M36 – Weiterspielen
 - [ ] Ein einziger letzter Stand, nur lokal (IndexedDB `meta` oder eigener Eintrag): Quelle bzw. Route des Rätsels,

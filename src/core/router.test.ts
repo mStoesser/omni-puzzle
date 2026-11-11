@@ -7,7 +7,9 @@ test("parses all known routes", () => {
   assert.deepEqual(parseRoute(""), { name: "home" });
   assert.deepEqual(parseRoute("#"), { name: "home" });
   assert.deepEqual(parseRoute("#/"), { name: "home" });
-  assert.deepEqual(parseRoute("#/library"), { name: "library" });
+  assert.deepEqual(parseRoute("#/library"), { name: "library", filter: "all" });
+  assert.deepEqual(parseRoute("#/library?filter=shared"), { name: "library", filter: "shared" });
+  assert.deepEqual(parseRoute("#/library?x=1"), { name: "library", filter: "all" }); // like the gallery: unknown = default
   assert.deepEqual(parseRoute("#/impressum"), { name: "imprint" });
   assert.deepEqual(parseRoute("#/datenschutz"), { name: "privacy" });
   assert.deepEqual(parseRoute("#/account"), { name: "account" });
@@ -41,7 +43,6 @@ test("unknown or malformed routes lead to home", () => {
     "#/p/<script>",
     "#/edit/" + "x".repeat(65),
     "#/g/abc",
-    "#/library?x=1",
     "#/g/8C0F4F0E-1D2B-4C3A-9E8F-0A1B2C3D4E5F",
     "#/c/abc",
     "#/c/8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f/0",
@@ -57,7 +58,8 @@ test("unknown or malformed routes lead to home", () => {
 test("formatRoute and parseRoute round-trip", () => {
   const routes: Route[] = [
     { name: "home" },
-    { name: "library" },
+    { name: "library", filter: "all" },
+    { name: "library", filter: "drafts" },
     { name: "imprint" },
     { name: "privacy" },
     { name: "account" },

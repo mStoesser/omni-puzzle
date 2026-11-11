@@ -10,11 +10,14 @@ export type ShareDialogModel = {
   title: string;
   url: string | null; // null = still encoding
   copy: "idle" | "copied" | "failed";
+  /** M35: content key of the shared document; copying or sending the link marks it as shared. */
+  contentKey: string | null;
   hasImages: boolean; // the link carries only the alt texts
 };
 
 export type ShareDialogActions = {
   copied(ok: boolean): void;
+  sent(): void;
   close(): void;
 };
 
@@ -66,7 +69,7 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
                 </button>
               </div>
               ${canShare
-                ? html`<button class="secondary block" @click=${() => share(model.title, url)}>${icon("share", 18)}${t("shareSend")}</button>`
+                ? html`<button class="secondary block" @click=${() => share(model.title, url, actions)}>${icon("share", 18)}${t("shareSend")}</button>`
                 : nothing}
               <p class="hint">${t("shareLength", { length: url.length })}</p>
               ${url.length > RECOMMENDED_LINK_LENGTH ? html`<p class="status-problem">${t("shareTooLong")}</p>` : nothing}
@@ -106,9 +109,10 @@ function publishWay(publish: SharePublish) {
   </section>`;
 }
 
-async function share(title: string, url: string) {
+async function share(title: string, url: string, actions: ShareDialogActions) {
   try {
     await navigator.share({ title, text: t("shareText"), url });
+    actions.sent();
   } catch {
     // Cancelled by the user or not allowed; the link stays visible in the sheet.
   }

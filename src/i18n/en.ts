@@ -96,6 +96,12 @@ export const en: Messages = {
   loading: "Loading …",
 
   library: "My puzzles",
+  libraryFilter: "Filter by status",
+  libraryFilterAll: "All",
+  libraryFilterDrafts: "Drafts",
+  libraryFilterShared: "Shared",
+  libraryEmptyDrafts: "No drafts: all your puzzles are shared or in the gallery.",
+  libraryEmptyShared: "Nothing shared yet. Share a puzzle by link or publish it in the gallery.",
   libraryEmpty: "You have no puzzles of your own yet. Build one – it is saved here automatically.",
   libraryVerified: "verified",
   libraryDraft: "Draft",

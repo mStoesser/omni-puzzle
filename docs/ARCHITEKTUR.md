@@ -1054,6 +1054,19 @@ Solver und Daten bleiben unberührt.
   Spalte `description`; das veröffentlichte Dokument trägt sie nicht. Ein Remix übernimmt die Beschreibung aus dem
   Dokument bzw. aus der Galerie-Spalte.
 
+### Status in „Meine Rätsel“ (M35)
+
+- **Über Inhaltsschlüssel** (`core/library-status.ts`, rein): Ein Status gilt nur, solange der Inhalt dem
+  veröffentlichten bzw. geteilten entspricht, also wird er am `progressKey` des geprüften Dokuments festgemacht.
+  Titel, Beschreibung und Theme gehören nicht dazu. Entwürfe mit Problemen haben keinen Schlüssel und sind Entwürfe.
+- **„In der Galerie“:** `ownPublishedKeys` lädt beim Öffnen der Bibliothek die `content_key`s der eigenen sichtbaren
+  Rätsel (ausgeblendete sind nicht in der Galerie). Nach dem Veröffentlichen kommt der Schlüssel sofort dazu. Das gilt
+  auf jedem Gerät des Kontos, ohne einen Status zu synchronisieren; abgemeldet gibt es ihn nicht.
+- **„Per Link geteilt“:** Kopieren oder Senden des Links (nicht schon das Öffnen des Teilen-Sheets) legt den Schlüssel
+  in die Liste `shared-keys` im IndexedDB-Store `meta` (neueste zuerst, höchstens 500). Nur auf diesem Gerät.
+- **Reihenfolge:** Galerie vor Link vor „verifiziert“ vor „Entwurf“. Der Filter „Entwürfe“ umfasst alles, was weder in
+  der Galerie noch geteilt ist. Er steht in der Route (`#/library?filter=…`), Wechsel ersetzen den Verlaufseintrag.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.

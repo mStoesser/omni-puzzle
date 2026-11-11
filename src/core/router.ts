@@ -1,10 +1,12 @@
 import { formatGalleryFilter, parseGalleryFilter } from "./gallery.ts";
 import type { GalleryFilter } from "./gallery.ts";
+import { formatLibraryFilter, parseLibraryFilter } from "./library-status.ts";
+import type { LibraryFilter } from "./library-status.ts";
 
 export type Route =
   | { name: "home" }
   | { name: "gallery"; filter: GalleryFilter }
-  | { name: "library" }
+  | { name: "library"; filter: LibraryFilter } // M35: status filter
   | { name: "imprint" }
   | { name: "privacy" }
   | { name: "account" }
@@ -29,8 +31,9 @@ const HOME: Route = { name: "home" };
 export function parseRoute(hash: string): Route {
   const [path = "", search = ""] = hash.replace(/^#\/?/, "").split("?", 2);
   if (path === "") return HOME;
-  // Only the gallery has a query part: its filters.
+  // Only the gallery and the library have a query part: their filters.
   if (path === "gallery") return { name: "gallery", filter: parseGalleryFilter(search) };
+  if (path === "library") return { name: "library", filter: parseLibraryFilter(search) };
   if (search !== "") return HOME;
   const [head, arg, ...rest] = path.split("/");
   if (head === "c" && arg !== undefined && PUBLISHED_ID.test(arg) && rest.length <= 1) {
@@ -41,7 +44,6 @@ export function parseRoute(hash: string): Route {
   if (rest.length > 0) return HOME;
 
   if (arg === undefined) {
-    if (head === "library") return { name: "library" };
     if (head === "impressum") return { name: "imprint" };
     if (head === "datenschutz") return { name: "privacy" };
     if (head === "account") return { name: "account" };
@@ -75,8 +77,10 @@ export function formatRoute(route: Route): string {
       const search = formatGalleryFilter(route.filter);
       return search ? `#/gallery?${search}` : "#/gallery";
     }
-    case "library":
-      return "#/library";
+    case "library": {
+      const search = formatLibraryFilter(route.filter);
+      return search ? `#/library?${search}` : "#/library";
+    }
     case "imprint":
       return "#/impressum";
     case "privacy":

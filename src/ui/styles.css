@@ -4176,3 +4176,8 @@ kbd {
 .shortcut-or {
   color: var(--kk-muted);
 }
+
+/* Status filter in "Meine Rätsel" (M35). */
+.library-filter {
+  margin-bottom: var(--kk-space-4);
+}

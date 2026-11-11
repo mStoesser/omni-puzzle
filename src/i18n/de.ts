@@ -92,6 +92,12 @@ export const de = {
   loading: "Lade …",
 
   library: "Meine Rätsel",
+  libraryFilter: "Nach Status filtern",
+  libraryFilterAll: "Alle",
+  libraryFilterDrafts: "Entwürfe",
+  libraryFilterShared: "Geteilt",
+  libraryEmptyDrafts: "Keine Entwürfe: Alle deine Rätsel sind geteilt oder in der Galerie.",
+  libraryEmptyShared: "Noch nichts geteilt. Teile ein Rätsel per Link oder veröffentliche es in der Galerie.",
   libraryEmpty: "Du hast noch keine eigenen Rätsel. Bau eins – es wird automatisch hier gespeichert.",
   libraryVerified: "verifiziert",
   libraryDraft: "Entwurf",
