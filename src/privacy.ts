@@ -4,7 +4,7 @@
 export const privacy = {
   // Name and seat of the SMTP provider that sends account mails (M9), e.g. "Beispiel GmbH, Berlin".
   mailProvider: "Brevo (Sendinblue SAS, Paris, Frankreich)",
-  updated: "2026-11-07", // date shown as "Stand"; update with every change of the text
+  updated: "2026-11-11", // date shown as "Stand"; update with every change of the text
   // Set to true after checking the text and the facts in it yourself. This is a draft, not legal advice.
   reviewed: true,
 };

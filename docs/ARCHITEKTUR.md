@@ -1067,6 +1067,24 @@ Solver und Daten bleiben unberührt.
 - **Reihenfolge:** Galerie vor Link vor „verifiziert“ vor „Entwurf“. Der Filter „Entwürfe“ umfasst alles, was weder in
   der Galerie noch geteilt ist. Er steht in der Route (`#/library?filter=…`), Wechsel ersetzen den Verlaufseintrag.
 
+### Weiterspielen (M36)
+
+- **Ein Eintrag** `resume` im IndexedDB-Store `meta`, nur auf diesem Gerät: Route, Inhaltsschlüssel, Zugfolge
+  (`session.path`), bisherige Zeit, dazu Typ, Titel, Daten, `typeVersion` und Theme für die Karte auf der Startseite
+  (Vorschau wie M32, `thumb` mit dem Eintrag als Quelle). Kein Spielzustand: `replay` (`core/resume.ts`) spielt die Züge
+  mit `dispatch` nach, also mit Undo-Verlauf. Wird ein Zug abgelehnt oder ist das Rätsel danach gelöst, beginnt es frisch
+  und der Eintrag wird gelöscht.
+- **Fortsetzen:** `startPlay` ruft `continueAttempt` auf. Das wartet, bis der Eintrag geladen ist (sonst ginge das
+  Neuladen eines Tabs auf der Rätsel-Adresse verloren), und setzt fort, wenn der Inhaltsschlüssel passt, egal über welche
+  Route das Rätsel geöffnet wurde. Der Timer ist dann „gestartet, pausiert“ (`continuedTimer`) und läuft mit dem nächsten
+  Zug weiter (`nextTimer` ruft dafür `resumeTimer` auf).
+- **Speichern** (`resumeAction`): Nach einer Änderung mit Zügen wird eine Sekunde später gespeichert, beim Verlassen der
+  Route und beim Verbergen der Seite sofort (mit der Zeit bis dahin). Gelöst oder ohne Züge (Neustart, alles rückgängig)
+  wird der Eintrag dieses Rätsels gelöscht; der eines anderen Rätsels bleibt, bis hier ein Zug fällt. Probespielen im
+  Editor und Rätsel ohne Inhaltsschlüssel zählen nicht.
+- **Ranglisten:** Der fortgesetzte Versuch schickt beim Lösen die ganze Zugfolge und die Zeit beider Teile; beim
+  Tagesrätsel gilt die Route `#/daily`, an einem neuen Tag passt der Inhalt nicht mehr und der Eintrag verfällt.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.

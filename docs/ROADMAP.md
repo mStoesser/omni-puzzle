@@ -795,17 +795,28 @@ Entschieden (11/2026):
   Blick gegen `dev` mit eigenen Veröffentlichungen offen.)
 
 ### M36 – Weiterspielen
-- [ ] Ein einziger letzter Stand, nur lokal (IndexedDB `meta` oder eigener Eintrag): Quelle bzw. Route des Rätsels,
+- [x] Ein einziger letzter Stand, nur lokal (IndexedDB `meta` oder eigener Eintrag): Quelle bzw. Route des Rätsels,
   Inhaltsschlüssel, Zugfolge (`path` aus M25) und bisherige Zeit; kein gespeicherter Zustand.
-- [ ] Fortsetzen spielt die Zugfolge mit `applyMove` nach; passt sie nicht mehr (Rätsel geändert, ungültiger Zug), startet
+  (Eintrag `resume` im Store `meta`, dazu Titel, Typ, Daten und Theme für die Karte. `core/resume.ts`.)
+- [x] Fortsetzen spielt die Zugfolge mit `applyMove` nach; passt sie nicht mehr (Rätsel geändert, ungültiger Zug), startet
   das Rätsel frisch und der Stand wird verworfen.
-- [ ] Gespeichert wird nach jedem Zug (gedrosselt) und beim Verlassen; beim Lösen wird der Stand gelöscht.
-- [ ] Gilt für alle Quellen: eigene Rätsel, Beispiele, Links, Galerie, Ketten-Schritte und Tagesrätsel. Ranglisten
+  (Gilt beim Öffnen desselben Inhalts über jeden Weg, auch beim Neuladen eines Tabs auf der Rätsel-Adresse. Die Zeit
+  steht danach, bis der nächste Zug kommt; dafür läuft ein pausierter, gestarteter Timer jetzt mit dem nächsten Zug weiter.)
+- [x] Gespeichert wird nach jedem Zug (gedrosselt) und beim Verlassen; beim Lösen wird der Stand gelöscht.
+  (Eine Sekunde nach dem letzten Zug, sofort beim Verlassen und beim Verbergen der Seite. Neustart oder Rückgängig bis
+  zum Anfang löschen ihn auch, ebenso das Löschen des eigenen Rätsels. Höchstens 5 000 Züge wie beim Server.)
+- [x] Gilt für alle Quellen: eigene Rätsel, Beispiele, Links, Galerie, Ketten-Schritte und Tagesrätsel. Ranglisten
   und Tagesrangliste bleiben korrekt (Zeit und Zugfolge des fortgesetzten Versuchs).
-- [ ] Startseite: Karte „Weiterspielen“ mit Vorschau (aus M32), Typ, Titel und Zugzahl; auf dem Desktop neben
+  (Nicht fürs Probespielen im Editor. Die Rangliste bekommt die ganze Zugfolge und die Zeit beider Teile.)
+- [x] Startseite: Karte „Weiterspielen“ mit Vorschau (aus M32), Typ, Titel und Zugzahl; auf dem Desktop neben
   „Bau dein eigenes Rätsel“ laut Entwurf. Ohne Stand keine Karte.
-- [ ] Datenschutzerklärung prüfen (lokal gespeicherter Spielstand).
+  (Abweichung: eine eigene Zeile über „Rätsel des Tages“ und „Bau dein eigenes Rätsel“, die seit M26 nebeneinander stehen.)
+- [x] Datenschutzerklärung prüfen (lokal gespeicherter Spielstand).
+  (Ein Satz ergänzt (deutsch und englisch), Stand 2026-11-11. Bitte gegenlesen.)
 - [ ] Texte in `de.ts` und `en.ts`; Handy-Test (App schließen und wieder öffnen).
+  (Texte da. Im Browser geprüft (Headless Chrome, 390 und 1280 px): Züge → Karte, Fortsetzen über die Karte, Zeit läuft
+  erst mit dem nächsten Zug, Neuladen auf der Adresse, Rückgängig danach, Neustart und Lösen löschen den Stand. Beim
+  Schließen kann die Zeit seit dem letzten Speichern (bis etwa eine Sekunde nach dem letzten Zug) fehlen. Handy-Test offen.)
 
 ### M37 – Suche
 - [ ] Migration: `pg_trgm`-Index auf Titel und Anzeigename des Autors; Suche über die Galerie-Abfrage bzw. eine Funktion,

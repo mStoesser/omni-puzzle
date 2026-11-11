@@ -4,6 +4,7 @@ import { DEFAULT_FILTER } from "../../core/gallery.ts";
 import type { GalleryItem } from "../../core/gallery.ts";
 import type { DailyPuzzle } from "../../core/daily.ts";
 import type { CardPreview } from "../../core/preview.ts";
+import type { Resume } from "../../core/resume.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { galleryTile, thumb } from "../components/gallery-card.ts";
 import { avatar } from "../components/nav.ts";
@@ -33,6 +34,7 @@ export type HomeViewModel = {
   gallery: HomeGallery | null; // null = no backend
   daily: HomeDaily | null; // null = no backend, or it could not be loaded (offline)
   typeSheet: string | null; // type whose levels are shown in a sheet (phones)
+  resume: Resume | null; // M36: the unfinished puzzle last played on this device
 };
 
 export type HomeViewActions = {
@@ -55,6 +57,7 @@ export function homeView(model: HomeViewModel, actions: HomeViewActions) {
       <h1>${t("homeHeadline")}</h1>
     </div>
 
+    ${model.resume ? resumeCard(model.resume, types) : nothing}
     <div class="home-top ${model.daily ? "with-daily" : ""}">${model.daily ? dailyCard(model.daily, types) : nothing}${buildCard(types, actions)}</div>
 
     <section aria-labelledby="home-types">
@@ -82,6 +85,21 @@ export function homeView(model: HomeViewModel, actions: HomeViewActions) {
 
 function examplesOf(type: AnyPuzzleType, examples: readonly Example[]) {
   return examples.filter((e) => e.doc.type === type.id);
+}
+
+/** "Weiterspielen" (M36): the puzzle with its starting position, the moves so far. The whole card continues it. */
+function resumeCard(resume: Resume, types: readonly AnyPuzzleType[]) {
+  const type = types.find((x) => x.id === resume.type);
+  if (!type) return nothing; // a type this app version does not know
+  return html`<a class="resume-card typed" style=${typeVars(type)} href=${resume.route}>
+    ${thumb(type, "list", resume.theme, { source: resume })}
+    <span class="resume-card-body">
+      <span class="resume-card-kicker">${icon("play", 14)}${t("homeResume")}</span>
+      <span class="resume-card-title">${resume.title || t("untitled")}</span>
+      <span class="resume-card-meta">${typeBadge(type, resume.type, false)}<span>${tn("homeResumeMoves", resume.moves.length)}</span></span>
+    </span>
+    <span class="resume-card-go" aria-hidden="true">${icon("chevronRight", 20)}</span>
+  </a>`;
 }
 
 /** The puzzle of the day: type, level, solved, and the streak. The whole card leads to #/daily. */

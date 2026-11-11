@@ -46,7 +46,7 @@ export const de = {
   privacyHostingHeading: "Bereitstellung der Seite (GitHub Pages)",
   privacyHosting: "Die Seite wird über GitHub Pages ausgeliefert, einen Dienst der GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. Beim Aufruf verarbeitet GitHub technisch notwendige Daten wie deine IP-Adresse, Datum und Uhrzeit, die aufgerufene Datei und Angaben zu deinem Browser, um die Seite auszuliefern und vor Missbrauch zu schützen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer sicheren und zuverlässigen Bereitstellung). Dabei können Daten in die USA übermittelt werden; GitHub stützt sich dafür auf das EU-US Data Privacy Framework und Standardvertragsklauseln.",
   privacyLocalHeading: "Speicherung auf deinem Gerät",
-  privacyLocal: "Deine eigenen Rätsel, Entwürfe, deren Bilder und dein Spielfortschritt werden in deinem Browser gespeichert (IndexedDB). Ohne Konto bleiben sie nur dort; mit Konto werden sie synchronisiert (siehe unten). Damit die App offline funktioniert, speichert ein Service Worker die App-Dateien im Browser-Cache. Löst du ein Galerie-Rätsel ohne Verbindung, wartet dein Ergebnis im lokalen Speicher (localStorage), bis es gesendet werden kann. Ebenfalls im localStorage steht, an welchen Tagen du das Rätsel des Tages gelöst hast, damit deine Serie auch ohne Konto angezeigt wird. Es gibt keine Cookies, keine Werbung und kein Tracking. Du kannst diese Daten jederzeit löschen, indem du die Website-Daten in deinem Browser entfernst.",
+  privacyLocal: "Deine eigenen Rätsel, Entwürfe, deren Bilder und dein Spielfortschritt werden in deinem Browser gespeichert (IndexedDB). Ohne Konto bleiben sie nur dort; mit Konto werden sie synchronisiert (siehe unten). Ebenfalls dort, aber nie synchronisiert, liegt der Zwischenstand des zuletzt angefangenen Rätsels (deine Züge und die Zeit), damit du später weiterspielen kannst. Damit die App offline funktioniert, speichert ein Service Worker die App-Dateien im Browser-Cache. Löst du ein Galerie-Rätsel ohne Verbindung, wartet dein Ergebnis im lokalen Speicher (localStorage), bis es gesendet werden kann. Ebenfalls im localStorage steht, an welchen Tagen du das Rätsel des Tages gelöst hast, damit deine Serie auch ohne Konto angezeigt wird. Es gibt keine Cookies, keine Werbung und kein Tracking. Du kannst diese Daten jederzeit löschen, indem du die Website-Daten in deinem Browser entfernst.",
   privacyLinksHeading: "Teilen per Link",
   privacyLinks: "Ein geteiltes Rätsel steckt vollständig im Teil des Links hinter dem „#“. Dieser Teil wird vom Browser nicht an den Server gesendet. Wem du einen Link schickst, entscheidest du selbst.",
   privacyAccountHeading: "Konto und Community-Funktionen (Supabase)",
@@ -92,6 +92,9 @@ export const de = {
   loading: "Lade …",
 
   library: "Meine Rätsel",
+  homeResume: "Weiterspielen",
+  homeResumeMoves: "{count} Züge gemacht",
+  homeResumeMovesOne: "1 Zug gemacht",
   libraryFilter: "Nach Status filtern",
   libraryFilterAll: "Alle",
   libraryFilterDrafts: "Entwürfe",

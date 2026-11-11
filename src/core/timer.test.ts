@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { IDLE_TIMER, elapsedMs, formatDuration, isRunning, pauseTimer, resumeTimer, startTimer } from "./timer.ts";
+import { IDLE_TIMER, continuedTimer, elapsedMs, formatDuration, isRunning, pauseTimer, resumeTimer, startTimer } from "./timer.ts";
 
 test("the timer runs from the first move and only counts visible time", () => {
   assert.equal(resumeTimer(IDLE_TIMER, 5), IDLE_TIMER, "an idle timer waits for the first move");
@@ -24,4 +24,13 @@ test("formatDuration shows minutes and seconds, hours when needed", () => {
   assert.equal(formatDuration(754_000), "12:34");
   assert.equal(formatDuration(3_723_000), "1:02:03");
   assert.equal(formatDuration(-5), "0:00");
+});
+
+test("a continued timer starts paused with the time so far and runs again when resumed", () => {
+  const timer = continuedTimer(4200);
+  assert.equal(isRunning(timer), false);
+  assert.equal(elapsedMs(timer, 99_999), 4200);
+  assert.equal(startTimer(timer, 100), timer); // already started: a new move does not reset it
+  assert.equal(elapsedMs(resumeTimer(timer, 100), 1100), 5200);
+  assert.equal(continuedTimer(-5).elapsedMs, 0);
 });

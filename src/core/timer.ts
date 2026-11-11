@@ -14,6 +14,11 @@ export function startTimer(timer: Timer, now: number): Timer {
   return timer.started ? timer : { started: true, elapsedMs: 0, since: now };
 }
 
+/** A continued attempt (M36): started, paused with the time so far; the next move lets it run again. */
+export function continuedTimer(elapsed: number): Timer {
+  return { started: true, elapsedMs: Math.max(0, elapsed), since: null };
+}
+
 export function pauseTimer(timer: Timer, now: number): Timer {
   return timer.since === null ? timer : { ...timer, elapsedMs: elapsedMs(timer, now), since: null };
 }

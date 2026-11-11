@@ -4181,3 +4181,92 @@ kbd {
 .library-filter {
   margin-bottom: var(--kk-space-4);
 }
+
+/* "Weiterspielen" on the home page (M36): its own row above the puzzle of the day. */
+.resume-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--kk-space-3);
+  margin-top: var(--kk-space-6);
+  padding: var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-2xl);
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  text-decoration: none;
+}
+
+a.resume-card:hover {
+  border-color: var(--type, var(--kk-brand));
+}
+
+.resume-card .thumb.list {
+  width: 72px;
+  height: 72px;
+}
+
+.resume-card-body {
+  display: grid;
+  gap: var(--kk-space-1);
+  min-width: 0;
+}
+
+.resume-card-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kk-space-1);
+  color: var(--kk-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.resume-card-title {
+  overflow: hidden;
+  font-family: var(--kk-font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kk-space-2);
+  color: var(--kk-muted);
+  font-size: 0.875rem;
+}
+
+.resume-card-go {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--kk-radius-pill);
+  background: var(--kk-brand);
+  color: var(--kk-on-brand);
+}
+
+.resume-card + .home-top {
+  margin-top: var(--kk-space-4);
+}
+
+@media (min-width: 900px) {
+  .resume-card {
+    margin-top: var(--kk-space-2);
+    padding: var(--kk-space-4) var(--kk-space-6);
+  }
+
+  .resume-card .thumb.list {
+    width: 96px;
+    height: 96px;
+  }
+
+  .resume-card-title {
+    font-size: 1.375rem;
+  }
+}

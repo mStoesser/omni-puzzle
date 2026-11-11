@@ -52,7 +52,9 @@ import * as session from "./core/session.ts";
 import type { AnyPlaySession } from "./core/session.ts";
 import { PUBLISH } from "./core/publish.ts";
 import * as scores from "./core/scores.ts";
-import { IDLE_TIMER, elapsedMs, isRunning, pauseTimer, resumeTimer, startTimer } from "./core/timer.ts";
+import { IDLE_TIMER, continuedTimer, elapsedMs, isRunning, pauseTimer, resumeTimer, startTimer } from "./core/timer.ts";
+import { RESUME_KEY, parseResume, replay, resumeAction } from "./core/resume.ts";
+import type { Resume } from "./core/resume.ts";
 import type { LeaderboardModel, LeaderboardViewer } from "./ui/components/leaderboard.ts";
 import { decodeDocument, encodeDocument } from "./core/share.ts";
 import { copyRecord, memoryStorage, newPuzzleId, openStorage, progressKey, recordSolve } from "./core/storage.ts";
@@ -156,6 +158,7 @@ type AppState = {
   /** M35: content keys of the signed-in user's visible published puzzles; null = not loaded or signed out. */
   publishedKeys: { userId: string; keys: ReadonlySet<string> } | null;
   sharedKeys: readonly string[]; // M35: content keys whose link was copied or sent on this device, newest first
+  resume: Resume | null; // M36: the unfinished puzzle last played on this device ("Weiterspielen")
 };
 
 const SOLVE_LIMITS = { maxNodes: 200_000 };
@@ -241,6 +244,7 @@ const store = createStore<AppState>({
   showTimer: readShowTimer(),
   publishedKeys: null,
   sharedKeys: [],
+  resume: null,
 });
 
 const storage: Promise<Storage> = openStorage({
@@ -274,6 +278,7 @@ function now() {
 function enterRoute(route: Route) {
   const previous = store.get().route;
   flushSave();
+  flushResume();
   patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
@@ -448,6 +453,7 @@ function startPlay(
   if (extra.backHref !== undefined) play.backHref = extra.backHref;
   if (extra.daily !== undefined) play.daily = extra.daily;
   patch({ pending: false, play });
+  void continueAttempt();
   return true;
 }
 
@@ -790,9 +796,93 @@ function updateSession(change: (s: AnyPlaySession) => AnyPlaySession, options: {
     void save(async (s) => s.putProgress(record));
     if (play.daily) rememberDailyDay(play.daily.day);
     if (play.published?.leaderboard) void submitResult(play.published.id, session.path(next), timeMs, play.daily?.day);
+    afterAttemptChange();
     return;
   }
   patch({ play });
+  afterAttemptChange();
+}
+
+// --- Weiterspielen (M36) ---
+
+/** The attempt to save, from the current play view and route; null for test play, puzzles without key or without moves. */
+function resumeEntry(state: AppState): Resume | null {
+  const play = state.play;
+  if (!play || play.origin === "test" || play.progressKey === null) return null;
+  const { type, data } = play.session;
+  const moves = session.path(play.session);
+  if (moves.length === 0 || play.session.solved) return null;
+  return {
+    route: formatRoute(state.route),
+    contentKey: play.progressKey,
+    moves,
+    elapsedMs: Math.round(elapsedMs(play.timer, performance.now())),
+    savedAt: now(),
+    type: type.id,
+    title: play.title,
+    typeVersion: type.minVersion?.(data) ?? type.version,
+    data,
+    ...(play.theme ? { theme: play.theme } : {}),
+  };
+}
+
+let resumeSaveTimer: ReturnType<typeof setTimeout> | undefined;
+const RESUME_DELAY_MS = 1000;
+
+/** After a move, undo, restart or solve: save the attempt (soon), or drop the saved one if this puzzle is done. */
+function afterAttemptChange() {
+  const state = store.get();
+  const play = state.play;
+  if (!play || play.origin === "test" || play.progressKey === null) return;
+  const action = resumeAction({ contentKey: play.progressKey, moves: session.moveCount(play.session), solved: play.session.solved }, state.resume);
+  if (action === "clear") return clearResume();
+  if (action === "save" && resumeSaveTimer === undefined) resumeSaveTimer = setTimeout(() => void writeResume(), RESUME_DELAY_MS);
+}
+
+/** Saves the current attempt now: when leaving the puzzle or hiding the page (the time since the last move counts too). */
+function flushResume() {
+  const state = store.get();
+  if (resumeSaveTimer !== undefined || (state.resume && state.play?.progressKey === state.resume.contentKey)) void writeResume();
+}
+
+async function writeResume() {
+  clearTimeout(resumeSaveTimer);
+  resumeSaveTimer = undefined;
+  const entry = resumeEntry(store.get());
+  if (!entry) return;
+  patch({ resume: entry });
+  await storage.then((s) => s.putMeta(RESUME_KEY, entry)).catch((error: unknown) => console.warn("resume", error));
+}
+
+function clearResume() {
+  clearTimeout(resumeSaveTimer);
+  resumeSaveTimer = undefined;
+  if (store.get().resume === null) return;
+  patch({ resume: null });
+  void storage.then((s) => s.putMeta(RESUME_KEY, null)).catch((error: unknown) => console.warn("resume", error));
+}
+
+const resumeLoaded = (async () => {
+  try {
+    patch({ resume: parseResume(await (await storage).getMeta(RESUME_KEY)) });
+  } catch (error) {
+    console.warn("resume", error);
+  }
+})();
+
+/**
+ * Opening the saved puzzle (same content, by any route) continues the attempt: the moves are replayed and the time
+ * goes on with the next move. If the moves no longer fit, the puzzle starts fresh and the saved attempt is dropped.
+ * Waits for the stored entry, so reopening a tab on the puzzle's address continues too.
+ */
+async function continueAttempt() {
+  await resumeLoaded;
+  const { play, resume } = store.get();
+  if (!play || !resume || play.origin === "test" || play.progressKey !== resume.contentKey) return;
+  if (play.session.history.length > 1) return; // the player already started over before the entry was loaded
+  const continued = replay(play.session.type, play.session.data, resume.moves);
+  if (!continued) return clearResume();
+  patch({ play: { ...play, session: continued, timer: continuedTimer(resume.elapsedMs) } });
 }
 
 // --- Play time (M25) ---
@@ -803,7 +893,8 @@ function nextTimer(timer: PlayViewModel["timer"], prev: AnyPlaySession, next: An
   if (restart) return IDLE_TIMER;
   if (next.solved) return pauseTimer(startTimer(timer, at), at);
   if (prev.solved) return resumeTimer(timer, at);
-  return document.visibilityState === "hidden" ? timer : startTimer(timer, at);
+  // A continued attempt (M36) is started but paused until its next move.
+  return document.visibilityState === "hidden" ? timer : resumeTimer(startTimer(timer, at), at);
 }
 
 /** Whole milliseconds, at least 1 (a one-move puzzle can be solved within the same millisecond). */
@@ -1976,6 +2067,7 @@ const libraryActions = {
   },
   remove: async (id: string) => {
     if (store.get().editor?.id === id) patch({ editor: null });
+    if (store.get().resume?.route === formatRoute({ name: "play", id })) clearResume();
     if (await save((s) => s.deletePuzzle(id, now()))) await loadLibrary();
   },
 };
@@ -2287,6 +2379,7 @@ function view(state: AppState) {
         gallery,
         daily: homeDaily(state),
         typeSheet: state.typeSheet,
+        resume: state.resume,
       };
       return homeView(model, homeActions);
     }
@@ -2564,7 +2657,10 @@ watchSystemLanguage(() => {
 store.subscribe(scheduleRender);
 // Save pending edits before the page is hidden (tab switch, app switch, closing).
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") flushSave();
+  if (document.visibilityState === "hidden") {
+    flushSave();
+    flushResume();
+  }
   else requestSync();
   onVisibility();
 });

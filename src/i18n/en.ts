@@ -50,7 +50,7 @@ export const en: Messages = {
   privacyHostingHeading: "Hosting of the site (GitHub Pages)",
   privacyHosting: "The site is served via GitHub Pages, a service of GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. When you open the site, GitHub processes technically necessary data such as your IP address, date and time, the requested file and information about your browser in order to deliver the site and protect it against abuse. The legal basis is Art. 6(1)(f) GDPR (legitimate interest in providing the site securely and reliably). Data may be transferred to the USA; GitHub relies on the EU-US Data Privacy Framework and standard contractual clauses for this.",
   privacyLocalHeading: "Storage on your device",
-  privacyLocal: "Your own puzzles, drafts, their pictures and your progress are stored in your browser (IndexedDB). Without an account they stay there only; with an account they are synchronized (see below). So that the app works offline, a service worker stores the app files in the browser cache. If you solve a gallery puzzle without a connection, your result waits in local storage (localStorage) until it can be sent. Local storage also holds the days on which you solved the puzzle of the day, so that your streak is shown without an account as well. There are no cookies, no ads and no tracking. You can delete this data at any time by removing the site data in your browser.",
+  privacyLocal: "Your own puzzles, drafts, their pictures and your progress are stored in your browser (IndexedDB). Without an account they stay there only; with an account they are synchronized (see below). Also stored there, but never synchronized, is where you left the puzzle you last started (your moves and the time), so that you can continue later. So that the app works offline, a service worker stores the app files in the browser cache. If you solve a gallery puzzle without a connection, your result waits in local storage (localStorage) until it can be sent. Local storage also holds the days on which you solved the puzzle of the day, so that your streak is shown without an account as well. There are no cookies, no ads and no tracking. You can delete this data at any time by removing the site data in your browser.",
   privacyLinksHeading: "Sharing by link",
   privacyLinks: "A shared puzzle is contained entirely in the part of the link after the “#”. The browser does not send this part to the server. You decide yourself whom you send a link to.",
   privacyAccountHeading: "Account and community features (Supabase)",
@@ -96,6 +96,9 @@ export const en: Messages = {
   loading: "Loading …",
 
   library: "My puzzles",
+  homeResume: "Continue playing",
+  homeResumeMoves: "{count} moves made",
+  homeResumeMovesOne: "1 move made",
   libraryFilter: "Filter by status",
   libraryFilterAll: "All",
   libraryFilterDrafts: "Drafts",
