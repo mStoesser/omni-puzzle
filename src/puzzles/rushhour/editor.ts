@@ -11,11 +11,11 @@ import { boardLayers } from "./render.ts";
 
 // A function, so labels follow the language chosen at runtime (module constants were translated on import).
 const palette = (): readonly PaletteItem[] => [
-  { id: "block2", label: t("rhToolBlock2"), icon: "▭" },
-  { id: "block3", label: t("rhToolBlock3"), icon: "▬" },
-  { id: "target", label: t("rhToolTarget"), icon: "🟥" },
-  { id: "exit", label: t("rhToolExit"), icon: "⇥" },
-  { id: "erase", label: t("rhToolErase"), icon: "⌫", paint: true },
+  { id: "block2", label: t("rhToolBlock2"), icon: "block21" },
+  { id: "block3", label: t("rhToolBlock3"), icon: "block3" },
+  { id: "target", label: t("rhToolTarget"), icon: "targetBlock" },
+  { id: "exit", label: t("rhToolExit"), icon: "exit" },
+  { id: "erase", label: t("rhToolErase"), icon: "erase", paint: true },
 ];
 
 const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {

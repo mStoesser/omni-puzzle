@@ -11,8 +11,8 @@ import { cluePreview, editorLayers } from "./render.ts";
 
 // A function, so labels follow the language chosen at runtime (module constants were translated on import).
 const palette = (): readonly PaletteItem[] => [
-  { id: "fill", label: t("ngToolFill"), icon: "■", paint: true },
-  { id: "erase", label: t("ngToolErase"), icon: "⌫", paint: true },
+  { id: "fill", label: t("ngToolFill"), icon: "fill", paint: true },
+  { id: "erase", label: t("ngToolErase"), icon: "erase", paint: true },
 ];
 
 const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {

@@ -4,6 +4,8 @@ import { IMAGE_LIMITS } from "../../core/images.ts";
 import type { EditorContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
+import { icon, iconSvg } from "../../ui/icons.ts";
+import { TOOL_ICONS } from "../../ui/tool-icons.ts";
 import {
   addOption,
   addQuestion,
@@ -115,11 +117,11 @@ function questionEditor(q: QuizQuestion, i: number, ctx: Ctx, problem: boolean) 
           )}
         </select>
         <button type="button" class="secondary" aria-label=${t("quizMoveUp")} ?disabled=${i === 0}
-          @click=${() => ctx.update(moveQuestion(data, i, -1))}>↑</button>
+          @click=${() => ctx.update(moveQuestion(data, i, -1))}>${icon("chevronUp", 20)}</button>
         <button type="button" class="secondary" aria-label=${t("quizMoveDown")} ?disabled=${i === count - 1}
-          @click=${() => ctx.update(moveQuestion(data, i, 1))}>↓</button>
+          @click=${() => ctx.update(moveQuestion(data, i, 1))}>${icon("chevronDown", 20)}</button>
         <button type="button" class="secondary danger" aria-label=${t("quizRemoveQuestion")}
-          @click=${() => ctx.update(removeQuestion(data, i))}>✕</button>
+          @click=${() => ctx.update(removeQuestion(data, i))}>${icon("close", 20)}</button>
       </div>
       <textarea
         rows="2"
@@ -145,7 +147,7 @@ function imageEditor(q: QuizQuestion, i: number, ctx: Ctx) {
     if (file) ctx.images.add(file).then((key) => ctx.update(setImage(data, i, key)), () => {});
   };
   const fileButton = (label: MessageKey) => html`<label class="button secondary quiz-image-pick">
-    ${t(label)}
+    ${iconSvg(TOOL_ICONS.image, 18)}${t(label)}
     <input type="file" accept="image/*" class="visually-hidden" @change=${pick} />
   </label>`;
   if (!q.image) return html`<div class="quiz-image-actions">${fileButton("quizImageAdd")}</div>`;
@@ -202,7 +204,7 @@ function answerEditor(q: QuizQuestion, i: number, ctx: Ctx) {
                 />
                 <button type="button" class="secondary" aria-label=${t("quizRemoveOption", { number: o + 1 })}
                   ?disabled=${q.options.length <= LIMITS.minOptions}
-                  @click=${() => ctx.update(removeOption(data, i, o))}>✕</button>
+                  @click=${() => ctx.update(removeOption(data, i, o))}>${icon("close", 20)}</button>
               </li>
             `,
           )}
@@ -220,7 +222,7 @@ function answerEditor(q: QuizQuestion, i: number, ctx: Ctx) {
               <li>
                 <span class=${typedAnswers.has(hash) ? "" : "hidden-answer"}>${typedAnswers.get(hash) ?? t("quizHiddenAnswer")}</span>
                 <button type="button" class="secondary" aria-label=${t("quizRemoveAnswer")}
-                  @click=${() => ctx.update(removeTextAnswer(data, i, a))}>✕</button>
+                  @click=${() => ctx.update(removeTextAnswer(data, i, a))}>${icon("close", 20)}</button>
               </li>
             `,
           )}

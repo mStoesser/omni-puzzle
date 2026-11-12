@@ -5,6 +5,9 @@ import type { Point } from "../../core/grid.ts";
 import { TOOL_KEYS } from "../../core/shortcuts.ts";
 import { t } from "../../i18n/t.ts";
 import { tapCancel, tapEnd, tapStart } from "./tap.ts";
+import { iconSvg } from "../icons.ts";
+import { TOOL_ICONS } from "../tool-icons.ts";
+import type { ToolIconName } from "../tool-icons.ts";
 
 /** Board units per cell. Plugins draw their board content in this coordinate system. */
 export const CELL = 100;
@@ -13,7 +16,8 @@ export const CELL = 100;
  * `paint`: the tool paints while dragging over the board (walls, pixels …) instead of acting on a tap.
  * `group`: a heading shown before the first tool of each group, so long palettes stay clear (e.g. laser).
  */
-export type PaletteItem = { id: string; label: string; icon: string; paint?: boolean; group?: string };
+/** `icon` (M39): a line icon of the shared tool catalog; decorative, the label names the tool. */
+export type PaletteItem = { id: string; label: string; icon: ToolIconName; paint?: boolean; group?: string };
 
 /** A further number in the settings next to width and height (e.g. the laser's inventory). */
 export type SettingStepper = { label: string; value: number; min: number; max: number; set(value: number): void };
@@ -89,7 +93,7 @@ export function gridEditor(options: GridEditorOptions): TemplateResult {
             <label class="tool">
               <input type="radio" name="tool" value=${item.id} ?checked=${i === 0} aria-keyshortcuts=${toolKey(i) ?? nothing} />
               <span
-                ><span aria-hidden="true">${item.icon}</span> ${item.label}${toolKey(i) === null
+                >${iconSvg(TOOL_ICONS[item.icon], 22)} ${item.label}${toolKey(i) === null
                   ? nothing
                   : html`<kbd class="kbd-only tool-key" aria-hidden="true">${toolKey(i)}</kbd>`}</span
               >

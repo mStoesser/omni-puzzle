@@ -12,11 +12,11 @@ import { boardLayers, shapeName } from "./render.ts";
 
 // A function, so labels follow the language chosen at runtime (module constants were translated on import).
 const palette = (): readonly PaletteItem[] => [
-  { id: "pipe", label: t("ppToolPipe"), icon: "〰", paint: true },
-  { id: "source", label: t("ppToolSource"), icon: "◉" },
-  { id: "turn", label: t("ppToolTurn"), icon: "↻" },
-  { id: "fixed", label: t("ppToolFixed"), icon: "🔩" },
-  { id: "erase", label: t("ppToolErase"), icon: "⌫", paint: true },
+  { id: "pipe", label: t("ppToolPipe"), icon: "pipe", paint: true },
+  { id: "source", label: t("ppToolSource"), icon: "source" },
+  { id: "turn", label: t("ppToolTurn"), icon: "turn" },
+  { id: "fixed", label: t("ppToolFixed"), icon: "fixed" },
+  { id: "erase", label: t("ppToolErase"), icon: "erase", paint: true },
 ];
 
 const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {

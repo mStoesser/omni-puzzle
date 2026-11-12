@@ -12,16 +12,16 @@ import { boardLayers, describeCell } from "./render.ts";
 // In groups, so the tool grid stays clear on a phone. The inventory is a number in the settings.
 // A function, so labels follow the language chosen at runtime (module constants were translated on import).
 const palette = (): readonly PaletteItem[] => [
-  { id: "emitter", label: t("lsToolEmitter"), icon: "🔦", group: t("lsGroupBasics") },
-  { id: "target", label: t("lsToolTarget"), icon: "◎", group: t("lsGroupBasics") },
-  { id: "rotatable", label: t("lsToolRotatable"), icon: "↻", group: t("lsGroupBasics") },
-  { id: "mirror", label: t("lsToolMirror"), icon: "⟋", group: t("lsGroupBasics") },
-  { id: "wall", label: t("lsToolWall"), icon: "■", paint: true, group: t("lsGroupBasics") },
-  { id: "erase", label: t("lsToolErase"), icon: "⌫", paint: true, group: t("lsGroupBasics") },
-  { id: "rotatableSplitter", label: t("lsToolRotatableSplitter"), icon: "⤨", group: t("lsGroupSplitters") },
-  { id: "splitter", label: t("lsToolSplitter"), icon: "⋰", group: t("lsGroupSplitters") },
-  { id: "filter", label: t("lsToolFilter"), icon: "▣", group: t("lsGroupColors") },
-  { id: "color", label: t("lsToolColor"), icon: "🎨", group: t("lsGroupColors") },
+  { id: "emitter", label: t("lsToolEmitter"), icon: "emitter", group: t("lsGroupBasics") },
+  { id: "target", label: t("lsToolTarget"), icon: "target", group: t("lsGroupBasics") },
+  { id: "rotatable", label: t("lsToolRotatable"), icon: "rotatable", group: t("lsGroupBasics") },
+  { id: "mirror", label: t("lsToolMirror"), icon: "mirror", group: t("lsGroupBasics") },
+  { id: "wall", label: t("lsToolWall"), icon: "wall", paint: true, group: t("lsGroupBasics") },
+  { id: "erase", label: t("lsToolErase"), icon: "erase", paint: true, group: t("lsGroupBasics") },
+  { id: "rotatableSplitter", label: t("lsToolRotatableSplitter"), icon: "rotatableSplitter", group: t("lsGroupSplitters") },
+  { id: "splitter", label: t("lsToolSplitter"), icon: "splitter", group: t("lsGroupSplitters") },
+  { id: "filter", label: t("lsToolFilter"), icon: "filter", group: t("lsGroupColors") },
+  { id: "color", label: t("lsToolColor"), icon: "color", group: t("lsGroupColors") },
 ];
 
 const PROBLEM_TEXT: Record<ProblemCode, MessageKey> = {

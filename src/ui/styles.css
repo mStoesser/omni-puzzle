@@ -399,8 +399,8 @@ input[type="password"]:focus-visible,
   overflow-wrap: anywhere;
 }
 
-.tool > span > span[aria-hidden="true"] {
-  font-size: 1.25rem;
+.tool > span > .icon {
+  flex: none;
 }
 
 .tool input:checked + span {
@@ -905,6 +905,7 @@ button.danger-button {
 .quiz-image-placeholder {
   display: grid;
   place-items: center;
+  gap: var(--kk-space-2);
   min-height: 6rem;
   padding: var(--space-3);
   border: 1px dashed var(--control-border);

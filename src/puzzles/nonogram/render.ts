@@ -5,7 +5,9 @@ import type { PlayContext } from "../../core/types.ts";
 import { t } from "../../i18n/t.ts";
 import { paletteCss, paletteStyle } from "../../ui/palette.ts";
 import type { Palette } from "../../ui/palette.ts";
+import { iconSvg } from "../../ui/icons.ts";
 import { previewSvg } from "../../ui/preview.ts";
+import { TOOL_ICONS } from "../../ui/tool-icons.ts";
 import { lineDone } from "./logic.ts";
 import type { Mark, NonogramData, NonogramMove, NonogramState } from "./logic.ts";
 
@@ -94,10 +96,10 @@ export function renderPlay(ctx: Ctx) {
       <div class="ng-bar">
         <fieldset class="ng-modes" style="display: contents">
           <legend class="visually-hidden">${t("ngMode")}</legend>
-          <label class="tool"><input type="radio" name="ng-mode" value="#" checked /><span><span aria-hidden="true">■</span> ${t("ngModeFill")}</span></label>
-          <label class="tool"><input type="radio" name="ng-mode" value="x" /><span><span aria-hidden="true">✕</span> ${t("ngModeCross")}</span></label>
+          <label class="tool"><input type="radio" name="ng-mode" value="#" checked /><span>${iconSvg(TOOL_ICONS.fill, 22)} ${t("ngModeFill")}</span></label>
+          <label class="tool"><input type="radio" name="ng-mode" value="x" /><span>${iconSvg(TOOL_ICONS.cross, 22)} ${t("ngModeCross")}</span></label>
         </fieldset>
-        <label class="tool ng-zoom"><input type="checkbox" /><span><span aria-hidden="true">🔍</span> ${t("ngZoom")}</span></label>
+        <label class="tool ng-zoom"><input type="checkbox" /><span>${iconSvg(TOOL_ICONS.zoom, 22)} ${t("ngZoom")}</span></label>
       </div>
       ${sheet(data, state.cells, { ctx })}
       <p class="visually-hidden" aria-live="polite">${t("ngProgress", { rows: rowsDone, height: data.height, cols: colsDone, width: data.width })}</p>

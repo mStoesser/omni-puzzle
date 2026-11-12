@@ -51,6 +51,7 @@ export type ProfileExtras = {
   theme: ThemeChoice;
   language: LanguageChoice;
   showTimer: boolean; // M34: running time while playing
+  feedback: boolean; // M39: sounds and vibration while playing
   stats: { solved: number; built: number };
 };
 
@@ -58,6 +59,7 @@ export type ProfileActions = {
   setTheme(theme: ThemeChoice): void;
   setLanguage(choice: LanguageChoice): void;
   setShowTimer(show: boolean): void;
+  setFeedback(on: boolean): void;
 };
 
 /** Actions resolve to true on success, so the view can clear the form. */
@@ -139,6 +141,17 @@ export function accountView(model: AccountViewModel | null, actions: AccountActi
       (value) => profileActions.setShowTimer(value === "show"),
     )}
     <p class="hint settings-hint">${t("profileTimerHint")}</p>
+    <p class="label settings-label" id="settings-feedback">${t("profileFeedback")}</p>
+    ${segment<"on" | "off">(
+      t("profileFeedback"),
+      [
+        { value: "on", label: t("feedbackOn") },
+        { value: "off", label: t("feedbackOff") },
+      ],
+      extras.feedback ? "on" : "off",
+      (value) => profileActions.setFeedback(value === "on"),
+    )}
+    <p class="hint settings-hint">${t("profileFeedbackHint")}</p>
 
     <p class="label settings-label">${t("profileLegal")}</p>
     <ul class="settings">

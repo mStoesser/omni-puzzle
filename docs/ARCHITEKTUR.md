@@ -1119,6 +1119,21 @@ Solver und Daten bleiben unberührt.
   unabhängig vom Theme, höchstens 20rem breit. Über `QR_MAX_LENGTH` = 1 800 Zeichen (Handy-Test: bis dahin zuverlässig
   lesbar, Version 31) steht statt des Codes ein Hinweis.
 
+
+### Linien-Symbole, Töne und Vibration (M39)
+
+- **Werkzeug-Symbole** (`ui/tool-icons.ts`): ein gemeinsamer Katalog im Stil von `ui/icons.ts` (24er-viewBox, Strich 2,
+  runde Enden). `PaletteItem.icon` ist ein Name aus diesem Katalog; das Raster zeichnet ihn mit `iconSvg`, die
+  Beschriftung benennt das Werkzeug. Gleiche Dinge haben in allen Typen dasselbe Symbol (Wand, Radierer, Ziel …).
+- **Rückmeldung** (`core/feedback.ts`, rein): `moveFeedback` leitet aus der Sitzung vor und nach `dispatch` „Zug“,
+  „ungültig“ (dieselbe Sitzung) oder „gelöst“ ab, nach dem Lösen nichts. Töne und Vibrationsmuster stehen dort als Daten.
+- **Abspielen** (`ui/feedback.ts`): Töne per Web Audio (Oszillator mit kurzem Ein- und Ausblenden, keine Audiodateien),
+  Vibration per `navigator.vibrate`; fehlt eins, passiert nichts. Ungültige Züge höchstens alle 300 ms (Ziehen gegen
+  eine Wand). Der AudioContext entsteht bzw. läuft wieder an bei `pointerup` und `keydown`, weil iOS Audio nur in einer
+  Nutzergeste erlaubt.
+- **Schalter** unter Profil › Darstellung, `localStorage` `knobelkiste-feedback` = `on`, Standard aus. Nur Züge über
+  `dispatch` geben Rückmeldung, nicht Rückgängig, Wiederholen oder Neustart.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.

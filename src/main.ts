@@ -79,7 +79,9 @@ import type { AccountMessage, AccountViewModel, SyncViewModel } from "./ui/views
 import { editorView } from "./ui/views/editor.ts";
 import { shortcutsDialog } from "./ui/components/shortcuts-dialog.ts";
 import { isMac } from "./ui/keyboard.ts";
-import { readShowTimer, storeShowTimer } from "./ui/play-settings.ts";
+import { readFeedback, readShowTimer, storeFeedback, storeShowTimer } from "./ui/play-settings.ts";
+import { giveFeedback, unlockAudio } from "./ui/feedback.ts";
+import { moveFeedback } from "./core/feedback.ts";
 import { keysStayInTarget, shortcutFor } from "./core/shortcuts.ts";
 import type { ShortcutContext } from "./core/shortcuts.ts";
 import { galleryView } from "./ui/views/gallery.ts";
@@ -156,6 +158,7 @@ type AppState = {
   savedThemes: readonly SavedTheme[]; // own theme templates on this device (M30)
   shortcuts: boolean; // overview of the keyboard shortcuts is open (M33)
   showTimer: boolean; // running time while playing (M34), per device
+  feedback: boolean; // sounds and vibration while playing (M39), per device
   /** M35: content keys of the signed-in user's visible published puzzles; null = not loaded or signed out. */
   publishedKeys: { userId: string; keys: ReadonlySet<string> } | null;
   sharedKeys: readonly string[]; // M35: content keys whose link was copied or sent on this device, newest first
@@ -244,6 +247,7 @@ const store = createStore<AppState>({
   savedThemes: [],
   shortcuts: false,
   showTimer: readShowTimer(),
+  feedback: readFeedback(),
   publishedKeys: null,
   sharedKeys: [],
   resume: null,
@@ -1080,7 +1084,14 @@ const leaderboardActions = {
 };
 
 const playActions = {
-  dispatch: (move: unknown) => updateSession((s) => session.dispatch(s, move)),
+  dispatch: (move: unknown) => {
+    const before = store.get().play?.session;
+    updateSession((s) => session.dispatch(s, move));
+    const after = store.get().play?.session;
+    if (!before || !after || !store.get().feedback) return;
+    const kind = moveFeedback(before, after);
+    if (kind) giveFeedback(kind);
+  },
   undo: () => updateSession(session.undo),
   redo: () => updateSession(session.redo),
   restart: () => updateSession(session.restart, { restart: true }),
@@ -2454,6 +2465,7 @@ function view(state: AppState) {
         theme: state.theme,
         language: state.language,
         showTimer: state.showTimer,
+        feedback: state.feedback,
         stats: { solved: [...state.progress.values()].filter((r) => r.solved).length, built: state.library?.length ?? 0 },
       };
       return accountView(auth ? state.account : null, auth ? accountActions : null, extras, profileActions);
@@ -2568,6 +2580,14 @@ const profileActions = {
   setShowTimer: (show: boolean) => {
     storeShowTimer(show);
     patch({ showTimer: show });
+  },
+  setFeedback: (on: boolean) => {
+    storeFeedback(on);
+    patch({ feedback: on });
+    if (on) {
+      unlockAudio(); // this tap is a user gesture
+      giveFeedback("move"); // what it sounds and feels like
+    }
   },
 };
 
@@ -2724,6 +2744,10 @@ document.addEventListener("visibilitychange", () => {
   onVisibility();
 });
 document.addEventListener("keydown", onShortcutKey);
+// M39: audio may only start in a user gesture (iOS: not on pointerdown, where some boards make their move).
+for (const name of ["pointerup", "keydown"] as const) {
+  document.addEventListener(name, () => store.get().feedback && unlockAudio(), { capture: true, passive: true });
+}
 window.addEventListener("online", () => {
   void flushScoreQueue();
   requestSync();

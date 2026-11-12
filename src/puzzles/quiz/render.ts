@@ -3,6 +3,8 @@ import { keyed } from "lit-html/directives/keyed.js";
 import type { ImageRef } from "../../core/images.ts";
 import type { ImageSource, PlayContext } from "../../core/types.ts";
 import { perLocale, t } from "../../i18n/t.ts";
+import { iconSvg } from "../../ui/icons.ts";
+import { TOOL_ICONS } from "../../ui/tool-icons.ts";
 import { correctChoices, isCorrect, passed, score } from "./logic.ts";
 import type { QuizAnswer, QuizData, QuizMove, QuizQuestion, QuizState } from "./logic.ts";
 
@@ -53,7 +55,7 @@ export function questionImage(image: ImageRef, images: ImageSource) {
   if (url === "loading") return html`<div class="quiz-image quiz-image-placeholder" role="status">${t("quizImageLoading")}</div>`;
   if (url === null) {
     return html`<div class="quiz-image quiz-image-placeholder" role="img" aria-label=${image.alt}>
-      <span aria-hidden="true">🖼️ ${t("quizImageMissing", { alt: image.alt })}</span>
+      ${iconSvg(TOOL_ICONS.image, 20)}<span>${t("quizImageMissing", { alt: image.alt })}</span>
     </div>`;
   }
   return html`<img class="quiz-image" src=${url} alt=${image.alt} loading="lazy" />`;
