@@ -861,10 +861,10 @@ Entschieden (11/2026):
 - [x] Töne per Web Audio erzeugt (keine Audiodateien): Zug, ungültiger Zug, gelöst; leise und kurz.
 - [x] Vibration per `navigator.vibrate`, wo verfügbar (fehlt unter iOS); keine Fehlermeldung, wenn nicht.
 - [x] Schalter „Töne & Vibration“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard aus.
-- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Handy-Test (Android und iOS).
+- [x] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Handy-Test (Android und iOS).
   (Texte da. Gemeinsamer Symbolkatalog `ui/tool-icons.ts` für alle acht Werkzeug-Raster, die Nonogramm-Werkzeuge im
   Spiel und den Quiz-Editor (Pfeile, Löschen, „Bild hinzufügen“). Töne und Vibration im Browser geprüft
-  (AudioContext und `vibrate` gezählt): aus still, Zug, Wand, Lösen; Ansichten bei 390 und 1280 px. Handy-Test offen.)
+  (AudioContext und `vibrate` gezählt): aus still, Zug, Wand, Lösen; Ansichten bei 390 und 1280 px. Handy-Test auf Android und iOS bestanden.)
 
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
