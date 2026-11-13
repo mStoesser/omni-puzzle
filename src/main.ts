@@ -109,6 +109,7 @@ import type { ThemeChoice } from "./ui/theme.ts";
 import { applyLanguage, readLanguageChoice, storeLanguageChoice, watchSystemLanguage } from "./ui/language.ts";
 import type { LanguageChoice } from "./ui/language.ts";
 import type { EncodeError } from "./ui/image-encode.ts";
+import { focusBoardOnStart, forwardKeyToBoard } from "./ui/board-focus.ts";
 
 type EditorState = {
   id: string; // library id; a new puzzle is saved under it on its first change
@@ -2713,6 +2714,12 @@ function onShortcutKey(e: KeyboardEvent) {
   e.preventDefault();
 }
 
+/** Changes when another puzzle starts playing (the data of a session stays the same across moves and restarts). */
+function boardFocusKey(state: AppState): unknown {
+  const context = shortcutContext(state);
+  return (context === "play" || context === "test") && state.play ? state.play.session.data : null;
+}
+
 // Render loop: batch all store updates of one task into a single render.
 let renderQueued = false;
 function scheduleRender() {
@@ -2723,6 +2730,7 @@ function scheduleRender() {
     const state = store.get();
     render(page(state), app!);
     document.title = pageTitle(state);
+    focusBoardOnStart(boardFocusKey(state));
   });
 }
 
@@ -2748,6 +2756,8 @@ document.addEventListener("keydown", onShortcutKey);
 for (const name of ["pointerup", "keydown"] as const) {
   document.addEventListener(name, () => store.get().feedback && unlockAudio(), { capture: true, passive: true });
 }
+// After the audio unlock: a key pressed while nothing has the focus goes to the board.
+document.addEventListener("keydown", (e) => forwardKeyToBoard(e, boardFocusKey(store.get()) !== null && !overlayOpen()), { capture: true });
 window.addEventListener("online", () => {
   void flushScoreQueue();
   requestSync();

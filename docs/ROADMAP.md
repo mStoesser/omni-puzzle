@@ -750,6 +750,12 @@ Entschieden (11/2026):
   (Texte da. Im Browser per Tastatur-Events geprüft (Headless Chrome, 1280 px): Züge, Rückgängig/Wiederholen, R mit
   Abbrechen und Bestätigen, Übersicht mit Escape, Ziffern und Titelfeld im Editor, P hin und zurück. Test am Desktop
   und Handy-Test erfolgreich.)
+- [x] Nachtrag: Spielfeld am Desktop beim Start automatisch fokussieren, damit Tasten sofort wirken.
+  (`ui/board-focus.ts`: fokussiert beim Start eines Rätsels (auch neues Level, Probespielen) das Spielfeld bzw. die
+  Zelle im Tab-Fokus, nur bei `(hover: hover) and (pointer: fine)` und wenn nichts anderes den Fokus hat. Hat nichts
+  den Fokus (Klick auf den Hintergrund), geht eine Taste trotzdem ans Spielfeld; Tab bleibt normal, Kürzel lösen
+  einmal aus. Im Browser geprüft an Sokoban und Lights Out (Headless Chrome, `matchMedia` simuliert).)
+- [ ] Test am echten Desktop: Fokus beim Start, Taste nach Klick auf den Hintergrund.
 
 ### M34 – Zeit ausblenden und Beschreibung im Editor
 - [x] Schalter „Laufende Zeit anzeigen“ unter Profil › Darstellung, gespeichert im `localStorage`, Standard an.
