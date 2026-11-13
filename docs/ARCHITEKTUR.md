@@ -601,7 +601,8 @@ Die Datenbank `raetsel` enthält diese Stores:
 
 - `public/manifest.webmanifest` mit Name, Icons (192, 512, maskable 512, SVG) und `display: standalone`;
   `apple-touch-icon` und Meta-Tags für iOS in `index.html`. Alle Pfade relativ (`vite build --base=./`),
-  damit die App auch in einem Unterordner läuft (GitHub Pages: `https://<user>.github.io/<repo>/`).
+  damit die App auch in einem Unterordner läuft (GitHub Pages: `https://<user>.github.io/<repo>/`) und ebenso direkt
+  unter der eigenen Domain (`https://kibix.app/`).
 - `public/sw.js`: Netzwerk zuerst, Cache als Fallback. Beim Installieren werden App-Shell und die gebauten
   Bundles (aus `index.html` gelesen) gecacht, also funktioniert die App schon nach dem ersten Besuch offline.
   Offline-Navigation (auch geteilte Links) bekommt die App-Shell. Geteilte Rätsel funktionieren offline,
@@ -623,6 +624,14 @@ Die Datenbank `raetsel` enthält diese Stores:
 
 - `.github/workflows/deploy.yml`: bei jedem Push auf `main` testen, bauen und auf GitHub Pages veröffentlichen.
   Einmalig in GitHub einstellen: Settings → Pages → Source „GitHub Actions“.
+- **Eigene Domain** `kibix.app` (seit November 2026): eingetragen in den Pages-Einstellungen des Repositorys, nicht als
+  `CNAME`-Datei (beim Deployment per GitHub Actions wird sie ignoriert). DNS-Einträge und Einrichtung stehen im README.
+  Im Code ist keine Adresse fest eingetragen: Teilen-Links, QR-Codes, Galerie-Links und die Rücksprung-Adresse der Mails
+  entstehen aus `location.origin` und `location.pathname`. Nur Supabase muss die Adresse kennen (Site URL und Redirect
+  URLs im Projekt `prod`).
+- **Umzug von github.io:** GitHub leitet die alte Adresse per 301 weiter, das Fragment (`#/p/…`) bleibt erhalten.
+  IndexedDB und `localStorage` hängen aber am Origin: Bibliothek, Fortschritt, Anmeldung und Einstellungen von der alten
+  Adresse fehlen auf der neuen. Mit Konto holt der Sync (M27) Rätsel und Fortschritt zurück, ohne Konto sind sie weg.
 - Der Workflow bricht ab, solange `src/imprint.ts` nicht ausgefüllt oder die Datenschutzerklärung nicht freigegeben ist
   (`scripts/check-legal.ts`; mit Backend in `.env.production` muss zusätzlich der Mailanbieter eingetragen sein).
 - `.github/workflows/keep-alive.yml` fragt alle drei Tage jedes konfigurierte Supabase-Projekt ab, damit es nicht pausiert.
