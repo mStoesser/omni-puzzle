@@ -891,14 +891,22 @@ Entschieden (11/2026):
 
 ### M40 – Bühne und Hülle (Core-Vorbereitung)
 Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
-- [ ] `playView` aufteilen: `playStage` (Spielfeld, Geschichte der Kette, Steuerleiste optional) und die
+- [x] `playView` aufteilen: `playStage` (Spielfeld, Geschichte der Kette, Steuerleiste optional) und die
   Standard-Hülle (Kopf, Seitenleiste, Stat-Kacheln, Gelöst-Sheet). Die Hülle bekommt die Bühne als Template.
-- [ ] Präsentation als Teil des Spiel-Zustands (`presentation: "standard" | "full"`). Sie kommt aus dem Modus der Route
+  (`ui/views/play-stage.ts`; `playView` wählt die Hülle, `standardHull` ist der bisherige Inhalt.)
+- [x] Präsentation als Teil des Spiel-Zustands (`presentation: "standard" | "full"`). Sie kommt aus dem Modus der Route
   (M41), die App kann sie übersteuern; zum Rätsel selbst gehört sie nicht. Was beim Lösen passiert (Sheet, Einblendung, später Code), entscheidet die Hülle; Fortschritt,
   Ranglisten, Tagesrangliste, Weiterspielen und Rückmeldung laufen wie bisher in jeder Hülle.
-- [ ] Tests: bestehende Tests bleiben grün; reine Teile (z. B. welche Hülle für welche Route und welchen Einstieg) mit
+  (Abweichung: Der Typ hat vorerst nur `"standard"`; `"full"` kommt mit seiner Hülle in M41, damit es keinen
+  Zweig ohne Inhalt gibt. `showSolved` bleibt im Zustand und heißt „Rückmeldung zum Lösen sichtbar“; wie sie aussieht,
+  zeichnet die Hülle.)
+- [x] Tests: bestehende Tests bleiben grün; reine Teile (z. B. welche Hülle für welche Route und welchen Einstieg) mit
   `node --test`.
-- [ ] Im Browser geprüft: alle Typen, Ketten-Schritt, Tagesrätsel, Probespielen, 390 und 1280 px, unverändert.
+  (633 Tests grün. M40 bringt keine neue reine Logik; die Zuordnung Route → Hülle kommt mit dem Modus in M41.)
+- [x] Im Browser geprüft: alle Typen, Ketten-Schritt, Tagesrätsel, Probespielen, 390 und 1280 px, unverändert.
+  (Headless Chrome gegen einen Dev-Server mit dem Stand davor: das gerenderte HTML aller 36 Beispiele bei 390 und
+  1280 px und das Probespielen im Editor (Laser, Sokoban, Nonogramm) ist bis auf Leerraum gleich. Ketten-Schritt und
+  Tagesrätsel brauchen das Backend und laufen über denselben Code, nicht im Browser verglichen.)
 
 ### M41 – Vollbild beim Spielen
 - [ ] Router: `mode` als Query-Parameter für `shared`, `published` und `chain` (`parseRoute`/`formatRoute` mit Tests);

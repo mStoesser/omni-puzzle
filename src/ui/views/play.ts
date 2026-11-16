@@ -1,5 +1,5 @@
 import { html, nothing } from "lit-html";
-import { canRedo, canUndo, currentState, moveCount } from "../../core/session.ts";
+import { moveCount } from "../../core/session.ts";
 import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
@@ -16,17 +16,24 @@ import type { ReportDialogActions, ReportDialogModel } from "../components/repor
 import { iconButton, popoverMenu, sheet, stat, typeVars } from "../components/ui.ts";
 import type { MenuItem } from "../components/ui.ts";
 import { icon } from "../icons.ts";
-import type { IconName } from "../icons.ts";
-import { buttonShortcut } from "../keyboard.ts";
+import { playStage } from "./play-stage.ts";
 
 /** Where the puzzle comes from: built-in example, share link, published, own library, or test play from the editor. */
 export type PlayOrigin = "example" | "shared" | "published" | "own" | "test";
+
+/**
+ * The hull around the stage (M40): what is shown besides the puzzle and what happens when it is solved.
+ * "standard" = header, stats, side panel and the solved sheet. Full screen (M41) and escape mode come as further hulls.
+ * It belongs to the play state, not to the puzzle.
+ */
+export type Presentation = "standard";
 
 export type PlayViewModel = {
   title: string;
   session: AnyPlaySession;
   showSolved: boolean;
   origin: PlayOrigin;
+  presentation: Presentation;
   localId?: string; // library id for origin "own"
   published?: PublishedInfo; // for origin "published"
   backHref?: string; // where "back" leads; default depends on the origin
@@ -92,12 +99,21 @@ export type PlayViewActions = {
 
 const MENU_ID = "play-menu";
 
+type PlayViewOptions = { embedded?: boolean };
+
+/** The play view: the stage inside the hull chosen by `model.presentation`. */
+export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayViewActions, options: PlayViewOptions = {}) {
+  switch (model.presentation) {
+    case "standard":
+      return standardHull(model, stats, actions, options);
+  }
+}
+
 /** `embedded`: inside the editor frame (test play), without the own header. */
-export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayViewActions, options: { embedded?: boolean } = {}) {
+function standardHull(model: PlayViewModel, stats: PlayStats, actions: PlayViewActions, options: PlayViewOptions) {
   const { session } = model;
   const { type } = session;
   const moves = moveCount(session);
-  const showUndo = type.controls?.undo !== false;
   const showMoves = type.controls?.moves !== false;
   const best = stats.bestMoves;
   const menu = menuItems(model, actions);
@@ -123,23 +139,7 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
     </header>`}
 
     <div class="play-layout">
-      <div class="play-stage">
-        <div class="play-main">
-          ${model.chain?.story ? html`<p class="box chain-story play-story">${model.chain.story}</p>` : nothing}
-          <div class="board">
-            ${type.renderPlay({ data: session.data, state: currentState(session), dispatch: actions.dispatch, images: model.images, theme: model.theme })}
-          </div>
-        </div>
-        <nav class="play-controls ${showUndo ? "" : "single"}" aria-label=${t("playControls")}>
-          ${showUndo
-            ? html`
-                ${control("undo", t("undo"), actions.undo, !canUndo(session), "undo")}
-                ${control("redo", t("redo"), actions.redo, !canRedo(session), "redo")}
-              `
-            : nothing}
-          ${control("restart", t("restart"), actions.restart, session.history.length === 1, "restart")}
-        </nav>
-      </div>
+      ${playStage(model, actions)}
       <aside class="play-side" aria-label=${t("playInfo")}>
         ${showMoves
           ? html`<div class="stats play-stats ${stats.showTimer ? "four" : ""}">
@@ -203,14 +203,6 @@ function levelBox(levels: readonly PlayLevel[]) {
     </ul>
   </section>`;
 }
-
-function control(name: IconName, text: string, onClick: () => void, disabled: boolean, shortcut: "undo" | "redo" | "restart") {
-  const keys = buttonShortcut(shortcut);
-  return html`<button class="play-control" title="${text} (${keys.hint})" aria-keyshortcuts=${keys.aria} ?disabled=${disabled} @click=${onClick}>
-    ${icon(name, 22)}<span>${text}</span>
-  </button>`;
-}
-
 
 /** Share, remix (copy into the library), edit for own puzzles, report for published ones. */
 function menuItems(model: PlayViewModel, actions: PlayViewActions): MenuItem[] {

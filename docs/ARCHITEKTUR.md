@@ -99,7 +99,7 @@ src/
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“ (quiz-images und user-images)
     score-handler.ts      # Request-Handler der Edge Function „submit-score“ (M25)
   ui/
-    views/                # home.ts, library.ts, play.ts, editor.ts, chain.ts, chain-editor.ts …
+    views/                # home.ts, library.ts, play.ts (Hüllen), play-stage.ts (Bühne), editor.ts, chain.ts …
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
     palette.ts            # Rollen-Paletten der Renderer: Standard-CSS und Theme als Inline-Stil (M29)
     piece-icons.ts        # Icons aus src/icons/pieces/ (Vite ?raw) für die Renderer (M31)
@@ -1142,6 +1142,19 @@ Solver und Daten bleiben unberührt.
   Nutzergeste erlaubt.
 - **Schalter** unter Profil › Darstellung, `localStorage` `knobelkiste-feedback` = `on`, Standard aus. Nur Züge über
   `dispatch` geben Rückmeldung, nicht Rückgängig, Wiederholen oder Neustart.
+
+### Bühne und Hülle (M40)
+
+- **Bühne** (`ui/views/play-stage.ts`, `playStage`): das spielbare Rätsel ohne Drumherum, also Geschichte des
+  Ketten-Schritts, Spielfeld (`renderPlay`) und, wenn die Hülle keine eigene mitbringt, die Steuerleiste (Rückgängig,
+  Wiederholen, Neustart; `controls: false` lässt sie weg).
+- **Hülle:** alles drumherum und die Rückmeldung beim Lösen. `PlayViewModel.presentation` wählt sie, `playView`
+  verteilt darauf. `"standard"` (`standardHull`) ist die bisherige Ansicht: Kopf, Stat-Kacheln, Seitenleiste,
+  Gelöst-Sheet, Meldedialog; eingebettet im Editor (Probespielen) ohne Kopf. Weitere Hüllen (Vollbild in M41, später
+  Escape-Modus) kommen als neuer Wert dazu.
+- Die Präsentation gehört zum Spiel-Zustand, nicht zum Rätsel. Session, Timer, Fortschritt, Ranglisten, Weiterspielen
+  und Rückmeldung (`updateSession` in `main.ts`) sind von ihr unabhängig; `showSolved` sagt nur, ob die Rückmeldung zum
+  Lösen sichtbar ist. Die Plugins merken von der Hülle nichts.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
