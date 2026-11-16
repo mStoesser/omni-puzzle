@@ -69,8 +69,8 @@ test("keys stay in text fields, selects and editable content, not in radios or b
 
 test("the overview lists what works in each context", () => {
   const labels = (rows: ReturnType<typeof shortcutRows>) => rows.map((r) => r.label);
-  assert.deepEqual(labels(shortcutRows("play", false, "Strg")), ["undo", "redo", "restart", "shortcutsMove", "shortcutsHelp"]);
-  assert.deepEqual(labels(shortcutRows("play", false, "Strg", false)), ["restart", "shortcutsMove", "shortcutsHelp"]); // quiz
+  assert.deepEqual(labels(shortcutRows("play", false, "Strg")), ["undo", "redo", "restart", "shortcutsMove", "fullscreen", "shortcutsHelp"]);
+  assert.deepEqual(labels(shortcutRows("play", false, "Strg", false)), ["restart", "shortcutsMove", "fullscreen", "shortcutsHelp"]); // quiz
   assert.deepEqual(labels(shortcutRows("editor", false, "Strg")), ["undo", "redo", "shortcutsTool", "testPlay", "shortcutsHelp"]);
   assert.deepEqual(labels(shortcutRows("test", false, "Strg")), ["undo", "redo", "restart", "shortcutsMove", "shortcutsBuild", "shortcutsHelp"]);
   assert.deepEqual(shortcutRows("play", false, "Strg")[0]!.combos, [["Strg", "Z"]]);
@@ -84,4 +84,15 @@ test("buttons name their shortcut for screen readers and tooltips", () => {
   assert.equal(ariaShortcut("restart", false), "R");
   assert.equal(shortcutHint("undo", false, "Strg"), "Strg+Z");
   assert.equal(shortcutHint("redo", true, "Strg"), "⌘⇧Z");
+});
+
+test("F switches full screen, only while playing (M41)", () => {
+  const key = (k: string) => ({ key: k, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false });
+  assert.deepEqual(shortcutFor(key("f"), "play", false), { action: "fullscreen" });
+  assert.deepEqual(shortcutFor(key("F"), "play", false), { action: "fullscreen" }); // caps lock
+  assert.equal(shortcutFor(key("f"), "test", false), null);
+  assert.equal(shortcutFor(key("f"), "editor", false), null);
+  assert.equal(shortcutFor({ ...key("f"), ctrlKey: true }, "play", false), null); // Ctrl+F stays the browser's search
+  assert.equal(ariaShortcut("fullscreen", false), "F");
+  assert.equal(shortcutHint("fullscreen", true, "Strg"), "F");
 });

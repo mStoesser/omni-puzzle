@@ -4338,3 +4338,154 @@ a.resume-card:hover {
   min-height: 40px;
   background: var(--kk-surface-2);
 }
+
+/* Full screen while playing (M41): only the board, a small bar and a short note when solved. The board takes all
+   the space left; SVG boards keep their proportions through the viewBox (pointer input uses getScreenCTM). */
+.page.focus.full {
+  max-width: none;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.play-full {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.full-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-1);
+  padding: var(--kk-space-2);
+}
+
+.full-bar-gap {
+  flex: 1;
+}
+
+.full-bar .icon-button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--kk-muted);
+}
+
+.full-bar .icon-button:not(:disabled):hover {
+  background: var(--kk-surface);
+  color: var(--kk-text);
+}
+
+.full-bar .icon-button:disabled {
+  color: var(--kk-disabled);
+}
+
+.play-full .play-stage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.play-full .play-main {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0 var(--kk-space-3) var(--kk-space-3);
+  gap: var(--kk-space-2);
+  overflow: auto;
+}
+
+.play-full .board,
+.play-full .board:has(> svg) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kk-space-2);
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  aspect-ratio: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.play-full .board > svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: auto;
+}
+
+.play-full .board > .quiz {
+  max-width: 40rem;
+}
+
+/* Landscape: the direction pad (Ice, Sokoban) goes beside the board instead of below it. */
+@media (orientation: landscape) {
+  .play-full .board:has(> .direction-pad) {
+    flex-direction: row;
+  }
+
+  .play-full .board:has(> .direction-pad) > svg {
+    width: auto;
+    min-width: 0;
+    height: 100%;
+  }
+}
+
+.full-solved-region {
+  position: absolute;
+  inset-inline: 0;
+  bottom: var(--kk-space-4);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.full-solved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kk-space-3);
+  margin-inline: var(--kk-space-3);
+  padding: var(--kk-space-3) var(--kk-space-4);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-2xl);
+  background: var(--kk-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  pointer-events: auto;
+}
+
+.full-solved-title {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  margin: 0;
+  font-family: var(--kk-font-display);
+  font-weight: 700;
+  color: var(--kk-ok);
+}
+
+.full-solved-actions {
+  display: flex;
+  gap: var(--kk-space-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .full-solved {
+    animation: full-solved-in 240ms ease-out;
+  }
+}
+
+@keyframes full-solved-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}

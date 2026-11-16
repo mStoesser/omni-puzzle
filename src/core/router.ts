@@ -108,14 +108,55 @@ export function formatRoute(route: Route): string {
   }
 }
 
+// --- Modes (M41) ---
+
+/** How a puzzle route is presented; it travels in the link as `?mode=…`. "full" = full screen. */
+export type Mode = "full";
+const MODES: readonly string[] = ["full"] satisfies readonly Mode[];
+
+/** A route with its mode. null = the normal view. */
+export type Address = { route: Route; mode: Mode | null };
+
+/** The mode new share links get (share sheet, QR code, link after publishing); null = links without a mode. */
+export const LINK_MODE: Mode | null = "full";
+
+/** Routes that play a puzzle may carry a mode; for a chain it applies to its steps (the overview stays normal). */
+export function takesMode(route: Route): boolean {
+  return route.name === "play" || route.name === "shared" || route.name === "published" || route.name === "chain" || route.name === "daily";
+}
+
+/**
+ * Parses a hash with an optional mode. Only `mode=<word>` is allowed as query part of a puzzle route; an unknown
+ * mode means the normal view, so a newer app's link still opens. Everything else behaves like `parseRoute`.
+ */
+export function parseAddress(hash: string): Address {
+  const rest = hash.replace(/^#\/?/, "");
+  const query = rest.indexOf("?");
+  const mode = query < 0 ? null : /^mode=([a-z]{1,16})$/.exec(rest.slice(query + 1));
+  if (mode) {
+    const route = parseRoute(`#/${rest.slice(0, query)}`);
+    if (takesMode(route)) return { route, mode: MODES.includes(mode[1]!) ? (mode[1] as Mode) : null };
+  }
+  return { route: parseRoute(hash), mode: null };
+}
+
+export function formatAddress(route: Route, mode: Mode | null): string {
+  return mode !== null && takesMode(route) ? `${formatRoute(route)}?mode=${mode}` : formatRoute(route);
+}
+
+/** The same route as `href` with another mode, e.g. the next level in full screen. */
+export function hrefWithMode(href: string, mode: Mode | null): string {
+  return formatAddress(parseAddress(href).route, mode);
+}
+
 /** Calls `onRoute` now and on every hash change. Unknown hashes are replaced by "#/". */
-export function startRouter(onRoute: (route: Route) => void): () => void {
+export function startRouter(onRoute: (address: Address) => void): () => void {
   const handle = () => {
-    const route = parseRoute(location.hash);
-    if (route.name === "home" && !["", "#", "#/"].includes(location.hash)) {
-      history.replaceState(null, "", formatRoute(route));
+    const address = parseAddress(location.hash);
+    if (address.route.name === "home" && !["", "#", "#/"].includes(location.hash)) {
+      history.replaceState(null, "", formatRoute(address.route));
     }
-    onRoute(route);
+    onRoute(address);
   };
   window.addEventListener("hashchange", handle);
   handle();

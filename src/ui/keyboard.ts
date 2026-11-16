@@ -1,4 +1,5 @@
 import { ariaShortcut, shortcutHint } from "../core/shortcuts.ts";
+import type { ButtonAction } from "../core/shortcuts.ts";
 import { t } from "../i18n/t.ts";
 
 /** Apple devices use Cmd instead of Ctrl for shortcuts (M33). */
@@ -8,7 +9,7 @@ export function isMac(): boolean {
 }
 
 /** aria-keyshortcuts and tooltip text for a button with a shortcut, in the active language. */
-export function buttonShortcut(action: "undo" | "redo" | "restart" | "mode") {
+export function buttonShortcut(action: ButtonAction) {
   const mac = isMac();
   return { aria: ariaShortcut(action, mac), hint: shortcutHint(action, mac, t("keyCtrl")) };
 }

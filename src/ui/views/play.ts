@@ -1,5 +1,6 @@
 import { html, nothing } from "lit-html";
-import { moveCount } from "../../core/session.ts";
+import { canRedo, canUndo, moveCount } from "../../core/session.ts";
+import { hrefWithMode } from "../../core/router.ts";
 import { averageRating, formatAverage } from "../../core/reactions.ts";
 import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
@@ -16,6 +17,7 @@ import type { ReportDialogActions, ReportDialogModel } from "../components/repor
 import { iconButton, popoverMenu, sheet, stat, typeVars } from "../components/ui.ts";
 import type { MenuItem } from "../components/ui.ts";
 import { icon } from "../icons.ts";
+import { buttonShortcut } from "../keyboard.ts";
 import { playStage } from "./play-stage.ts";
 
 /** Where the puzzle comes from: built-in example, share link, published, own library, or test play from the editor. */
@@ -23,10 +25,10 @@ export type PlayOrigin = "example" | "shared" | "published" | "own" | "test";
 
 /**
  * The hull around the stage (M40): what is shown besides the puzzle and what happens when it is solved.
- * "standard" = header, stats, side panel and the solved sheet. Full screen (M41) and escape mode come as further hulls.
- * It belongs to the play state, not to the puzzle.
+ * "standard" = header, stats, side panel and the solved sheet; "full" = full screen (M41): only the board, a small bar
+ * and a short note when solved. Escape mode comes as a further hull. It belongs to the play state, not to the puzzle.
  */
-export type Presentation = "standard";
+export type Presentation = "standard" | "full";
 
 export type PlayViewModel = {
   title: string;
@@ -52,6 +54,8 @@ export type PlayViewModel = {
   timer: Timer; // play time of this attempt
   /** M38: the puzzle can be passed on (not in test play, own puzzles only once the creator solved them). */
   shareable?: boolean;
+  /** M41: the browser can show the page in full screen and does not yet (computed when rendering). */
+  canHideBrowserBars?: boolean;
 };
 
 /** Numbers beside the board: best results so far (null = not solved before) and the running time. */
@@ -93,6 +97,9 @@ export type PlayViewActions = {
   openReport(): void;
   openShortcuts(): void;
   openShare(): void;
+  enterFull(): void;
+  exitFull(): void;
+  hideBrowserBars(): void;
   report: ReportDialogActions;
   leaderboard: LeaderboardActions;
 };
@@ -106,7 +113,44 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
   switch (model.presentation) {
     case "standard":
       return standardHull(model, stats, actions, options);
+    case "full":
+      return fullHull(model, actions);
   }
+}
+
+/**
+ * Full screen (M41): the stage with a small bar (leave, hide the browser bars, undo, redo, restart) and no numbers.
+ * When solved, a short note offers the next puzzle (in full screen too) or leaving; leaving shows the solved sheet.
+ */
+function fullHull(model: PlayViewModel, actions: PlayViewActions) {
+  const { session } = model;
+  const showUndo = session.type.controls?.undo !== false;
+  return html`<div class="play-full">
+    <nav class="full-bar" aria-label=${t("playControls")}>
+      ${iconButton({ label: t("fullscreenLeave"), icon: "minimize", onClick: actions.exitFull, shortcut: buttonShortcut("fullscreen") })}
+      ${model.canHideBrowserBars ? iconButton({ label: t("fullscreenBrowser"), icon: "expand", onClick: actions.hideBrowserBars }) : nothing}
+      <span class="full-bar-gap"></span>
+      ${showUndo
+        ? html`${iconButton({ label: t("undo"), icon: "undo", onClick: actions.undo, disabled: !canUndo(session), shortcut: buttonShortcut("undo") })}
+          ${iconButton({ label: t("redo"), icon: "redo", onClick: actions.redo, disabled: !canRedo(session), shortcut: buttonShortcut("redo") })}`
+        : nothing}
+      ${iconButton({ label: t("restart"), icon: "restart", onClick: actions.restart, disabled: session.history.length === 1, shortcut: buttonShortcut("restart") })}
+    </nav>
+    ${playStage(model, actions, { controls: false })}
+    <div class="full-solved-region" role="status">${model.showSolved ? fullSolved(model, actions) : nothing}</div>
+  </div>`;
+}
+
+function fullSolved(model: PlayViewModel, actions: PlayViewActions) {
+  return html`<div class="full-solved">
+    <p class="full-solved-title">${icon("check", 22)}${t("solvedTitle")}</p>
+    <div class="full-solved-actions">
+      ${model.next
+        ? html`<a class="button" href=${hrefWithMode(model.next.href, "full")}>${t("fullscreenNext")}${icon("chevronRight", 18)}</a>`
+        : nothing}
+      <button type="button" class=${model.next ? "secondary" : ""} @click=${actions.exitFull}>${t("fullscreenLeave")}</button>
+    </div>
+  </div>`;
 }
 
 /** `embedded`: inside the editor frame (test play), without the own header. */
@@ -168,6 +212,11 @@ function standardHull(model: PlayViewModel, stats: PlayStats, actions: PlayViewA
         ${model.shareable
           ? html`<button class="secondary block play-share desktop-only" @click=${actions.openShare}>${icon("share", 18)}${t("share")}</button>`
           : nothing}
+        ${model.origin === "test"
+          ? nothing
+          : html`<button class="secondary block play-fullscreen desktop-only" title="${t("fullscreen")} (F)" aria-keyshortcuts="F" @click=${actions.enterFull}>
+              ${icon("maximize", 18)}${t("fullscreen")}
+            </button>`}
         ${remixable
           ? html`<button class="secondary block play-remix desktop-only" @click=${actions.copyToLibrary}>
               ${icon("pencil", 18)}${t("playRemixTemplate")}
@@ -207,6 +256,7 @@ function levelBox(levels: readonly PlayLevel[]) {
 /** Share, remix (copy into the library), edit for own puzzles, report for published ones. */
 function menuItems(model: PlayViewModel, actions: PlayViewActions): MenuItem[] {
   const items: MenuItem[] = [];
+  if (model.origin !== "test") items.push({ icon: "maximize", text: t("fullscreen"), onClick: actions.enterFull });
   if (model.shareable) items.push({ icon: "share", text: t("share"), onClick: actions.openShare });
   if (model.origin === "example" || model.origin === "shared" || model.origin === "published") {
     items.push({ icon: "pencil", text: t("remix"), onClick: actions.copyToLibrary });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatRoute, parseRoute } from "./router.ts";
+import { formatAddress, formatRoute, hrefWithMode, parseAddress, parseRoute, takesMode } from "./router.ts";
 import type { Route } from "./router.ts";
 
 test("parses all known routes", () => {
@@ -78,4 +78,55 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "published", id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f" },
   ];
   for (const route of routes) assert.deepEqual(parseRoute(formatRoute(route)), route);
+});
+
+const GALLERY_ID = "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f";
+
+test("puzzle routes carry a mode (M41)", () => {
+  assert.deepEqual(parseAddress("#/p/1.abc?mode=full"), { route: { name: "shared", code: "1.abc" }, mode: "full" });
+  assert.deepEqual(parseAddress(`#/g/${GALLERY_ID}?mode=full`), { route: { name: "published", id: GALLERY_ID }, mode: "full" });
+  assert.deepEqual(parseAddress(`#/c/${GALLERY_ID}?mode=full`), { route: { name: "chain", id: GALLERY_ID, step: null }, mode: "full" });
+  assert.deepEqual(parseAddress(`#/c/${GALLERY_ID}/3?mode=full`), { route: { name: "chain", id: GALLERY_ID, step: 3 }, mode: "full" });
+  assert.deepEqual(parseAddress("#/play/laser-1?mode=full"), { route: { name: "play", id: "laser-1" }, mode: "full" });
+  assert.deepEqual(parseAddress("#/daily?mode=full"), { route: { name: "daily" }, mode: "full" });
+  assert.deepEqual(parseAddress("#/p/1.abc"), { route: { name: "shared", code: "1.abc" }, mode: null });
+});
+
+test("an unknown mode means the normal view; other query parts are still rejected", () => {
+  assert.deepEqual(parseAddress("#/p/1.abc?mode=escape"), { route: { name: "shared", code: "1.abc" }, mode: null });
+  for (const hash of ["#/p/1.abc?mode=", "#/p/1.abc?mode=FULL", "#/p/1.abc?mode=full&x=1", "#/p/1.abc?x=1", "#/p/1.abc?mode=full?x"]) {
+    assert.deepEqual(parseAddress(hash), { route: { name: "home" }, mode: null }, hash);
+  }
+  // Routes without a puzzle ignore no mode: they keep their old behavior.
+  assert.deepEqual(parseAddress("#/edit/x1?mode=full"), { route: { name: "home" }, mode: null });
+  assert.deepEqual(parseAddress("#/new/laser?mode=full"), { route: { name: "home" }, mode: null });
+  assert.deepEqual(parseAddress("#/library?mode=full"), { route: { name: "library", filter: "all" }, mode: null });
+  assert.equal(parseAddress("#/gallery?mode=full").route.name, "gallery");
+  assert.deepEqual(parseAddress("#/gallery?mode=full").mode, null);
+});
+
+test("formatAddress round-trips and leaves routes without a puzzle alone", () => {
+  const routes: Route[] = [
+    { name: "shared", code: "1.abc" },
+    { name: "published", id: GALLERY_ID },
+    { name: "chain", id: GALLERY_ID, step: null },
+    { name: "chain", id: GALLERY_ID, step: 2 },
+    { name: "play", id: "x2" },
+    { name: "daily" },
+  ];
+  for (const route of routes) {
+    assert.ok(takesMode(route));
+    for (const mode of ["full", null] as const) assert.deepEqual(parseAddress(formatAddress(route, mode)), { route, mode });
+  }
+  assert.equal(formatAddress({ name: "shared", code: "1.abc" }, "full"), "#/p/1.abc?mode=full");
+  assert.equal(formatAddress({ name: "edit", id: "x1" }, "full"), "#/edit/x1");
+  assert.equal(formatAddress({ name: "home" }, "full"), "#/");
+  assert.equal(takesMode({ name: "edit", id: "x1" }), false);
+});
+
+test("hrefWithMode switches the mode of a link", () => {
+  assert.equal(hrefWithMode("#/play/laser-2", "full"), "#/play/laser-2?mode=full");
+  assert.equal(hrefWithMode("#/play/laser-2?mode=full", null), "#/play/laser-2");
+  assert.equal(hrefWithMode(`#/c/${GALLERY_ID}/2`, "full"), `#/c/${GALLERY_ID}/2?mode=full`);
+  assert.equal(hrefWithMode("#/library", "full"), "#/library");
 });

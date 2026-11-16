@@ -35,6 +35,11 @@ export function focusBoardOnStart(key: unknown) {
   if (nothingFocused()) target.focus({ preventScroll: true });
 }
 
+/** Focuses the board right now (desktop only), e.g. after switching the full screen (M41). */
+export function focusBoardNow() {
+  if (isDesktop()) boardTarget()?.focus({ preventScroll: true });
+}
+
 /**
  * A keydown (capture, on the document) while nothing has the focus: focuses the board and hands it the key, so the
  * move happens. Tab keeps its normal job. Returns false when the key was not forwarded.

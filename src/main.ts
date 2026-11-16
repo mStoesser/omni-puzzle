@@ -46,7 +46,8 @@ import type { CardPreview } from "./core/preview.ts";
 import type { ChainDraft } from "./core/chains.ts";
 import type { ReportReason } from "./core/moderation.ts";
 import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
-import { formatRoute, parseRoute, startRouter } from "./core/router.ts";
+import { formatAddress, formatRoute, LINK_MODE, parseAddress, startRouter, takesMode } from "./core/router.ts";
+import type { Address, Mode } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
 import type { AnyPlaySession } from "./core/session.ts";
@@ -99,6 +100,8 @@ import { libraryView } from "./ui/views/library.ts";
 import type { LibraryItem } from "./ui/views/library.ts";
 import { messageView } from "./ui/views/message.ts";
 import { playView } from "./ui/views/play.ts";
+import type { Presentation } from "./ui/views/play.ts";
+import { canHideBrowserBars, hideBrowserBars, keepScreenOn, showBrowserBars, watchBrowserFullscreen } from "./ui/fullscreen.ts";
 import type { PlayLevel, PlayOrigin, PlayStats, PlayViewModel, PublishedInfo } from "./ui/views/play.ts";
 import { privacyView } from "./ui/views/privacy.ts";
 import { encodeImage } from "./ui/image-encode.ts";
@@ -109,7 +112,7 @@ import type { ThemeChoice } from "./ui/theme.ts";
 import { applyLanguage, readLanguageChoice, storeLanguageChoice, watchSystemLanguage } from "./ui/language.ts";
 import type { LanguageChoice } from "./ui/language.ts";
 import type { EncodeError } from "./ui/image-encode.ts";
-import { focusBoardOnStart, forwardKeyToBoard } from "./ui/board-focus.ts";
+import { focusBoardNow, focusBoardOnStart, forwardKeyToBoard } from "./ui/board-focus.ts";
 
 type EditorState = {
   id: string; // library id; a new puzzle is saved under it on its first change
@@ -131,6 +134,7 @@ type ErrorInfo = { text: MessageKey; action?: { href: string; label: MessageKey 
 
 type AppState = {
   route: Route;
+  mode: Mode | null; // M41: how the puzzle of the route is shown, from the link (`?mode=full`)
   pending: boolean; // route content is loading (storage, share link)
   error: ErrorInfo | null; // route content could not be loaded
   notice: MessageKey | null; // e.g. saving failed; cleared when navigating
@@ -207,7 +211,8 @@ const api = backend && auth ? createApi(backend, { accessToken: auth.accessToken
 applyLanguage(readLanguageChoice());
 
 const store = createStore<AppState>({
-  route: parseRoute(location.hash),
+  route: parseAddress(location.hash).route,
+  mode: null, // set by the router on start
   pending: false,
   error: null,
   notice: null,
@@ -283,11 +288,35 @@ function now() {
 
 // --- Routes ---
 
-function enterRoute(route: Route) {
+/** The full screen got its own history entry (button, F), so leaving it goes back instead of replacing the entry. */
+let fullPushed = false;
+/** Leaving the full screen is under way (until the hash change arrives); the browser's fullscreenchange must not repeat it. */
+let leavingFull = false;
+/** After switching the full screen: where the keyboard focus goes once rendered. */
+let focusAfterMode: "board" | "button" | null = null;
+
+function enterAddress({ route, mode }: Address) {
+  const state = store.get();
+  leavingFull = false;
+  if (mode !== "full") {
+    fullPushed = false;
+    showBrowserBars();
+  }
+  // Only the mode changed (M41): the same puzzle and attempt, no reload.
+  if (state.play && takesMode(route) && formatRoute(route) === formatRoute(state.route)) {
+    if (mode !== state.mode) focusAfterMode = mode === "full" ? "board" : "button";
+    patch({ mode });
+    return;
+  }
+  fullPushed = false;
+  enterRoute(route, mode);
+}
+
+function enterRoute(route: Route, mode: Mode | null) {
   const previous = store.get().route;
   flushSave();
   flushResume();
-  patch({ route, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
+  patch({ route, mode, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
     case "home":
@@ -1107,6 +1136,25 @@ const playActions = {
   openReport,
   openShortcuts: () => patch({ shortcuts: true }),
   openShare: () => void openPlayShare(),
+  // M41: full screen gets its own history entry, so the back gesture leaves it instead of the puzzle.
+  enterFull: () => {
+    const { route, play, mode } = store.get();
+    if (!play || play.origin === "test" || !takesMode(route) || mode === "full") return;
+    fullPushed = true;
+    location.hash = formatAddress(route, "full");
+    hideBrowserBars(); // still in the tap or key press: the browser allows it only there
+  },
+  exitFull: () => {
+    const { route, mode } = store.get();
+    if (mode !== "full" || leavingFull) return;
+    leavingFull = true;
+    showBrowserBars();
+    if (fullPushed) history.back();
+    else location.replace(formatAddress(route, null)); // opened by a link: the same puzzle, normal view
+  },
+  hideBrowserBars: () => {
+    hideBrowserBars();
+  },
   report: reportActions,
   leaderboard: leaderboardActions,
   // Remixing: the copy is a new, unverified draft of the creator.
@@ -1274,7 +1322,7 @@ async function openChainStep(route: Route & { name: "chain" }, model: ChainViewM
   const step = model.chain.steps[index];
   const back = () => {
     chainNotice = step && progress.states[index] === "locked" ? "chainLockedRedirect" : null;
-    location.replace(chainOverview(route.id));
+    location.replace(formatAddress({ name: "chain", id: route.id, step: null }, store.get().mode));
   };
   if (!step || !chains.isUnlocked(progress, index)) return back();
   const puzzle = await fetchPublished(api!, step.puzzle);
@@ -1629,8 +1677,9 @@ const shareActions = {
   close: () => patch({ share: null }),
 };
 
+/** A share link; new links carry LINK_MODE (M41), so they open in full screen. */
 function appUrl(route: Route) {
-  return `${location.origin}${location.pathname}${formatRoute(route)}`;
+  return `${location.origin}${location.pathname}${formatAddress(route, LINK_MODE)}`;
 }
 
 /**
@@ -2476,7 +2525,7 @@ function view(state: AppState) {
     case "chain":
       if (state.route.step === null) {
         if (!state.chain) return nothing;
-        return chainView(state.chain, progressOf(state.chain), chainAccess(state.chain, state.account.user), chainBackHref(), registry, chainActions);
+        return chainView(state.chain, progressOf(state.chain), chainAccess(state.chain, state.account.user), chainBackHref(), state.mode, registry, chainActions);
       }
     // A step is played like a published puzzle.
     // falls through
@@ -2498,6 +2547,8 @@ function view(state: AppState) {
         play = { ...play, daily: now?.day === daily.day ? { ...daily, streak: now.streak } : daily };
       }
       if (play.origin === "example" && state.route.name === "play") play = { ...play, levels: exampleLevels(state, state.route.id) };
+      const presentation = presentationOf(state);
+      play = { ...play, presentation, canHideBrowserBars: presentation === "full" && canHideBrowserBars() };
       return html`${playView(play, playStats(state), playActions)}${state.share ? shareDialog(state.share, shareActions, NO_PUBLISH) : nothing}`;
     }
     case "chainNew":
@@ -2620,7 +2671,7 @@ function page(state: AppState) {
   `;
   if (section === "focus") {
     const context = state.shortcuts ? shortcutContext(state) : null;
-    return html`<div class="page focus">
+    return html`<div class="page focus ${presentationOf(state) === "full" ? "full" : ""}">
       ${content}
       ${context ? shortcutsDialog(context, state.play?.session.type.controls?.undo !== false, () => patch({ shortcuts: false })) : nothing}
     </div>`;
@@ -2655,6 +2706,13 @@ function pageTitle(state: AppState): string {
 // --- Keyboard shortcuts (M33) ---
 
 /** Where shortcuts apply now: playing, building or test play in the editor; null elsewhere. */
+/** M41: full screen for a puzzle route with `mode=full`; never in test play, and not on a chain's overview. */
+function presentationOf(state: AppState): Presentation {
+  const { route, play } = state;
+  if (state.mode !== "full" || !play || play.origin === "test" || !takesMode(route)) return "standard";
+  return route.name === "chain" && route.step === null ? "standard" : "full";
+}
+
 function shortcutContext(state: AppState): ShortcutContext | null {
   if (navSection(state.route) !== "focus") return null;
   if (state.route.name === "new" || state.route.name === "edit") {
@@ -2705,6 +2763,10 @@ function onShortcutKey(e: KeyboardEvent) {
       if (context === "editor") editorActions.testPlay();
       else editorActions.backToEditor();
       break;
+    case "fullscreen":
+      if (state.mode === "full") playActions.exitFull();
+      else playActions.enterFull();
+      break;
     case "tool": {
       const tools = document.querySelectorAll<HTMLInputElement>('.grid-editor .palette input[name="tool"]');
       const tool = tools[shortcut.index];
@@ -2714,6 +2776,18 @@ function onShortcutKey(e: KeyboardEvent) {
     }
   }
   e.preventDefault();
+}
+
+/**
+ * After switching the full screen (M41): into it, the board takes the keyboard focus; out of it, the button that
+ * switches it on again (desktop side panel), or the board when the button is hidden (phone: it is in the menu).
+ */
+function afterModeFocus(target: "board" | "button") {
+  const active = document.activeElement;
+  if (active && active !== document.body && document.contains(active)) return; // something kept the focus
+  const button = target === "button" ? document.querySelector<HTMLElement>(".play-fullscreen") : null;
+  if (button && button.offsetParent !== null) button.focus({ preventScroll: true });
+  else focusBoardNow();
 }
 
 /** Changes when another puzzle starts playing (the data of a session stays the same across moves and restarts). */
@@ -2733,6 +2807,9 @@ function scheduleRender() {
     render(page(state), app!);
     document.title = pageTitle(state);
     focusBoardOnStart(boardFocusKey(state));
+    if (focusAfterMode) afterModeFocus(focusAfterMode);
+    focusAfterMode = null;
+    keepScreenOn(presentationOf(state) === "full");
   });
 }
 
@@ -2777,7 +2854,14 @@ if (auth) {
     if (e.key === SESSION_KEY || e.key === null) auth.reload();
   });
 }
-startRouter(enterRoute);
+// M41: leaving the browser's full screen (Escape, back gesture) leaves the app's full screen as well.
+watchBrowserFullscreen(
+  () => {
+    if (presentationOf(store.get()) === "full") playActions.exitFull();
+  },
+  scheduleRender, // the button "hide browser bars" comes and goes
+);
+startRouter(enterAddress);
 // Offline support only in production builds; in development it would serve stale files.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch((error: unknown) => console.warn("service worker", error));

@@ -1,4 +1,6 @@
 import { html, nothing } from "lit-html";
+import { formatAddress } from "../../core/router.ts";
+import type { Mode } from "../../core/router.ts";
 import type { Chain, ChainProgress, StepPuzzle } from "../../core/chains.ts";
 import type { Registry } from "../../core/registry.ts";
 import { t, tn } from "../../i18n/t.ts";
@@ -32,12 +34,13 @@ export function chainView(
   progress: ChainProgress,
   access: ChainAccess,
   backHref: string,
+  mode: Mode | null, // M41: the steps open in this mode (the overview itself stays normal)
   registry: Registry,
   actions: ChainViewActions,
 ) {
   const { chain } = model;
   const complete = progress.current === null;
-  const href = (index: number) => `#/c/${chain.id}/${index + 1}`;
+  const href = (index: number) => formatAddress({ name: "chain", id: chain.id, step: index + 1 }, mode);
   const current = progress.current === null ? null : chain.steps[progress.current];
   return html`
     <header class="back-head chain-head">

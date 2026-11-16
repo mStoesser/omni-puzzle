@@ -12,6 +12,7 @@ export type Shortcut =
   | { action: "redo" }
   | { action: "restart" }
   | { action: "mode" } // editor: switch between building and test play
+  | { action: "fullscreen" } // play: switch full screen on or off (M41)
   | { action: "tool"; index: number } // editor: select the n-th tool of the palette (0-based)
   | { action: "help" };
 
@@ -40,6 +41,7 @@ export function shortcutFor(input: KeyInput, context: ShortcutContext, mac: bool
   if (input.shiftKey) return null;
   if (key === "r" && context !== "editor") return { action: "restart" };
   if (key === "p" && context !== "play") return { action: "mode" };
+  if (key === "f" && context === "play") return { action: "fullscreen" };
   if (context === "editor" && /^[0-9]$/.test(key)) return { action: "tool", index: key === "0" ? 9 : Number(key) - 1 };
   return null;
 }
@@ -78,14 +80,18 @@ export function shortcutRows(context: ShortcutContext, mac: boolean, ctrl: strin
   }
   if (context !== "editor") rows.push({ combos: [["R"]], label: "restart" });
   if (context === "play" || context === "test") rows.push({ combos: [["←", "↑", "→", "↓"], ["W", "A", "S", "D"]], label: "shortcutsMove" });
+  if (context === "play") rows.push({ combos: [["F"]], label: "fullscreen" });
   if (context === "editor") rows.push({ combos: [["1 … 9", "0"]], label: "shortcutsTool" });
   if (context !== "play") rows.push({ combos: [["P"]], label: context === "editor" ? "testPlay" : "shortcutsBuild" });
   rows.push({ combos: [["?"]], label: "shortcutsHelp" });
   return rows;
 }
 
+/** Actions that have a button with its shortcut shown. */
+export type ButtonAction = "undo" | "redo" | "restart" | "mode" | "fullscreen";
+
 /** Value of aria-keyshortcuts for a button (key names as in the ARIA spec), e.g. "Control+Z". */
-export function ariaShortcut(action: "undo" | "redo" | "restart" | "mode", mac: boolean): string {
+export function ariaShortcut(action: ButtonAction, mac: boolean): string {
   const mod = mac ? "Meta" : "Control";
   switch (action) {
     case "undo":
@@ -96,11 +102,13 @@ export function ariaShortcut(action: "undo" | "redo" | "restart" | "mode", mac: 
       return "R";
     case "mode":
       return "P";
+    case "fullscreen":
+      return "F";
   }
 }
 
 /** Short form for a tooltip, e.g. "Strg+Z" or "⌘⇧Z"; `ctrl` as in shortcutRows. */
-export function shortcutHint(action: "undo" | "redo" | "restart" | "mode", mac: boolean, ctrl: string): string {
+export function shortcutHint(action: ButtonAction, mac: boolean, ctrl: string): string {
   switch (action) {
     case "undo":
       return mac ? "⌘Z" : `${ctrl}+Z`;
@@ -110,5 +118,7 @@ export function shortcutHint(action: "undo" | "redo" | "restart" | "mode", mac: 
       return "R";
     case "mode":
       return "P";
+    case "fullscreen":
+      return "F";
   }
 }

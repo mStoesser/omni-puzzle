@@ -1,4 +1,5 @@
 import { html, nothing } from "lit-html";
+import { formatAddress, LINK_MODE } from "../../core/router.ts";
 import { PUBLISH } from "../../core/publish.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
@@ -20,8 +21,9 @@ export type PublishDialogActions = {
 };
 
 export function publishDialog(model: PublishDialogModel, actions: PublishDialogActions) {
-  const href = model.publishedId ? `#/g/${model.publishedId}` : null;
-  const url = href ? `${location.origin}${location.pathname}${href}` : "";
+  const route = model.publishedId ? ({ name: "published", id: model.publishedId } as const) : null;
+  const href = route ? formatAddress(route, null) : null; // opened here in the app: the normal view
+  const url = route ? `${location.origin}${location.pathname}${formatAddress(route, LINK_MODE)}` : ""; // the link to pass on
   return sheet(
     "publish-title",
     actions.close,

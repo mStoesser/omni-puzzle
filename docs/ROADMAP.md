@@ -909,31 +909,54 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
   Tagesrätsel brauchen das Backend und laufen über denselben Code, nicht im Browser verglichen.)
 
 ### M41 – Vollbild beim Spielen
-- [ ] Router: `mode` als Query-Parameter für `shared`, `published` und `chain` (`parseRoute`/`formatRoute` mit Tests);
+- [x] Router: `mode` als Query-Parameter für `shared`, `published` und `chain` (`parseRoute`/`formatRoute` mit Tests);
   unbekannte Werte werden ignoriert (normale Ansicht), andere Query-Teile wie bisher abgelehnt.
-- [ ] Links mit Modus erzeugen: Teilen-Sheet (Editor und Spiel) und QR-Code hängen `?mode=full` an (Konstante);
+  (Abweichung: `parseAddress`/`formatAddress` liefern `{ route, mode }`, `Route` selbst bleibt ohne Modus. So ändert ein
+  Umschalten nur den Modus im Zustand, Rätsel, Versuch und laufende Abfragen bleiben (`enterAddress`). Den Modus haben
+  alle Rätsel-Routen, also auch `play` und `daily`, weil der Knopf überall gilt und die Zurück-Geste ihn braucht.)
+- [x] Links mit Modus erzeugen: Teilen-Sheet (Editor und Spiel) und QR-Code hängen `?mode=full` an (Konstante);
   Linklänge und `QR_MAX_LENGTH` berücksichtigen die paar Zeichen mehr.
-- [ ] Knopf „Vollbild“ im Spiel (Mehr-Menü bzw. Seitenleiste) und Tastenkürzel F (`core/shortcuts.ts`, in der
+  (`LINK_MODE` in `core/router.ts`; auch der Link nach dem Veröffentlichen. Linklänge und QR-Grenze rechnen ohnehin mit
+  der ganzen Adresse. „Öffnen“ im Veröffentlichen-Dialog bleibt in der normalen Ansicht.)
+- [x] Knopf „Vollbild“ im Spiel (Mehr-Menü bzw. Seitenleiste) und Tastenkürzel F (`core/shortcuts.ts`, in der
   Übersicht). Einschalten legt einen Verlaufseintrag mit `mode=full` an, die Zurück-Geste am Handy beendet also das
   Vollbild statt das Rätsel. „Verlassen“ nach einem Einstieg über einen Link ersetzt den Verlaufseintrag durch die
   Route ohne Modus. Nicht beim Probespielen im Editor.
-- [ ] Layout: Das Spielfeld füllt den Bildschirm (`100dvh`, Seitenverhältnis des Bretts, Hoch- und Querformat,
+  (F schaltet auch wieder aus. Nach „Weiter“ zum nächsten Level gilt „Verlassen“ wie nach einem Link. Die Ketten-Übersicht
+  gibt den Modus an ihre Schritte weiter.)
+- [x] Layout: Das Spielfeld füllt den Bildschirm (`100dvh`, Seitenverhältnis des Bretts, Hoch- und Querformat,
   Ränder wie Notch per `env(safe-area-inset-*)`). Was `renderPlay` mitbringt (Laser-Vorrat, Nonogramm-Modus und Zoom,
   Richtungsknöpfe), bleibt. Quiz: nur die Fragekarte.
-- [ ] Ecken-Leiste mit Verlassen, Rückgängig, Wiederholen, Neustart (Tap-Ziele ≥ 44 px, immer sichtbar, auch auf
+  (Das SVG füllt die freie Fläche, die `viewBox` hält das Seitenverhältnis; alle Renderer rechnen Zeiger über
+  `getScreenCTM`, Tippen trifft also auch mit Rand. Im Querformat stehen die Richtungsknöpfe neben dem Brett.)
+- [x] Ecken-Leiste mit Verlassen, Rückgängig, Wiederholen, Neustart (Tap-Ziele ≥ 44 px, immer sichtbar, auch auf
   Touch-Geräten), dezent, damit sie vom Rätsel nicht ablenkt.
-- [ ] Gelöst: kleine Einblendung mit „Weiter“ (nächstes Level bzw. nächster Ketten-Schritt, falls vorhanden) und
+  (Eine Zeile oben: links Verlassen und „Browserleisten ausblenden“, rechts Rückgängig, Wiederholen, Neustart.)
+- [x] Gelöst: kleine Einblendung mit „Weiter“ (nächstes Level bzw. nächster Ketten-Schritt, falls vorhanden) und
   „Verlassen“. Verlassen nach dem Lösen zeigt das normale Gelöst-Sheet (Like, Bewertung, Rangliste).
-- [ ] Browser-Vollbild (`requestFullscreen`) zusätzlich, wo verfügbar und nur nach einem Tipp (beim Einstieg über
+- [x] Browser-Vollbild (`requestFullscreen`) zusätzlich, wo verfügbar und nur nach einem Tipp (beim Einstieg über
   einen Link also erst mit dem ersten Tipp bzw. über einen Knopf); `fullscreenchange` hält den App-Zustand gleich.
   Auf dem iPhone (kein Fullscreen-API für Elemente) bleibt es beim App-Vollbild. Esc beendet das Browser-Vollbild immer;
   prüfen, dass Esc beim Tastaturzug in Klotski und Ausparken nicht stört.
-- [ ] Bildschirm wach halten per Screen Wake Lock (`navigator.wakeLock`), solange das Vollbild aktiv und die Seite
+  (`ui/fullscreen.ts`. Knopf und F schalten das Browser-Vollbild gleich mit ein; nach einem Link bietet die Leiste
+  „Browserleisten ausblenden“ an, solange der Browser es kann. Verlässt der Browser sein Vollbild (Esc, Zurück-Geste),
+  verlässt die App ihres auch. Esc in Klotski und Ausparken noch am echten Desktop prüfen, siehe unten.)
+- [x] Bildschirm wach halten per Screen Wake Lock (`navigator.wakeLock`), solange das Vollbild aktiv und die Seite
   sichtbar ist; fehlt die API, passiert nichts.
-- [ ] Barrierefreiheit: Fokus wandert beim Ein- und Ausschalten sinnvoll (Spielfeld bzw. Knopf), Live-Region für
+  (Nur in sicheren Kontexten (https, localhost); über die LAN-Adresse fehlt die API, also nicht im Browser geprüft.)
+- [x] Barrierefreiheit: Fokus wandert beim Ein- und Ausschalten sinnvoll (Spielfeld bzw. Knopf), Live-Region für
   „Gelöst“, `document.title` bleibt.
+  (Am Desktop: hinein aufs Spielfeld, hinaus auf den Knopf „Vollbild“ in der Seitenleiste bzw. aufs Spielfeld.)
 - [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat, hell und dunkel; Handy-Test
   (Android und iOS, Browser und installierte PWA, Link aus einem Messenger und per QR-Code) und Tablet-Test.
+  (Texte da. Im Browser geprüft über die LAN-Adresse (Headless Chrome, 390 × 844, 844 × 390, 1280 × 800, dunkel):
+  Link öffnet im Vollbild, Lights Out per Tippen gelöst → Einblendung → Verlassen ersetzt den Eintrag und zeigt das
+  Gelöst-Sheet; Menü → Vollbild mit eigenem Eintrag, Versuch bleibt, Zurück beendet es; F an und aus; Teilen-Link mit
+  `?mode=full`; unbekannter Modus = normal; Browser-Vollbild über Knopf, Leiste und Verlassen; kein Vollbild beim
+  Probespielen; Ansichten aller Typen ohne waagrechten Überlauf. Hell, Handy- und Tablet-Test offen.)
+- [ ] Test am echten Desktop: Esc beim Tastaturzug in Klotski und Ausparken im Browser-Vollbild.
+- [ ] Entscheidung nach dem Handy-Test: Bleibt „Browserleisten ausblenden“ als eigener Knopf neben „Verlassen“ (die
+  beiden Symbole ähneln sich), oder schaltet der erste Tipp nach einem Link das Browser-Vollbild ein?
 
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen

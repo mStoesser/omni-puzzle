@@ -100,6 +100,7 @@ src/
     score-handler.ts      # Request-Handler der Edge Function „submit-score“ (M25)
   ui/
     views/                # home.ts, library.ts, play.ts (Hüllen), play-stage.ts (Bühne), editor.ts, chain.ts …
+    fullscreen.ts         # Browser-Vollbild und Wake Lock (M41)
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
     palette.ts            # Rollen-Paletten der Renderer: Standard-CSS und Theme als Inline-Stil (M29)
     piece-icons.ts        # Icons aus src/icons/pieces/ (Vite ?raw) für die Renderer (M31)
@@ -1156,6 +1157,34 @@ Solver und Daten bleiben unberührt.
   und Rückmeldung (`updateSession` in `main.ts`) sind von ihr unabhängig; `showSolved` sagt nur, ob die Rückmeldung zum
   Lösen sichtbar ist. Die Plugins merken von der Hülle nichts.
 
+### Vollbild beim Spielen (M41)
+
+- **Modus in der Adresse** (`core/router.ts`): Rätsel-Routen (`play`, `shared`, `published`, `chain`, `daily`) dürfen
+  `?mode=<wort>` tragen; `parseAddress` liefert `{ route, mode }`, ein unbekannter Modus heißt normale Ansicht, jeder
+  andere Query-Teil führt wie bisher zur Startseite. `Route` selbst kennt keinen Modus: `isCurrent` vergleicht Routen
+  über die Objekt-Identität, und ein Umschalten soll Rätsel und Versuch nicht neu laden. `enterAddress` (in `main.ts`)
+  setzt deshalb bei gleicher Route nur `AppState.mode`. Neue Teilen-Links (Teilen-Sheet, QR-Code, Link nach dem
+  Veröffentlichen) tragen `LINK_MODE` = `"full"`. Alte App-Versionen schicken solche Links auf die Startseite; das ist
+  in Kauf genommen, weil die App vor dem Livegang ist.
+- **Hülle** `full` (`ui/views/play.ts`): eine Leiste oben (Verlassen, „Browserleisten ausblenden“, Rückgängig,
+  Wiederholen, Neustart, 44-px-Icon-Knöpfe), die Bühne ohne eigene Steuerleiste und beim Lösen eine kleine Einblendung
+  in einer Live-Region (`role="status"`) mit „Weiter“ (nächstes Level bzw. Ketten-Schritt, wieder im Vollbild) und
+  „Vollbild verlassen“. Keine Zahlen, keine Uhr (sie misst weiter), keine Beschreibung, Rangliste oder Remixen.
+  `presentationOf(state)` wählt die Hülle: Modus `full`, nicht beim Probespielen, nicht auf der Ketten-Übersicht.
+- **Ein- und Ausschalten:** Knopf (Mehr-Menü, Seitenleiste am Desktop) und F legen einen Verlaufseintrag an, also
+  beendet Zurück das Vollbild. „Verlassen“ geht dann zurück; nach einem Link oder „Weiter“ ersetzt es den Eintrag durch
+  die Adresse ohne Modus. Nach dem Lösen zeigt die Standard-Hülle das Gelöst-Sheet, weil `showSolved` stehen bleibt.
+- **Layout:** `.page.focus.full` ist `100dvh` hoch mit `safe-area`-Rändern. Das SVG des Bretts füllt die freie Fläche,
+  die `viewBox` hält das Seitenverhältnis (alle Renderer rechnen Zeiger über `getScreenCTM`). Im Querformat stehen die
+  Richtungsknöpfe neben dem Brett. Nonogramm und Quiz behalten ihr eigenes Layout.
+- **Browser** (`ui/fullscreen.ts`): `requestFullscreen` nur in einer Nutzergeste (Knopf, F, „Browserleisten
+  ausblenden“). Verlässt der Browser sein Vollbild selbst (Esc, Zurück-Geste), verlässt die App ihres auch; ein Flag
+  verhindert, dass das ein zweites Zurück auslöst. Das iPhone kann kein Vollbild für Seiten, dort bleibt es beim
+  App-Vollbild. Solange das Vollbild aktiv und die Seite sichtbar ist, hält ein Screen Wake Lock den Bildschirm an
+  (nur in sicheren Kontexten; fehlt er, passiert nichts).
+- **Fokus:** Am Desktop bekommt beim Einschalten das Spielfeld den Fokus, beim Ausschalten der Knopf „Vollbild“ in der
+  Seitenleiste (`afterModeFocus`, `focusBoardNow`).
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -1205,6 +1234,7 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/c/<id>/<n>` | Schritt n einer Kette spielen |
 | `#/chain/new` | Ketten-Editor (angemeldet) |
 | `#/daily` | das heutige Rätsel des Tages mit Tagesrangliste (M26) |
+| `…?mode=full` | an `#/p/…`, `#/g/…`, `#/c/…`, `#/play/…` und `#/daily`: im Vollbild (M41); neue Teilen-Links tragen es |
 
 ### Rechtliches
 Vor dem Livegang mit Backend: Datenschutzerklärung (Hosting, Supabase mit AV-Vertrag, Mailanbieter, gespeicherte Daten,
