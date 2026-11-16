@@ -872,6 +872,61 @@ Entschieden (11/2026):
   Spiel und den Quiz-Editor (Pfeile, Löschen, „Bild hinzufügen“). Töne und Vibration im Browser geprüft
   (AudioContext und `vibrate` gezählt): aus still, Zug, Wand, Lösen; Ansichten bei 390 und 1280 px. Handy-Test auf Android und iOS bestanden.)
 
+## Phase 5: Vollbild und Escape-Modus
+
+Entschieden (11/2026):
+- **Bühne und Hülle trennen:** Die Bühne ist das spielbare Rätsel (Spielfeld, Session, Undo, Timer, Weiterspielen,
+  Ranglisten, Rückmeldung). Die Hülle ist alles drumherum und entscheidet auch, **was beim Lösen passiert**. Hüllen:
+  `standard` (wie heute), `full` (Vollbild, M41), später `escape`. Die Plugins merken davon nichts (Regel 5).
+- **Escape-Modus für beide Fälle:** Spieler auf dem eigenen Handy (QR-Code an der Wand → Rätsel im Vollbild) und ein
+  Gerät im Raum (Tablet als Kiosk). Das Vollbild muss also auch ohne installierte PWA und auf einem Tablet taugen.
+- **Der Link trägt den Modus:** Rätsel-Routen bekommen einen Query-Parameter `mode` (zunächst nur `mode=full`, später
+  z. B. `mode=escape`), also `#/p/<code>?mode=full`, `#/g/<id>?mode=full`, `#/c/<id>?mode=full`. Bei einer Kette gilt er
+  für ihre Schritte. Alle neu erzeugten Links (Teilen-Sheet in Editor und Spiel, QR-Code) tragen vorerst immer
+  `mode=full`; das hängt an einer Konstante. Die App darf den Modus übersteuern (Verlassen, später z. B. eine
+  Einstellung). Abwärtskompatibilität spielt noch keine Rolle, weil die App noch nicht live ist: Alte App-Versionen
+  würden Rätsel-Routen mit Query-Teil auf die Startseite schicken (`parseRoute`).
+- **Im Vollbild:** keine Zugzahl, keine Uhr (sie misst weiter), keine Beschreibung, Rangliste oder Remixen; beim Lösen
+  eine kleine Einblendung statt des Gelöst-Sheets.
+
+### M40 – Bühne und Hülle (Core-Vorbereitung)
+Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
+- [ ] `playView` aufteilen: `playStage` (Spielfeld, Geschichte der Kette, Steuerleiste optional) und die
+  Standard-Hülle (Kopf, Seitenleiste, Stat-Kacheln, Gelöst-Sheet). Die Hülle bekommt die Bühne als Template.
+- [ ] Präsentation als Teil des Spiel-Zustands (`presentation: "standard" | "full"`). Sie kommt aus dem Modus der Route
+  (M41), die App kann sie übersteuern; zum Rätsel selbst gehört sie nicht. Was beim Lösen passiert (Sheet, Einblendung, später Code), entscheidet die Hülle; Fortschritt,
+  Ranglisten, Tagesrangliste, Weiterspielen und Rückmeldung laufen wie bisher in jeder Hülle.
+- [ ] Tests: bestehende Tests bleiben grün; reine Teile (z. B. welche Hülle für welche Route und welchen Einstieg) mit
+  `node --test`.
+- [ ] Im Browser geprüft: alle Typen, Ketten-Schritt, Tagesrätsel, Probespielen, 390 und 1280 px, unverändert.
+
+### M41 – Vollbild beim Spielen
+- [ ] Router: `mode` als Query-Parameter für `shared`, `published` und `chain` (`parseRoute`/`formatRoute` mit Tests);
+  unbekannte Werte werden ignoriert (normale Ansicht), andere Query-Teile wie bisher abgelehnt.
+- [ ] Links mit Modus erzeugen: Teilen-Sheet (Editor und Spiel) und QR-Code hängen `?mode=full` an (Konstante);
+  Linklänge und `QR_MAX_LENGTH` berücksichtigen die paar Zeichen mehr.
+- [ ] Knopf „Vollbild“ im Spiel (Mehr-Menü bzw. Seitenleiste) und Tastenkürzel F (`core/shortcuts.ts`, in der
+  Übersicht). Einschalten legt einen Verlaufseintrag mit `mode=full` an, die Zurück-Geste am Handy beendet also das
+  Vollbild statt das Rätsel. „Verlassen“ nach einem Einstieg über einen Link ersetzt den Verlaufseintrag durch die
+  Route ohne Modus. Nicht beim Probespielen im Editor.
+- [ ] Layout: Das Spielfeld füllt den Bildschirm (`100dvh`, Seitenverhältnis des Bretts, Hoch- und Querformat,
+  Ränder wie Notch per `env(safe-area-inset-*)`). Was `renderPlay` mitbringt (Laser-Vorrat, Nonogramm-Modus und Zoom,
+  Richtungsknöpfe), bleibt. Quiz: nur die Fragekarte.
+- [ ] Ecken-Leiste mit Verlassen, Rückgängig, Wiederholen, Neustart (Tap-Ziele ≥ 44 px, immer sichtbar, auch auf
+  Touch-Geräten), dezent, damit sie vom Rätsel nicht ablenkt.
+- [ ] Gelöst: kleine Einblendung mit „Weiter“ (nächstes Level bzw. nächster Ketten-Schritt, falls vorhanden) und
+  „Verlassen“. Verlassen nach dem Lösen zeigt das normale Gelöst-Sheet (Like, Bewertung, Rangliste).
+- [ ] Browser-Vollbild (`requestFullscreen`) zusätzlich, wo verfügbar und nur nach einem Tipp (beim Einstieg über
+  einen Link also erst mit dem ersten Tipp bzw. über einen Knopf); `fullscreenchange` hält den App-Zustand gleich.
+  Auf dem iPhone (kein Fullscreen-API für Elemente) bleibt es beim App-Vollbild. Esc beendet das Browser-Vollbild immer;
+  prüfen, dass Esc beim Tastaturzug in Klotski und Ausparken nicht stört.
+- [ ] Bildschirm wach halten per Screen Wake Lock (`navigator.wakeLock`), solange das Vollbild aktiv und die Seite
+  sichtbar ist; fehlt die API, passiert nichts.
+- [ ] Barrierefreiheit: Fokus wandert beim Ein- und Ausschalten sinnvoll (Spielfeld bzw. Knopf), Live-Region für
+  „Gelöst“, `document.title` bleibt.
+- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat, hell und dunkel; Handy-Test
+  (Android und iOS, Browser und installierte PWA, Link aus einem Messenger und per QR-Code) und Tablet-Test.
+
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
   Stellung (Solver von einem Zustand aus, Core-Erweiterung), Typen ohne Solver (Nonogramm, Quiz), zählt eine Lösung
@@ -881,6 +936,9 @@ Entschieden (11/2026):
 - [ ] App-Store-Versionen per Capacitor. Vorher prüfen: neue Pakete (Regel 1), Entwicklerkonten und Kosten, Store-Regeln
   für nutzergenerierte Inhalte.
 - [ ] Escape-Modus mit Codes: Rätsel geben einen Code aus, der ein Schloss in der Kette öffnet (baut auf M24 auf).
+  Eigene Hülle `escape` auf der Bühne aus M40 und dem Vollbild aus M41: Raum-Anzeige (Geschichte, Raum-Uhr,
+  Code-Schloss), beim Lösen ein Code statt Like-Sheet, nichts, was die Lösung verrät (Remixen, Editor). Offen: Verlassen
+  auf einem Kiosk-Gerät erschweren (z. B. lange drücken); ganz verhindern kann ein Browser es nicht.
 - [ ] Weitere Typen aus dem Katalog (Flow, Logikgatter, Sudoku, Schiebepuzzle, Water-Sort …).
 
 ---
