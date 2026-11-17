@@ -960,8 +960,9 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
   `?mode=full`; unbekannter Modus = normal; Browser-Vollbild über Knopf, Leiste und Verlassen; kein Vollbild beim
   Probespielen; Ansichten aller Typen ohne waagrechten Überlauf. Helle Ansicht vom User angesehen, passt erstmal.
   Handy- und Tablet-Test offen.)
-- [ ] Test am echten Desktop über `localhost` (nicht die LAN-Adresse): Esc bricht im Browser-Vollbild den
+- [x] Test am echten Desktop über `localhost` (nicht die LAN-Adresse): Esc bricht im Browser-Vollbild den
   Tastaturzug in Klotski und Ausparken ab, Esc halten beendet das Vollbild.
+  (Vom User bestätigt.)
 - [ ] Entscheidung nach dem Handy-Test: Bleibt „Browserleisten ausblenden“ als eigener Knopf neben „Verlassen“ (die
   beiden Symbole ähneln sich), oder schaltet der erste Tipp nach einem Link das Browser-Vollbild ein?
 
