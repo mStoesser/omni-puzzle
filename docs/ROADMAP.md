@@ -952,19 +952,20 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
 - [x] Barrierefreiheit: Fokus wandert beim Ein- und Ausschalten sinnvoll (Spielfeld bzw. Knopf), Live-Region für
   „Gelöst“, `document.title` bleibt.
   (Am Desktop: hinein aufs Spielfeld, hinaus auf den Knopf „Vollbild“ in der Seitenleiste bzw. aufs Spielfeld.)
-- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat, hell und dunkel; Handy-Test
+- [x] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat, hell und dunkel; Handy-Test
   (Android und iOS, Browser und installierte PWA, Link aus einem Messenger und per QR-Code) und Tablet-Test.
   (Texte da. Im Browser geprüft über die LAN-Adresse (Headless Chrome, 390 × 844, 844 × 390, 1280 × 800, dunkel):
   Link öffnet im Vollbild, Lights Out per Tippen gelöst → Einblendung → Verlassen ersetzt den Eintrag und zeigt das
   Gelöst-Sheet; Menü → Vollbild mit eigenem Eintrag, Versuch bleibt, Zurück beendet es; F an und aus; Teilen-Link mit
   `?mode=full`; unbekannter Modus = normal; Browser-Vollbild über Knopf, Leiste und Verlassen; kein Vollbild beim
   Probespielen; Ansichten aller Typen ohne waagrechten Überlauf. Helle Ansicht vom User angesehen, passt erstmal.
-  Handy- und Tablet-Test offen.)
+  Handy-Test vom User erledigt: funktioniert alles. Ein eigener Tablet-Test steht noch aus.)
 - [x] Test am echten Desktop über `localhost` (nicht die LAN-Adresse): Esc bricht im Browser-Vollbild den
   Tastaturzug in Klotski und Ausparken ab, Esc halten beendet das Vollbild.
   (Vom User bestätigt.)
-- [ ] Entscheidung nach dem Handy-Test: Bleibt „Browserleisten ausblenden“ als eigener Knopf neben „Verlassen“ (die
+- [x] Entscheidung nach dem Handy-Test: Bleibt „Browserleisten ausblenden“ als eigener Knopf neben „Verlassen“ (die
   beiden Symbole ähneln sich), oder schaltet der erste Tipp nach einem Link das Browser-Vollbild ein?
+  (Entschieden: Die Symbole bleiben, wie sie sind; der eigene Knopf bleibt erstmal.)
 
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
