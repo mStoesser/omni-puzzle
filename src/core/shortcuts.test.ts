@@ -96,3 +96,10 @@ test("F switches full screen, only while playing (M41)", () => {
   assert.equal(ariaShortcut("fullscreen", false), "F");
   assert.equal(shortcutHint("fullscreen", true, "Strg"), "F");
 });
+
+test("Escape while playing asks to leave the full screen, nowhere else", () => {
+  assert.deepEqual(shortcutFor(press("Escape"), "play", false), { action: "leaveFull" });
+  assert.equal(shortcutFor(press("Escape"), "test", false), null);
+  assert.equal(shortcutFor(press("Escape"), "editor", false), null);
+  assert.equal(shortcutFor(press("Escape", { ctrlKey: true }), "play", false), null);
+});

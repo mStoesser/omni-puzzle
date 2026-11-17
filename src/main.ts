@@ -2767,6 +2767,11 @@ function onShortcutKey(e: KeyboardEvent) {
       if (state.mode === "full") playActions.exitFull();
       else playActions.enterFull();
       break;
+    case "leaveFull":
+      // A puzzle that cancels a keyboard move with Escape prevents the default, so this runs only otherwise.
+      if (presentationOf(state) !== "full") return;
+      playActions.exitFull();
+      break;
     case "tool": {
       const tools = document.querySelectorAll<HTMLInputElement>('.grid-editor .palette input[name="tool"]');
       const tool = tools[shortcut.index];

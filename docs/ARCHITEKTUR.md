@@ -1179,7 +1179,10 @@ Solver und Daten bleiben unberührt.
   Richtungsknöpfe neben dem Brett. Nonogramm und Quiz behalten ihr eigenes Layout.
 - **Browser** (`ui/fullscreen.ts`): `requestFullscreen` nur in einer Nutzergeste (Knopf, F, „Browserleisten
   ausblenden“). Verlässt der Browser sein Vollbild selbst (Esc, Zurück-Geste), verlässt die App ihres auch; ein Flag
-  verhindert, dass das ein zweites Zurück auslöst. Das iPhone kann kein Vollbild für Seiten, dort bleibt es beim
+  verhindert, dass das ein zweites Zurück auslöst. Im Browser-Vollbild sperrt `navigator.keyboard.lock(["Escape"])`
+  (Chrome, Edge, nur sichere Kontexte) die Taste für den Browser: Esc kommt bei der Seite an, und erst gehaltenes Esc
+  beendet das Browser-Vollbild. Bricht ein Rätsel mit Esc einen Tastaturzug ab, verhindert es den Standard; sonst
+  verlässt Esc das App-Vollbild (Shortcut `leaveFull`). Das iPhone kann kein Vollbild für Seiten, dort bleibt es beim
   App-Vollbild. Solange das Vollbild aktiv und die Seite sichtbar ist, hält ein Screen Wake Lock den Bildschirm an
   (nur in sicheren Kontexten; fehlt er, passiert nichts).
 - **Fokus:** Am Desktop bekommt beim Einschalten das Spielfeld den Fokus, beim Ausschalten der Knopf „Vollbild“ in der

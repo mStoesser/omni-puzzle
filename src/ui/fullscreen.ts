@@ -10,10 +10,31 @@ export function canHideBrowserBars(): boolean {
 /** Only in a user gesture (a tap, a key press): otherwise the browser refuses. */
 export function hideBrowserBars(): void {
   if (!canHideBrowserBars()) return;
-  document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch((error: unknown) => console.warn("fullscreen", error));
+  document.documentElement
+    .requestFullscreen({ navigationUI: "hide" })
+    .then(lockEscape)
+    .catch((error: unknown) => console.warn("fullscreen", error));
+}
+
+/** The Keyboard Lock API (Chrome, Edge); not yet in TypeScript's DOM types. */
+type KeyboardLock = { lock(codes?: string[]): Promise<void>; unlock(): void };
+
+function keyboardLock(): KeyboardLock | null {
+  const keyboard = (navigator as Navigator & { keyboard?: Partial<KeyboardLock> }).keyboard;
+  return typeof keyboard?.lock === "function" && typeof keyboard.unlock === "function" ? (keyboard as KeyboardLock) : null;
+}
+
+/**
+ * In the browser's full screen, Escape leaves it before the page sees the key, so a keyboard move in Klotski or
+ * Rush Hour could not be cancelled. Locked, Escape reaches the page, and holding it leaves the full screen (the
+ * browser shows that hint itself). Where the API is missing, Escape keeps leaving at once.
+ */
+function lockEscape() {
+  keyboardLock()?.lock(["Escape"]).catch((error: unknown) => console.warn("keyboard lock", error));
 }
 
 export function showBrowserBars(): void {
+  keyboardLock()?.unlock();
   if (document.fullscreenElement) document.exitFullscreen().catch((error: unknown) => console.warn("fullscreen", error));
 }
 
@@ -21,7 +42,9 @@ export function showBrowserBars(): void {
 export function watchBrowserFullscreen(onLeave: () => void, onChange: () => void): void {
   document.addEventListener("fullscreenchange", () => {
     onChange();
-    if (document.fullscreenElement === null) onLeave();
+    if (document.fullscreenElement !== null) return;
+    keyboardLock()?.unlock();
+    onLeave();
   });
 }
 

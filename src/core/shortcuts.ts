@@ -13,6 +13,7 @@ export type Shortcut =
   | { action: "restart" }
   | { action: "mode" } // editor: switch between building and test play
   | { action: "fullscreen" } // play: switch full screen on or off (M41)
+  | { action: "leaveFull" } // play: Escape leaves the full screen (unused in the normal view)
   | { action: "tool"; index: number } // editor: select the n-th tool of the palette (0-based)
   | { action: "help" };
 
@@ -38,6 +39,7 @@ export function shortcutFor(input: KeyInput, context: ShortcutContext, mac: bool
     return null;
   }
   if (input.key === "?") return { action: "help" };
+  if (input.key === "Escape" && !input.shiftKey && context === "play") return { action: "leaveFull" };
   if (input.shiftKey) return null;
   if (key === "r" && context !== "editor") return { action: "restart" };
   if (key === "p" && context !== "play") return { action: "mode" };

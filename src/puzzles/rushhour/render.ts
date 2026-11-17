@@ -138,6 +138,7 @@ function keyMove(e: KeyboardEvent, ctx: Ctx, block: number) {
   const element = e.currentTarget as SVGGraphicsElement;
   const sliding = keySlide?.block === block ? keySlide : null;
   if (e.key === "Escape" && sliding) {
+    e.preventDefault(); // the move is cancelled; Escape does nothing else (e.g. leave the full screen)
     keySlide = null;
     resetDrag(element);
     return;

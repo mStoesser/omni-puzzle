@@ -940,7 +940,12 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
   prüfen, dass Esc beim Tastaturzug in Klotski und Ausparken nicht stört.
   (`ui/fullscreen.ts`. Knopf und F schalten das Browser-Vollbild gleich mit ein; nach einem Link bietet die Leiste
   „Browserleisten ausblenden“ an, solange der Browser es kann. Verlässt der Browser sein Vollbild (Esc, Zurück-Geste),
-  verlässt die App ihres auch. Esc in Klotski und Ausparken noch am echten Desktop prüfen, siehe unten.)
+  verlässt die App ihres auch. Am echten Desktop bestätigt: Esc beendete das Vollbild mitten im Tastaturzug. Seitdem
+  reicht Chrome/Edge Esc per Keyboard Lock (`navigator.keyboard.lock(["Escape"])`) an die Seite durch: Esc bricht den
+  Zug ab, sonst verlässt es das App-Vollbild; gehalten beendet es das Browser-Vollbild (Hinweis zeigt der Browser).
+  Klotski und Ausparken verhindern beim Abbrechen den Standard, damit Esc nicht beides tut. Firefox und Safari kennen
+  die Sperre nicht, dort beendet Esc das Vollbild weiter sofort. Die Sperre gibt es nur in sicheren Kontexten
+  (https, localhost), über die LAN-Adresse also nicht. Headless geprüft über localhost (Klotski, Ausparken).)
 - [x] Bildschirm wach halten per Screen Wake Lock (`navigator.wakeLock`), solange das Vollbild aktiv und die Seite
   sichtbar ist; fehlt die API, passiert nichts.
   (Nur in sicheren Kontexten (https, localhost); über die LAN-Adresse fehlt die API, also nicht im Browser geprüft.)
@@ -953,8 +958,10 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
   Link öffnet im Vollbild, Lights Out per Tippen gelöst → Einblendung → Verlassen ersetzt den Eintrag und zeigt das
   Gelöst-Sheet; Menü → Vollbild mit eigenem Eintrag, Versuch bleibt, Zurück beendet es; F an und aus; Teilen-Link mit
   `?mode=full`; unbekannter Modus = normal; Browser-Vollbild über Knopf, Leiste und Verlassen; kein Vollbild beim
-  Probespielen; Ansichten aller Typen ohne waagrechten Überlauf. Hell, Handy- und Tablet-Test offen.)
-- [ ] Test am echten Desktop: Esc beim Tastaturzug in Klotski und Ausparken im Browser-Vollbild.
+  Probespielen; Ansichten aller Typen ohne waagrechten Überlauf. Helle Ansicht vom User angesehen, passt erstmal.
+  Handy- und Tablet-Test offen.)
+- [ ] Test am echten Desktop über `localhost` (nicht die LAN-Adresse): Esc bricht im Browser-Vollbild den
+  Tastaturzug in Klotski und Ausparken ab, Esc halten beendet das Vollbild.
 - [ ] Entscheidung nach dem Handy-Test: Bleibt „Browserleisten ausblenden“ als eigener Knopf neben „Verlassen“ (die
   beiden Symbole ähneln sich), oder schaltet der erste Tipp nach einem Link das Browser-Vollbild ein?
 
