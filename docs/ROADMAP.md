@@ -877,7 +877,7 @@ Entschieden (11/2026):
 Entschieden (11/2026):
 - **Bühne und Hülle trennen:** Die Bühne ist das spielbare Rätsel (Spielfeld, Session, Undo, Timer, Weiterspielen,
   Ranglisten, Rückmeldung). Die Hülle ist alles drumherum und entscheidet auch, **was beim Lösen passiert**. Hüllen:
-  `standard` (wie heute), `full` (Vollbild, M41), später `escape`. Die Plugins merken davon nichts (Regel 5).
+  `standard` (wie heute), `full` (Vollbild, M41), `escape` (M42). Die Plugins merken davon nichts (Regel 5).
 - **Escape-Modus für beide Fälle:** Spieler auf dem eigenen Handy (QR-Code an der Wand → Rätsel im Vollbild) und ein
   Gerät im Raum (Tablet als Kiosk). Das Vollbild muss also auch ohne installierte PWA und auf einem Tablet taugen.
 - **Der Link trägt den Modus:** Rätsel-Routen bekommen einen Query-Parameter `mode` (zunächst nur `mode=full`, später
@@ -967,6 +967,45 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
   beiden Symbole ähneln sich), oder schaltet der erste Tipp nach einem Link das Browser-Vollbild ein?
   (Entschieden: Die Symbole bleiben, wie sie sind; der eigene Knopf bleibt erstmal.)
 
+### M42 – Escape-Modus mit Ergebnis
+Ein Rätsel zeigt nach dem Lösen ein Ergebnis, das sein Ersteller festlegt (ein Code, ein Text oder ein Link). Es
+erscheint nur im Escape-Modus (`?mode=escape`); der läuft wie das Vollbild aus M41, nur ohne Rückweg.
+
+Entschieden (11/2026):
+- **Escape statt Vollbild:** gleiche Bühne und Leiste wie `full`, aber ohne „Verlassen“ (die Zurück-Geste kann der
+  Browser nicht sperren, aber niemand landet versehentlich draußen). Beim Lösen kommt das Ergebnis statt der
+  Einblendung mit „Weiter“ und „Vollbild verlassen“; danach kein Gelöst-Sheet (kein Like, keine Rangliste, kein
+  Remixen). Fortschritt, Bestwerte und Ranglisten-Einträge laufen im Hintergrund wie in jeder Hülle.
+- **Nur im Escape-Modus:** In der normalen Ansicht und im Vollbild (Galerie, Link ohne Modus) bleibt das Ergebnis
+  unsichtbar. Ausnahme: das Probespielen im Editor, damit der Ersteller es prüfen kann.
+- **Ketten bleiben vorerst außen vor:** `mode=escape` gilt nicht für Ketten-Routen (dort normale Ansicht); Ketten
+  kommen mit dem Escape-Raum.
+- **Links nur mit `https://`,** auch bei Galerie-Rätseln, mit sichtbarer Domain. Missbrauch geht über das Melden.
+- **Nicht geheim:** Das Ergebnis steht im Rätsel-Dokument, also im Link und für Galerie-Rätsel in der Datenbank. Wer
+  sich auskennt, liest es dort aus, wie die Lösung selbst. Das reicht für Spiele mit Freunden und Kindern. Echten Schutz
+  bringt erst ein Server, der das Ergebnis nach geprüfter Zugfolge herausgibt (siehe Escape-Raum unter „Irgendwann“).
+  Damit der Wechsel leicht fällt, holt die App das Ergebnis über eine eigene Funktion statt direkt aus `meta`.
+
+- [ ] Datenformat: optionales `meta.result` (Text, höchstens 500 Zeichen, getrimmt; leer = kein Ergebnis) in
+  `core/document.ts`, also auch für die Edge Function `publish`. Gehört zum Umschlag, nicht zu den Daten eines Typs:
+  keine neue `typeVersion`. Tests.
+- [ ] Reine Logik für die Anzeige (`core/`): Art des Ergebnisses ableiten statt wählen lassen. Ist das ganze Feld eine
+  gültige `https://`-Adresse ohne Leerzeichen → Link (Domain über `URL.hostname`, also Punycode bei Sonderzeichen);
+  kurz und ohne Leerzeichen (z. B. bis 12 Zeichen) → Code, groß dargestellt; sonst Text (Adressen darin bleiben
+  reiner Text). `http://` und andere Schemata sind kein Link. Tests.
+- [ ] Router: Modus `escape` neben `full` (`takesMode` ohne Ketten-Routen). Teilen-Links tragen `escape`, wenn das
+  Rätsel ein Ergebnis hat, sonst `full` (statt der festen Konstante `LINK_MODE`): Teilen-Sheet in Editor und Spiel,
+  QR-Code, Link nach dem Veröffentlichen. Tests.
+- [ ] Editor: Feld „Ergebnis beim Lösen“ bei Titel und Beschreibung, mit Hinweis, dass es nur im Escape-Modus
+  erscheint und nicht geheim ist. Probespielen zeigt das Ergebnis nach dem Lösen.
+- [ ] Hülle `escape` (`ui/views/play.ts`): Leiste ohne „Verlassen“ (Rückgängig, Wiederholen, Neustart und, solange der
+  Browser es kann, „Browserleisten ausblenden“). Beim Lösen das Ergebnis in einer Live-Region: Code groß, Text als
+  Absatz, Link als Knopf „Öffnen“ mit Domain (neuer Tab, `rel="noopener noreferrer"`). Ohne Ergebnis nur „Gelöst!“.
+  F und Esc schalten hier nichts um; Wake Lock wie im Vollbild.
+- [ ] „In meine Bibliothek kopieren“ (Remixen) übernimmt das Ergebnis nicht.
+- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat; Handy-Test mit einem Link
+  per QR-Code.
+
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
   Stellung (Solver von einem Zustand aus, Core-Erweiterung), Typen ohne Solver (Nonogramm, Quiz), zählt eine Lösung
@@ -975,10 +1014,16 @@ Eine bewusste Änderung am Core (CLAUDE.md, Regel 5), ohne sichtbare Änderung.
 - [ ] „Lösung abspielen“ im Prüf-Panel des Editors.
 - [ ] App-Store-Versionen per Capacitor. Vorher prüfen: neue Pakete (Regel 1), Entwicklerkonten und Kosten, Store-Regeln
   für nutzergenerierte Inhalte.
-- [ ] Escape-Modus mit Codes: Rätsel geben einen Code aus, der ein Schloss in der Kette öffnet (baut auf M24 auf).
-  Eigene Hülle `escape` auf der Bühne aus M40 und dem Vollbild aus M41: Raum-Anzeige (Geschichte, Raum-Uhr,
-  Code-Schloss), beim Lösen ein Code statt Like-Sheet, nichts, was die Lösung verrät (Remixen, Editor). Offen: Verlassen
-  auf einem Kiosk-Gerät erschweren (z. B. lange drücken); ganz verhindern kann ein Browser es nicht.
+- [ ] Escape-Raum: eigene Kategorie, ähnlich wie eine Kette angelegt, unter der Rätsel gespeichert werden; konfigurierbar
+  (noch zu spezifizieren). Baut auf M24 (Ketten) und M42 (Escape-Modus mit Ergebnis) auf; Ketten im Escape-Modus kommen
+  erst hier. Ideen: Raum-Anzeige (Geschichte, Raum-Uhr, Code-Schloss), Codes, die ein Schloss öffnen, gemeinsamer
+  Fortschritt mehrerer Handys, ein Kiosk-Tablet für die nächste Gruppe zurücksetzen, Verlassen auf dem Kiosk erschweren
+  (z. B. lange drücken; ganz verhindern kann ein Browser es nicht).
+  Geheimes Ergebnis (Weg 1): Das Ergebnis liegt in einer Tabelle ohne Leserecht, nicht im Dokument. Nach dem Lösen
+  schickt die App die Zugfolge an eine Edge Function, die sie mit `rules.ts` nachspielt wie `submit-score`, und gibt
+  es nur bei „gelöst“ heraus (mit Limit gegen Durchprobieren). Preis: nur veröffentlicht und online. Grenze: Wer die
+  Daten hat, kann einen Solver lösen lassen; geheim heißt „nur durch Lösen“. Verworfen: das Ergebnis mit einem
+  Schlüssel aus der Lösung verschlüsseln, weil das nur bei Typen mit genau einer Lösung geht.
 - [ ] Weitere Typen aus dem Katalog (Flow, Logikgatter, Sudoku, Schiebepuzzle, Water-Sort …).
 
 ---
