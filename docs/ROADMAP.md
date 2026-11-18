@@ -991,8 +991,8 @@ Entschieden (11/2026):
   `core/document.ts`, also auch für die Edge Function `publish`. Gehört zum Umschlag, nicht zu den Daten eines Typs:
   keine neue `typeVersion`. Tests.
   (`RESULT_MAX` in `core/result.ts`; gezählt werden Zeichen, nicht UTF-16-Einheiten. `preparePublication` übernimmt
-  es ins veröffentlichte Dokument; der `content_key` bleibt gleich. Die Edge Function `publish` muss dafür neu
-  deployt werden, sonst verwirft der alte Stand das Feld wie ein unbekanntes.)
+  es ins veröffentlichte Dokument; der `content_key` bleibt gleich. Die Edge Function `publish` wird mit dem Push neu
+  deployt (Workflow `deploy-functions.yml`, Änderungen unter `src/core/`); der alte Stand hätte das Feld verworfen.)
 - [x] Reine Logik für die Anzeige (`core/`): Art des Ergebnisses ableiten statt wählen lassen. Ist das ganze Feld eine
   gültige `https://`-Adresse ohne Leerzeichen → Link (Domain über `URL.hostname`, also Punycode bei Sonderzeichen);
   kurz und ohne Leerzeichen (z. B. bis 12 Zeichen) → Code, groß dargestellt; sonst Text (Adressen darin bleiben
@@ -1015,14 +1015,15 @@ Entschieden (11/2026):
   (`escapeHull` mit der Leiste aus `fullBar`. Verlässt der Browser sein Vollbild, bleibt die App im Escape-Modus.)
 - [x] „In meine Bibliothek kopieren“ (Remixen) übernimmt das Ergebnis nicht.
   (`copyToLibrary` baut `meta` ohnehin Feld für Feld; im Browser geprüft: das Feld im Editor ist danach leer.)
-- [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat; Handy-Test mit einem Link
+- [x] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat; Handy-Test mit einem Link
   per QR-Code.
   (Texte da. Im Browser geprüft über die LAN-Adresse (Headless Chrome, 390 × 844, 844 × 390, 1280 × 800, dunkel):
   Teilen-Links mit Code, Text (zweizeilig), https-Link und ohne Ergebnis öffnen im Escape-Modus, Leiste ohne
   „Verlassen“, F und Esc ändern nichts, Lights Out gelöst → „Gelöst!“ und das Ergebnis, kein Gelöst-Sheet; derselbe
   Link mit `?mode=full` und ohne Modus zeigt kein Ergebnis; Teilen aus dem Spiel endet auf `?mode=escape` bzw.
   `?mode=full`; Remixen leert das Feld; Ergebnis eintragen → Probespielen zeigt es → Teilen im Editor endet auf
-  `?mode=escape`; kein waagrechter Überlauf. Veröffentlichen nicht geprüft (braucht das Backend). Handy-Test offen.)
+  `?mode=escape`; kein waagrechter Überlauf. Veröffentlichen nicht im Headless-Browser geprüft (braucht das Backend). Nach Push und Deployment vom User am Handy
+  getestet: funktioniert alles.)
 
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
