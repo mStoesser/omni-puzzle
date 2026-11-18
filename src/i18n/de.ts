@@ -633,6 +633,12 @@ export const de = {
   fullscreenLeave: "Vollbild verlassen",
   fullscreenBrowser: "Browserleisten ausblenden",
   fullscreenNext: "Weiter",
+  editorResult: "Ergebnis beim Lösen (optional)",
+  editorResultHint:
+    "Erscheint nach dem Lösen im Escape-Modus, z. B. ein Code für das nächste Schloss, ein Hinweis oder ein https-Link. Links mit Ergebnis öffnen das Rätsel im Escape-Modus. Geheim ist das Ergebnis nicht: Wer sich auskennt, kann es aus dem Link lesen.",
+  escapeResult: "Dein Ergebnis",
+  escapeResultOpen: "Öffnen",
+  escapeResultTest: "Ergebnis im Escape-Modus",
   playGoal: "Ziel",
   playBest: "Bestwert",
   remix: "Remixen",

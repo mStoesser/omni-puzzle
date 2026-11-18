@@ -2793,7 +2793,8 @@ a.icon-button {
   margin-top: var(--kk-space-3);
 }
 
-.editor-description textarea {
+.editor-description textarea,
+.editor-result textarea {
   resize: vertical;
 }
 
@@ -4488,4 +4489,59 @@ a.resume-card:hover {
     opacity: 0;
     transform: translateY(12px);
   }
+}
+
+/* M42: escape mode – the result when solved (code large, text as a paragraph, link as a button with its domain). */
+.escape-solved {
+  flex-direction: column;
+  gap: var(--kk-space-2);
+  max-width: min(32rem, calc(100% - 2 * var(--kk-space-3)));
+  padding: var(--kk-space-4);
+  text-align: center;
+}
+
+.escape-result-label {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--kk-muted);
+}
+
+.escape-result {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.escape-code {
+  font-family: ui-monospace, monospace;
+  font-size: clamp(2rem, 9vw, 3rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  user-select: all;
+}
+
+.escape-text {
+  font-size: 1.125rem;
+  white-space: pre-line;
+}
+
+.escape-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--kk-space-1);
+}
+
+.escape-domain {
+  font-size: 0.875rem;
+  color: var(--kk-muted);
+}
+
+/* Test play in the editor: the creator sees the result in the solved sheet. */
+.escape-test {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--kk-space-2);
+  text-align: center;
 }

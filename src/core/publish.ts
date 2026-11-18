@@ -106,6 +106,7 @@ export function preparePublication(input: unknown, registry: Registry<AnyPuzzleR
   if (minMoves !== null) meta.minMoves = minMoves;
   if (doc.meta.lang) meta.lang = doc.meta.lang;
   if (theme) meta.theme = theme;
+  if (doc.meta.result) meta.result = doc.meta.result; // M42: part of the puzzle, shown in escape mode
   const published: PuzzleDocument = { format: 1, type: doc.type, typeVersion: doc.typeVersion, meta, data: doc.data };
   return {
     type: doc.type,

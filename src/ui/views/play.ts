@@ -6,6 +6,8 @@ import type { MyReaction } from "../../core/reactions.ts";
 import type { AnyPlaySession } from "../../core/session.ts";
 import type { PuzzleTheme } from "../../core/puzzle-theme.ts";
 import type { ImageSource, PuzzleLang } from "../../core/types.ts";
+import { parseResult } from "../../core/result.ts";
+import type { PuzzleResult } from "../../core/result.ts";
 import { formatDuration } from "../../core/timer.ts";
 import type { Timer } from "../../core/timer.ts";
 import { t, tn } from "../../i18n/t.ts";
@@ -26,9 +28,10 @@ export type PlayOrigin = "example" | "shared" | "published" | "own" | "test";
 /**
  * The hull around the stage (M40): what is shown besides the puzzle and what happens when it is solved.
  * "standard" = header, stats, side panel and the solved sheet; "full" = full screen (M41): only the board, a small bar
- * and a short note when solved. Escape mode comes as a further hull. It belongs to the play state, not to the puzzle.
+ * and a short note when solved; "escape" = escape mode (M42): like full screen without a way back, and the puzzle's
+ * result when solved. It belongs to the play state, not to the puzzle.
  */
-export type Presentation = "standard" | "full";
+export type Presentation = "standard" | "full" | "escape";
 
 export type PlayViewModel = {
   title: string;
@@ -45,6 +48,11 @@ export type PlayViewModel = {
   lang?: PuzzleLang; // language of the puzzle's texts (M28); a remix keeps it
   theme?: PuzzleTheme; // colors of the board (M29); a remix keeps it
   description?: string; // the creator's description (M34, meta.description); published puzzles show theirs in `published`
+  /**
+   * M42: what solving reveals (meta.result), shown only in escape mode and test play. The hulls show whatever is here
+   * once solved; a server that hands out the result only for a checked solution would fill it in at that moment.
+   */
+  result?: string;
   level?: { index: number; total: number }; // position among the examples of its type (1-based)
   next?: { href: string; title: string; label?: string }; // the following example or chain step; `label` replaces the button text
   chain?: { story: string }; // a step of a chain: the text before the puzzle
@@ -115,6 +123,8 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
       return standardHull(model, stats, actions, options);
     case "full":
       return fullHull(model, actions);
+    case "escape":
+      return escapeHull(model, actions);
   }
 }
 
@@ -123,11 +133,53 @@ export function playView(model: PlayViewModel, stats: PlayStats, actions: PlayVi
  * When solved, a short note offers the next puzzle (in full screen too) or leaving; leaving shows the solved sheet.
  */
 function fullHull(model: PlayViewModel, actions: PlayViewActions) {
+  return html`<div class="play-full">
+    ${fullBar(model, actions, true)}
+    ${playStage(model, actions, { controls: false })}
+    <div class="full-solved-region" role="status">${model.showSolved ? fullSolved(model, actions) : nothing}</div>
+  </div>`;
+}
+
+/**
+ * Escape mode (M42): full screen without "leave" (the back gesture cannot be blocked, but nobody leaves by mistake).
+ * When solved, only the result: no next puzzle, no solved sheet (progress and leaderboard entries run as everywhere).
+ */
+function escapeHull(model: PlayViewModel, actions: PlayViewActions) {
+  return html`<div class="play-full play-escape">
+    ${fullBar(model, actions, false)}
+    ${playStage(model, actions, { controls: false })}
+    <div class="full-solved-region" role="status">${model.showSolved ? escapeSolved(parseResult(model.result)) : nothing}</div>
+  </div>`;
+}
+
+function escapeSolved(result: PuzzleResult | null) {
+  return html`<div class="full-solved escape-solved">
+    <p class="full-solved-title">${icon("check", 22)}${t("solvedTitle")}</p>
+    ${result ? html`<p class="escape-result-label">${t("escapeResult")}</p>${resultView(result)}` : nothing}
+  </div>`;
+}
+
+/** A result as code (large), text or link (button with the visible domain; opens in a new tab). */
+function resultView(result: PuzzleResult) {
+  switch (result.kind) {
+    case "code":
+      return html`<p class="escape-result escape-code">${result.text}</p>`;
+    case "text":
+      return html`<p class="escape-result escape-text">${result.text}</p>`;
+    case "link":
+      return html`<p class="escape-result escape-link">
+        <a class="button" href=${result.url} target="_blank" rel="noopener noreferrer">${t("escapeResultOpen")}${icon("chevronRight", 18)}</a>
+        <span class="escape-domain">${result.domain}</span>
+      </p>`;
+  }
+}
+
+/** The bar of the full screen hulls; `leave` = with the button that leaves (not in escape mode). */
+function fullBar(model: PlayViewModel, actions: PlayViewActions, leave: boolean) {
   const { session } = model;
   const showUndo = session.type.controls?.undo !== false;
-  return html`<div class="play-full">
-    <nav class="full-bar" aria-label=${t("playControls")}>
-      ${iconButton({ label: t("fullscreenLeave"), icon: "minimize", onClick: actions.exitFull, shortcut: buttonShortcut("fullscreen") })}
+  return html`<nav class="full-bar" aria-label=${t("playControls")}>
+      ${leave ? iconButton({ label: t("fullscreenLeave"), icon: "minimize", onClick: actions.exitFull, shortcut: buttonShortcut("fullscreen") }) : nothing}
       ${model.canHideBrowserBars ? iconButton({ label: t("fullscreenBrowser"), icon: "expand", onClick: actions.hideBrowserBars }) : nothing}
       <span class="full-bar-gap"></span>
       ${showUndo
@@ -135,10 +187,7 @@ function fullHull(model: PlayViewModel, actions: PlayViewActions) {
           ${iconButton({ label: t("redo"), icon: "redo", onClick: actions.redo, disabled: !canRedo(session), shortcut: buttonShortcut("redo") })}`
         : nothing}
       ${iconButton({ label: t("restart"), icon: "restart", onClick: actions.restart, disabled: session.history.length === 1, shortcut: buttonShortcut("restart") })}
-    </nav>
-    ${playStage(model, actions, { controls: false })}
-    <div class="full-solved-region" role="status">${model.showSolved ? fullSolved(model, actions) : nothing}</div>
-  </div>`;
+    </nav>`;
 }
 
 function fullSolved(model: PlayViewModel, actions: PlayViewActions) {
@@ -336,6 +385,13 @@ export function streakLine(days: number) {
   return html`<p class="daily-streak">${icon("flame", 18)}${tn("dailyStreak", days)}</p>`;
 }
 
+/** Test play (M42): the creator sees the result as players in escape mode will. */
+function testResult(result: PuzzleResult | null) {
+  return result
+    ? html`<div class="box escape-test"><p class="escape-result-label">${t("escapeResultTest")}</p>${resultView(result)}</div>`
+    : nothing;
+}
+
 function solvedSubline(moves: number | null, minMoves: number | null) {
   if (moves === null) return t("solvedText");
   if (minMoves !== null) return moves <= minMoves ? t("solvedOptimal") : t("solvedNotOptimal", { moves, min: minMoves });
@@ -350,7 +406,8 @@ function solvedSheet(moves: number | null, model: PlayViewModel, stats: PlayStat
   const optimal = moves !== null && model.minMoves !== null && moves <= model.minMoves;
   const info = model.published;
   const primary = test
-    ? html`<button class="large block" @click=${actions.backToEditor}>${t("backToEditor")}</button>`
+    ? // autofocus: the modal sheet would otherwise focus the first control, maybe the result's external link (M42)
+      html`<button class="large block" autofocus @click=${actions.backToEditor}>${t("backToEditor")}</button>`
     : model.next
       ? html`<a class="button large block" href=${model.next.href}>${model.next.label ?? t("solvedNext", { title: model.next.title })}${icon("chevronRight", 18)}</a>`
       : model.origin === "own"
@@ -364,6 +421,7 @@ function solvedSheet(moves: number | null, model: PlayViewModel, stats: PlayStat
       <h2 id="solved-title" class="solved-title">${t("solvedTitle")}</h2>
       <p class="solved-sub">${solvedSubline(moves, model.minMoves)}</p>
       ${test ? html`<p class="solved-sub">${t("solvedVerified")}</p>` : nothing}
+      ${test ? testResult(parseResult(model.result)) : nothing}
       ${moves !== null
         ? html`<div class="stats ${test ? "" : "four"}">
             ${stat(t("solvedYourMoves"), moves, optimal ? "ok" : "")} ${stat(t("solvedMinimum"), model.minMoves ?? "–")}

@@ -637,6 +637,12 @@ export const en: Messages = {
   fullscreenLeave: "Leave full screen",
   fullscreenBrowser: "Hide browser bars",
   fullscreenNext: "Next",
+  editorResult: "Result when solved (optional)",
+  editorResultHint:
+    "Shown after solving in escape mode, e.g. a code for the next lock, a clue or an https link. Links to a puzzle with a result open it in escape mode. The result is not secret: someone who knows how can read it from the link.",
+  escapeResult: "Your result",
+  escapeResultOpen: "Open",
+  escapeResultTest: "Result in escape mode",
   playGoal: "Goal",
   playBest: "Best",
   remix: "Remix",

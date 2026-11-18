@@ -80,6 +80,7 @@ src/
     test-fixtures.ts      # Mini-Rätseltyp „counter“ nur für Core-Tests
     api.ts, auth.ts, account.ts  # Backend: fetch-Wrapper, Anmeldung, Konto (ab M8/M9)
     publish.ts            # Veröffentlichen prüfen (rein, läuft auch in der Edge Function)
+    result.ts             # Ergebnis beim Lösen im Escape-Modus: Code, Text oder https-Link (M42)
     published.ts          # veröffentlichte Rätsel laden, ändern, zurückziehen, Spielzähler
     images.ts             # Bilder: Grenzen, Schlüssel (SHA-256), Typprüfung, Base64
     moderation.ts         # Melden und Moderationsaktionen
@@ -147,6 +148,7 @@ type PuzzleDocument<D = unknown> = {
     lang?: "de" | "en";   // Sprache der Texte (M28); andere Werte werden wie unbekannte Felder verworfen
     theme?: { colors: Record<ThemeRole, string>;    // Farben des Spielfelds (M29); ungültig = still verworfen
               icons?: Partial<Record<IconRole, string>> };  // Icons aus dem Katalog (M31)
+    result?: string;      // Ergebnis beim Lösen im Escape-Modus (M42), getrimmt, höchstens 500 Zeichen
   };
   data: D;                // typspezifisch
 };
@@ -1151,8 +1153,8 @@ Solver und Daten bleiben unberührt.
   Wiederholen, Neustart; `controls: false` lässt sie weg).
 - **Hülle:** alles drumherum und die Rückmeldung beim Lösen. `PlayViewModel.presentation` wählt sie, `playView`
   verteilt darauf. `"standard"` (`standardHull`) ist die bisherige Ansicht: Kopf, Stat-Kacheln, Seitenleiste,
-  Gelöst-Sheet, Meldedialog; eingebettet im Editor (Probespielen) ohne Kopf. Weitere Hüllen (Vollbild in M41, später
-  Escape-Modus) kommen als neuer Wert dazu.
+  Gelöst-Sheet, Meldedialog; eingebettet im Editor (Probespielen) ohne Kopf. Weitere Hüllen: `"full"` (Vollbild,
+  M41) und `"escape"` (Escape-Modus, M42).
 - Die Präsentation gehört zum Spiel-Zustand, nicht zum Rätsel. Session, Timer, Fortschritt, Ranglisten, Weiterspielen
   und Rückmeldung (`updateSession` in `main.ts`) sind von ihr unabhängig; `showSolved` sagt nur, ob die Rückmeldung zum
   Lösen sichtbar ist. Die Plugins merken von der Hülle nichts.
@@ -1164,7 +1166,8 @@ Solver und Daten bleiben unberührt.
   andere Query-Teil führt wie bisher zur Startseite. `Route` selbst kennt keinen Modus: `isCurrent` vergleicht Routen
   über die Objekt-Identität, und ein Umschalten soll Rätsel und Versuch nicht neu laden. `enterAddress` (in `main.ts`)
   setzt deshalb bei gleicher Route nur `AppState.mode`. Neue Teilen-Links (Teilen-Sheet, QR-Code, Link nach dem
-  Veröffentlichen) tragen `LINK_MODE` = `"full"`. Alte App-Versionen schicken solche Links auf die Startseite; das ist
+  Veröffentlichen) tragen den Modus aus `linkMode(hasResult)`: `"escape"` für ein Rätsel mit Ergebnis (M42), sonst
+  `"full"`. Alte App-Versionen schicken solche Links auf die Startseite; das ist
   in Kauf genommen, weil die App vor dem Livegang ist.
 - **Hülle** `full` (`ui/views/play.ts`): eine Leiste oben (Verlassen, „Browserleisten ausblenden“, Rückgängig,
   Wiederholen, Neustart, 44-px-Icon-Knöpfe), die Bühne ohne eigene Steuerleiste und beim Lösen eine kleine Einblendung
@@ -1187,6 +1190,33 @@ Solver und Daten bleiben unberührt.
   (nur in sicheren Kontexten; fehlt er, passiert nichts).
 - **Fokus:** Am Desktop bekommt beim Einschalten das Spielfeld den Fokus, beim Ausschalten der Knopf „Vollbild“ in der
   Seitenleiste (`afterModeFocus`, `focusBoardNow`).
+
+### Escape-Modus mit Ergebnis (M42)
+
+- **Ergebnis:** `meta.result` (optional, getrimmt, höchstens `RESULT_MAX` = 500 Zeichen, leer = keins) legt der
+  Ersteller im Editor fest (Feld „Ergebnis beim Lösen“ unter „Beschreibung, Sprache und Aussehen“). Es gehört zum
+  Umschlag, nicht zu den Daten: keine neue `typeVersion`, und der `content_key` (`progressKey`) bleibt gleich.
+  `preparePublication` übernimmt es ins veröffentlichte Dokument. Remixen („In meine Bibliothek kopieren“) übernimmt es
+  nicht.
+- **Anzeige** (`core/result.ts`, `parseResult`): Die Art ergibt sich aus dem Text. Ist das ganze Feld eine
+  `https://`-Adresse ohne Leerzeichen und ohne Zugangsdaten, wird es ein Link (Knopf „Öffnen“, neuer Tab,
+  `rel="noopener noreferrer"`, Domain aus `URL.hostname` sichtbar, Sonderzeichen also als Punycode). Ist es bis
+  `CODE_MAX` = 12 Zeichen lang und ohne Leerzeichen, wird es groß als Code gezeigt; sonst als Text (Zeilenumbrüche
+  bleiben). `http://`, `javascript:` und Adressen mitten im Text bleiben reiner Text.
+- **Modus** `escape` (`core/router.ts`): wie `full`, aber nicht für Ketten-Routen (`modeFits`; `parseAddress` macht
+  daraus die normale Ansicht, `formatAddress` lässt ihn weg). Ketten im Escape-Modus kommen mit dem Escape-Raum.
+- **Hülle** `escape` (`ui/views/play.ts`): Leiste wie im Vollbild, aber ohne „Verlassen“; F und Esc schalten nichts um,
+  `exitFull` greift nicht, und verlässt der Browser sein Vollbild, bleibt die App im Escape-Modus. Beim Lösen zeigt die
+  Live-Region „Gelöst!“ und das Ergebnis (ohne Ergebnis nur „Gelöst!“), kein „Weiter“ und kein Gelöst-Sheet.
+  Fortschritt, Bestwerte und Ranglisten-Einträge laufen wie in jeder Hülle. Wake Lock und Layout wie im Vollbild
+  (`.page.full`).
+- **Nur im Escape-Modus und beim Probespielen:** Normale Ansicht und Vollbild zeigen das Ergebnis nicht. Beim
+  Probespielen steht es im Gelöst-Sheet („Ergebnis im Escape-Modus“); der Fokus liegt dort auf „Zurück zum Editor“,
+  nicht auf einem externen Link.
+- **Nicht geheim:** Das Ergebnis steht im Dokument, also im Teilen-Link und bei Galerie-Rätseln in der lesbaren
+  Spalte `doc`. Die Hüllen zeigen, was in `PlayViewModel.result` steht, sobald gelöst ist. Ein späterer Server, der das
+  Ergebnis erst nach geprüfter Zugfolge herausgibt (Escape-Raum, ROADMAP „Irgendwann“), würde `result` in diesem
+  Moment füllen, statt es aus `meta` zu übernehmen.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
@@ -1238,6 +1268,7 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/chain/new` | Ketten-Editor (angemeldet) |
 | `#/daily` | das heutige Rätsel des Tages mit Tagesrangliste (M26) |
 | `…?mode=full` | an `#/p/…`, `#/g/…`, `#/c/…`, `#/play/…` und `#/daily`: im Vollbild (M41); neue Teilen-Links tragen es |
+| `…?mode=escape` | an `#/p/…`, `#/g/…`, `#/play/…` und `#/daily` (nicht an Ketten): Escape-Modus (M42); Teilen-Links eines Rätsels mit Ergebnis tragen es |
 
 ### Rechtliches
 Vor dem Livegang mit Backend: Datenschutzerklärung (Hosting, Supabase mit AV-Vertrag, Mailanbieter, gespeicherte Daten,

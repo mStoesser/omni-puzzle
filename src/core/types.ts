@@ -24,6 +24,8 @@ export type PuzzleMeta = {
   lang?: PuzzleLang; // M28; optional, so older app versions (which drop unknown fields) still read the document
   /** M29: colors of the board, chosen by the author; without it the type's default colors (light/dark). */
   theme?: PuzzleTheme;
+  /** M42: shown when solved in escape mode (a code, a text or an https link); trimmed, never empty. Not secret. */
+  result?: string;
 };
 
 /** Envelope shared by all puzzle types. */

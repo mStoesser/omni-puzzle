@@ -27,6 +27,14 @@ test("a verified puzzle is published with minMoves computed by the solver", () =
   assert.equal(pub.contentKey, progressKey(doc));
 });
 
+test("the result (M42) stays in the published document and does not change the content key", () => {
+  const doc = docOf("rushhour-1");
+  doc.meta.result = "https://example.org/raum-2";
+  const pub = preparePublication({ doc, title: "Raum 1" }, rulesRegistry);
+  assert.equal(pub.doc.meta.result, "https://example.org/raum-2");
+  assert.equal(pub.contentKey, progressKey(docOf("rushhour-1")));
+});
+
 test("the language is kept in the document and goes into its own column; it does not change the content key", () => {
   const doc = docOf("rushhour-1");
   const plain = preparePublication({ doc: structuredClone(doc), title: "T" }, rulesRegistry);

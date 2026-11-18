@@ -121,6 +121,14 @@ test("toDocument keeps a description (M34), trimmed, and leaves out a blank one"
   assert.equal("description" in toDocument(session, info).meta, false);
 });
 
+test("toDocument keeps a result (M42), trimmed, and leaves out a blank one", () => {
+  const session = createEditorSession({ n: 1 }, "Titel");
+  const info = { type: "x", typeVersion: 1, createdAt: "2026-11-10T10:00:00.000Z", verified: false, solve: null };
+  assert.equal(toDocument(session, { ...info, result: " 4711 " }).meta.result, "4711");
+  assert.equal("result" in toDocument(session, { ...info, result: " " }).meta, false);
+  assert.equal("result" in toDocument(session, info).meta, false);
+});
+
 test("toDocument builds the envelope from the current editor state", () => {
   const session = updateData(createEditorSession({ n: 1 }, "Titel"), { n: 2 });
   const info = { type: "x", typeVersion: 3, createdAt: "2026-10-29T10:00:00.000Z" };

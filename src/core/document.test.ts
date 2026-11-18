@@ -21,6 +21,15 @@ test("validateEnvelope keeps a known language and drops other values, like unkno
   for (const other of ["fr", "EN", 1, null]) assert.equal("lang" in withLang(other), false, String(other));
 });
 
+test("validateEnvelope keeps a result (M42), trimmed, drops a blank one and rejects one that is too long", () => {
+  const doc = (result: unknown) => ({ ...counterDocument(1), meta: { ...counterDocument(1).meta, result } });
+  assert.equal(validateEnvelope(doc("  4711\n")).meta.result, "4711");
+  assert.equal("result" in validateEnvelope(doc("   ")).meta, false);
+  assert.equal(validateEnvelope(doc("ä".repeat(500))).meta.result, "ä".repeat(500));
+  assert.throws(() => validateEnvelope(doc("x".repeat(501))), DocumentError);
+  assert.throws(() => validateEnvelope(doc(4711)), DocumentError);
+});
+
 const THEME = {
   colors: {
     board: "#ffffff", line: "#dddddd", wall: "#555555", figure: "#000000",

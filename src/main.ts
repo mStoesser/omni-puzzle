@@ -46,7 +46,7 @@ import type { CardPreview } from "./core/preview.ts";
 import type { ChainDraft } from "./core/chains.ts";
 import type { ReportReason } from "./core/moderation.ts";
 import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
-import { formatAddress, formatRoute, LINK_MODE, parseAddress, startRouter, takesMode } from "./core/router.ts";
+import { formatAddress, formatRoute, linkMode, parseAddress, startRouter, takesMode } from "./core/router.ts";
 import type { Address, Mode } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
@@ -120,6 +120,7 @@ type EditorState = {
   lang: PuzzleLang; // M28: the UI language for new puzzles and old ones without a language
   theme?: PuzzleTheme; // M29: colors of the board; undefined = default colors
   description: string; // M34: meta.description, "" = none
+  result: string; // M42: meta.result, "" = none
   themeNotice?: MessageKey; // M30: why saving a theme template failed
   type: AnyPuzzleType;
   session: EditorSession<unknown>;
@@ -298,13 +299,13 @@ let focusAfterMode: "board" | "button" | null = null;
 function enterAddress({ route, mode }: Address) {
   const state = store.get();
   leavingFull = false;
-  if (mode !== "full") {
+  if (mode === null) {
     fullPushed = false;
     showBrowserBars();
   }
   // Only the mode changed (M41): the same puzzle and attempt, no reload.
   if (state.play && takesMode(route) && formatRoute(route) === formatRoute(state.route)) {
-    if (mode !== state.mode) focusAfterMode = mode === "full" ? "board" : "button";
+    if (mode !== state.mode) focusAfterMode = mode !== null ? "board" : "button";
     patch({ mode });
     return;
   }
@@ -484,6 +485,7 @@ function startPlay(
     ...(doc.meta.lang ? { lang: doc.meta.lang } : {}),
     ...(doc.meta.theme ? { theme: doc.meta.theme } : {}),
     ...(doc.meta.description ? { description: doc.meta.description } : {}),
+    ...(doc.meta.result ? { result: doc.meta.result } : {}),
     images: extra.images ?? localImages,
     minMoves: doc.meta.minMoves ?? null,
     timer: IDLE_TIMER,
@@ -1139,7 +1141,7 @@ const playActions = {
   // M41: full screen gets its own history entry, so the back gesture leaves it instead of the puzzle.
   enterFull: () => {
     const { route, play, mode } = store.get();
-    if (!play || play.origin === "test" || !takesMode(route) || mode === "full") return;
+    if (!play || play.origin === "test" || !takesMode(route) || mode !== null) return;
     fullPushed = true;
     location.hash = formatAddress(route, "full");
     hideBrowserBars(); // still in the tap or key press: the browser allows it only there
@@ -1502,6 +1504,7 @@ function newEditor(typeId: string) {
     createdAt: now(),
     lang: language(),
     description: "",
+    result: "",
     type,
     session: editing.createEditorSession(type.createDefault(), t("untitled")),
     verifiedData: undefined,
@@ -1525,6 +1528,7 @@ async function openEditor(route: Route & { name: "edit" }) {
       lang: doc.meta.lang ?? language(),
       ...(doc.meta.theme ? { theme: doc.meta.theme } : {}),
       description: doc.meta.description ?? "",
+      result: doc.meta.result ?? "",
       type,
       session: editing.createEditorSession(doc.data, doc.meta.title),
       verifiedData: doc.meta.verified ? doc.data : undefined,
@@ -1559,6 +1563,7 @@ function editorDocument(editor: EditorState): PuzzleDocument {
     lang: editor.lang,
     ...(editor.theme ? { theme: editor.theme } : {}),
     description: editor.description,
+    result: editor.result,
     verified: isVerified(editor),
     solve: cachedSolve(editing.currentData(editor.session)),
   });
@@ -1677,9 +1682,9 @@ const shareActions = {
   close: () => patch({ share: null }),
 };
 
-/** A share link; new links carry LINK_MODE (M41), so they open in full screen. */
-function appUrl(route: Route) {
-  return `${location.origin}${location.pathname}${formatAddress(route, LINK_MODE)}`;
+/** A share link; it opens in full screen (M41), or in escape mode for a puzzle with a result (M42). */
+function appUrl(route: Route, hasResult: boolean) {
+  return `${location.origin}${location.pathname}${formatAddress(route, linkMode(hasResult))}`;
 }
 
 /**
@@ -1691,10 +1696,11 @@ async function openPlayShare() {
   if (!play?.shareable) return;
   const base: ShareDialogModel = { title: play.title, url: null, copy: "idle", contentKey: null, hasImages: false, qr: false };
   if (route.name === "chain" && chain) {
-    return patch({ share: { ...base, title: chain.chain.title, chain: true, url: appUrl({ name: "chain", id: chain.chain.id, step: null }) } });
+    return patch({ share: { ...base, title: chain.chain.title, chain: true, url: appUrl({ name: "chain", id: chain.chain.id, step: null }, false) } });
   }
-  if (play.published) return patch({ share: { ...base, url: appUrl({ name: "published", id: play.published.id }) } });
-  if (route.name === "shared") return patch({ share: { ...base, url: appUrl(route) } });
+  const hasResult = play.result !== undefined;
+  if (play.published) return patch({ share: { ...base, url: appUrl({ name: "published", id: play.published.id }, hasResult) } });
+  if (route.name === "shared") return patch({ share: { ...base, url: appUrl(route, hasResult) } });
   if (route.name !== "play") return;
 
   const raw = exampleById(route.id)?.doc ?? (await (await storage).getPuzzle(route.id))?.doc;
@@ -1714,7 +1720,7 @@ async function openPlayShare() {
     contentKey: own ? progressKey(doc) : null, // M35: an own puzzle sent by link is marked as shared
   };
   patch({ share });
-  const url = appUrl({ name: "shared", code: await encodeDocument(doc) });
+  const url = appUrl({ name: "shared", code: await encodeDocument(doc) }, doc.meta.result !== undefined);
   store.set((state) => (state.share === share ? { ...state, share: { ...share, url } } : state));
 }
 
@@ -1731,7 +1737,7 @@ async function openShare() {
   const hasImages = (editor.type.imageKeys?.(doc.data).length ?? 0) > 0;
   const share: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", hasImages, contentKey: progressKey(doc), qr: false };
   patch({ share });
-  const url = appUrl({ name: "shared", code: await encodeDocument(doc) });
+  const url = appUrl({ name: "shared", code: await encodeDocument(doc) }, doc.meta.result !== undefined);
   store.set((state) => (state.share === share ? { ...state, share: { ...share, url } } : state));
 }
 
@@ -1752,7 +1758,7 @@ function openPublish() {
   if (editor.theme && themeRoles && contrastProblems(editor.theme, { roles: themeRoles, fixed: themeFixed }).length > 0) return;
   patch({
     share: null,
-    publish: { title: editor.session.title, author: account.profile.username, description: editor.description.trim(), state: "confirm", error: null, publishedId: null },
+    publish: { title: editor.session.title, author: account.profile.username, description: editor.description.trim(), hasResult: editor.result.trim() !== "", state: "confirm", error: null, publishedId: null },
   });
 }
 
@@ -1805,6 +1811,12 @@ const editorActions = {
     patch({ editor: { ...editor, description } });
     editorChanged();
   },
+  setResult: (result: string) => {
+    const editor = store.get().editor;
+    if (!editor || editor.result === result) return;
+    patch({ editor: { ...editor, result } });
+    editorChanged();
+  },
   setLanguage: (lang: PuzzleLang) => {
     const editor = store.get().editor;
     if (!editor || editor.lang === lang) return;
@@ -1838,6 +1850,7 @@ const editorActions = {
       origin: "test",
       progressKey: null,
       ...(editor.theme ? { theme: editor.theme } : {}),
+      ...(editor.result.trim() ? { result: editor.result.trim() } : {}), // M42: the creator checks it after solving
       images: localImages,
       minMoves: minMovesOf(cachedSolve(editing.currentData(editor.session))),
       timer: IDLE_TIMER,
@@ -2548,7 +2561,7 @@ function view(state: AppState) {
       }
       if (play.origin === "example" && state.route.name === "play") play = { ...play, levels: exampleLevels(state, state.route.id) };
       const presentation = presentationOf(state);
-      play = { ...play, presentation, canHideBrowserBars: presentation === "full" && canHideBrowserBars() };
+      play = { ...play, presentation, canHideBrowserBars: presentation !== "standard" && canHideBrowserBars() };
       return html`${playView(play, playStats(state), playActions)}${state.share ? shareDialog(state.share, shareActions, NO_PUBLISH) : nothing}`;
     }
     case "chainNew":
@@ -2568,6 +2581,7 @@ function view(state: AppState) {
           images: editorImages,
           lang: editor.lang,
           description: editor.description,
+          result: editor.result,
           ...(editor.theme ? { theme: editor.theme } : {}),
           ...(editor.themeNotice ? { themeNotice: editor.themeNotice } : {}),
           savedThemes: state.savedThemes,
@@ -2671,7 +2685,7 @@ function page(state: AppState) {
   `;
   if (section === "focus") {
     const context = state.shortcuts ? shortcutContext(state) : null;
-    return html`<div class="page focus ${presentationOf(state) === "full" ? "full" : ""}">
+    return html`<div class="page focus ${presentationOf(state) !== "standard" ? "full" : ""}">
       ${content}
       ${context ? shortcutsDialog(context, state.play?.session.type.controls?.undo !== false, () => patch({ shortcuts: false })) : nothing}
     </div>`;
@@ -2706,11 +2720,14 @@ function pageTitle(state: AppState): string {
 // --- Keyboard shortcuts (M33) ---
 
 /** Where shortcuts apply now: playing, building or test play in the editor; null elsewhere. */
-/** M41: full screen for a puzzle route with `mode=full`; never in test play, and not on a chain's overview. */
+/**
+ * M41: full screen for a puzzle route with `mode=full`, M42: escape mode with `mode=escape` (the router keeps it off
+ * chains); never in test play, and not on a chain's overview.
+ */
 function presentationOf(state: AppState): Presentation {
-  const { route, play } = state;
-  if (state.mode !== "full" || !play || play.origin === "test" || !takesMode(route)) return "standard";
-  return route.name === "chain" && route.step === null ? "standard" : "full";
+  const { route, play, mode } = state;
+  if (mode === null || !play || play.origin === "test" || !takesMode(route)) return "standard";
+  return route.name === "chain" && route.step === null ? "standard" : mode;
 }
 
 function shortcutContext(state: AppState): ShortcutContext | null {
@@ -2764,6 +2781,7 @@ function onShortcutKey(e: KeyboardEvent) {
       else editorActions.backToEditor();
       break;
     case "fullscreen":
+      if (state.mode === "escape") return; // M42: no way out, and no way in from here
       if (state.mode === "full") playActions.exitFull();
       else playActions.enterFull();
       break;
@@ -2814,7 +2832,7 @@ function scheduleRender() {
     focusBoardOnStart(boardFocusKey(state));
     if (focusAfterMode) afterModeFocus(focusAfterMode);
     focusAfterMode = null;
-    keepScreenOn(presentationOf(state) === "full");
+    keepScreenOn(presentationOf(state) !== "standard");
   });
 }
 

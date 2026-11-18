@@ -3,6 +3,7 @@ import { canRedoEdit, canUndoEdit, currentData, readiness } from "../../core/edi
 import type { EditorSession } from "../../core/editor-session.ts";
 import { PUZZLE_LANGS } from "../../core/types.ts";
 import { PUBLISH } from "../../core/publish.ts";
+import { RESULT_MAX } from "../../core/result.ts";
 import { THEME_PRESETS } from "../../core/theme-presets.ts";
 import type { PuzzleTheme, ThemeRole } from "../../core/puzzle-theme.ts";
 import { contrastProblems, detailOn, sameColors } from "../../core/puzzle-theme.ts";
@@ -38,6 +39,7 @@ export type EditorViewModel = {
   images: EditorContext<unknown>["images"];
   lang: PuzzleLang; // language of the puzzle's texts (M28), preset to the UI language
   description: string; // M34: optional, for players and the gallery
+  result: string; // M42: optional, shown when solved in escape mode
   theme?: PuzzleTheme; // colors of the board (M29); undefined = default colors
   savedThemes: readonly SavedTheme[]; // own templates on this device (M30)
   themeNotice?: MessageKey; // why saving a template failed
@@ -51,6 +53,7 @@ export type EditorViewActions = {
   redo(): void;
   setTitle(title: string): void;
   setDescription(description: string): void;
+  setResult(result: string): void;
   setLanguage(lang: PuzzleLang): void;
   setTheme(theme: PuzzleTheme | undefined): void;
   saveTheme(name: string): void;
@@ -94,6 +97,17 @@ export function editorView(model: EditorViewModel, actions: EditorViewActions) {
         @input=${(e: Event) => actions.setDescription((e.target as HTMLTextAreaElement).value)}
       ></textarea>
       <span class="hint">${t("editorDescriptionHint")}</span>
+    </label>
+    <label class="field editor-result">
+      <span>${t("editorResult")}</span>
+      <textarea
+        rows="2"
+        maxlength=${RESULT_MAX}
+        lang=${model.lang}
+        .value=${model.result}
+        @input=${(e: Event) => actions.setResult((e.target as HTMLTextAreaElement).value)}
+      ></textarea>
+      <span class="hint">${t("editorResultHint")}</span>
     </label>
     <label class="editor-lang">
       <span>${t("editorLanguage")}</span>

@@ -1,5 +1,5 @@
 import { html, nothing } from "lit-html";
-import { formatAddress, LINK_MODE } from "../../core/router.ts";
+import { formatAddress, linkMode } from "../../core/router.ts";
 import { PUBLISH } from "../../core/publish.ts";
 import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
@@ -9,6 +9,7 @@ export type PublishDialogModel = {
   title: string;
   author: string;
   description: string; // M34: from the editor, the creator can still change it here
+  hasResult: boolean; // M42: the link opens in escape mode
   state: "confirm" | "busy" | "done";
   error: MessageKey | null;
   /** After success: the new puzzle; after a duplicate: the existing one. */
@@ -23,7 +24,7 @@ export type PublishDialogActions = {
 export function publishDialog(model: PublishDialogModel, actions: PublishDialogActions) {
   const route = model.publishedId ? ({ name: "published", id: model.publishedId } as const) : null;
   const href = route ? formatAddress(route, null) : null; // opened here in the app: the normal view
-  const url = route ? `${location.origin}${location.pathname}${formatAddress(route, LINK_MODE)}` : ""; // the link to pass on
+  const url = route ? `${location.origin}${location.pathname}${formatAddress(route, linkMode(model.hasResult))}` : ""; // the link to pass on
   return sheet(
     "publish-title",
     actions.close,

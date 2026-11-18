@@ -110,24 +110,37 @@ export function formatRoute(route: Route): string {
 
 // --- Modes (M41) ---
 
-/** How a puzzle route is presented; it travels in the link as `?mode=…`. "full" = full screen. */
-export type Mode = "full";
-const MODES: readonly string[] = ["full"] satisfies readonly Mode[];
+/**
+ * How a puzzle route is presented; it travels in the link as `?mode=…`. "full" = full screen (M41), "escape" = full
+ * screen without a way back that shows the puzzle's result when solved (M42).
+ */
+export type Mode = "full" | "escape";
+const MODES: readonly string[] = ["full", "escape"] satisfies readonly Mode[];
 
 /** A route with its mode. null = the normal view. */
 export type Address = { route: Route; mode: Mode | null };
 
-/** The mode new share links get (share sheet, QR code, link after publishing); null = links without a mode. */
-export const LINK_MODE: Mode | null = "full";
+/**
+ * The mode new share links get (share sheet, QR code, link after publishing): escape mode for a puzzle with a result
+ * (M42), full screen otherwise.
+ */
+export function linkMode(hasResult: boolean): Mode {
+  return hasResult ? "escape" : "full";
+}
 
 /** Routes that play a puzzle may carry a mode; for a chain it applies to its steps (the overview stays normal). */
 export function takesMode(route: Route): boolean {
   return route.name === "play" || route.name === "shared" || route.name === "published" || route.name === "chain" || route.name === "daily";
 }
 
+/** Whether `route` can be shown in `mode`: escape mode not for chains yet (they come with the escape room). */
+export function modeFits(route: Route, mode: Mode): boolean {
+  return takesMode(route) && !(mode === "escape" && route.name === "chain");
+}
+
 /**
  * Parses a hash with an optional mode. Only `mode=<word>` is allowed as query part of a puzzle route; an unknown
- * mode means the normal view, so a newer app's link still opens. Everything else behaves like `parseRoute`.
+ * mode, or one the route cannot show (escape mode for a chain), means the normal view, so a newer app's link still opens. Everything else behaves like `parseRoute`.
  */
 export function parseAddress(hash: string): Address {
   const rest = hash.replace(/^#\/?/, "");
@@ -135,13 +148,16 @@ export function parseAddress(hash: string): Address {
   const mode = query < 0 ? null : /^mode=([a-z]{1,16})$/.exec(rest.slice(query + 1));
   if (mode) {
     const route = parseRoute(`#/${rest.slice(0, query)}`);
-    if (takesMode(route)) return { route, mode: MODES.includes(mode[1]!) ? (mode[1] as Mode) : null };
+    if (takesMode(route)) {
+      const known = MODES.includes(mode[1]!) ? (mode[1] as Mode) : null;
+      return { route, mode: known && modeFits(route, known) ? known : null };
+    }
   }
   return { route: parseRoute(hash), mode: null };
 }
 
 export function formatAddress(route: Route, mode: Mode | null): string {
-  return mode !== null && takesMode(route) ? `${formatRoute(route)}?mode=${mode}` : formatRoute(route);
+  return mode !== null && modeFits(route, mode) ? `${formatRoute(route)}?mode=${mode}` : formatRoute(route);
 }
 
 /** The same route as `href` with another mode, e.g. the next level in full screen. */

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatAddress, formatRoute, hrefWithMode, parseAddress, parseRoute, takesMode } from "./router.ts";
+import { formatAddress, formatRoute, hrefWithMode, linkMode, modeFits, parseAddress, parseRoute, takesMode } from "./router.ts";
 import type { Route } from "./router.ts";
 
 test("parses all known routes", () => {
@@ -93,7 +93,7 @@ test("puzzle routes carry a mode (M41)", () => {
 });
 
 test("an unknown mode means the normal view; other query parts are still rejected", () => {
-  assert.deepEqual(parseAddress("#/p/1.abc?mode=escape"), { route: { name: "shared", code: "1.abc" }, mode: null });
+  assert.deepEqual(parseAddress("#/p/1.abc?mode=kiosk"), { route: { name: "shared", code: "1.abc" }, mode: null });
   for (const hash of ["#/p/1.abc?mode=", "#/p/1.abc?mode=FULL", "#/p/1.abc?mode=full&x=1", "#/p/1.abc?x=1", "#/p/1.abc?mode=full?x"]) {
     assert.deepEqual(parseAddress(hash), { route: { name: "home" }, mode: null }, hash);
   }
@@ -117,11 +117,29 @@ test("formatAddress round-trips and leaves routes without a puzzle alone", () =>
   for (const route of routes) {
     assert.ok(takesMode(route));
     for (const mode of ["full", null] as const) assert.deepEqual(parseAddress(formatAddress(route, mode)), { route, mode });
+    if (route.name !== "chain") assert.deepEqual(parseAddress(formatAddress(route, "escape")), { route, mode: "escape" });
   }
   assert.equal(formatAddress({ name: "shared", code: "1.abc" }, "full"), "#/p/1.abc?mode=full");
   assert.equal(formatAddress({ name: "edit", id: "x1" }, "full"), "#/edit/x1");
   assert.equal(formatAddress({ name: "home" }, "full"), "#/");
   assert.equal(takesMode({ name: "edit", id: "x1" }), false);
+});
+
+test("escape mode (M42) for single puzzles, not for chains yet", () => {
+  assert.deepEqual(parseAddress("#/p/1.abc?mode=escape"), { route: { name: "shared", code: "1.abc" }, mode: "escape" });
+  assert.deepEqual(parseAddress(`#/g/${GALLERY_ID}?mode=escape`), { route: { name: "published", id: GALLERY_ID }, mode: "escape" });
+  assert.deepEqual(parseAddress("#/daily?mode=escape"), { route: { name: "daily" }, mode: "escape" });
+  assert.deepEqual(parseAddress(`#/c/${GALLERY_ID}/2?mode=escape`), { route: { name: "chain", id: GALLERY_ID, step: 2 }, mode: null });
+  assert.deepEqual(parseAddress(`#/c/${GALLERY_ID}?mode=escape`), { route: { name: "chain", id: GALLERY_ID, step: null }, mode: null });
+  assert.equal(formatAddress({ name: "chain", id: GALLERY_ID, step: 2 }, "escape"), `#/c/${GALLERY_ID}/2`);
+  assert.equal(modeFits({ name: "chain", id: GALLERY_ID, step: 2 }, "full"), true);
+  assert.equal(modeFits({ name: "chain", id: GALLERY_ID, step: 2 }, "escape"), false);
+  assert.equal(modeFits({ name: "edit", id: "x1" }, "escape"), false);
+});
+
+test("share links open in escape mode when the puzzle has a result, otherwise in full screen", () => {
+  assert.equal(linkMode(true), "escape");
+  assert.equal(linkMode(false), "full");
 });
 
 test("hrefWithMode switches the mode of a link", () => {

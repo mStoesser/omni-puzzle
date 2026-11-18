@@ -85,6 +85,7 @@ export function toDocument<D>(
     lang?: PuzzleLang;
     theme?: PuzzleTheme;
     description?: string; // M34; empty or blank = none
+    result?: string; // M42; empty or blank = none
     verified: boolean;
     solve: SolveResult<unknown> | null;
   },
@@ -92,6 +93,8 @@ export function toDocument<D>(
   const meta: PuzzleMeta = { title: session.title, createdAt: info.createdAt };
   const description = info.description?.trim();
   if (description) meta.description = description;
+  const result = info.result?.trim();
+  if (result) meta.result = result;
   if (info.lang) meta.lang = info.lang;
   if (info.theme) meta.theme = info.theme;
   if (info.verified) meta.verified = true;

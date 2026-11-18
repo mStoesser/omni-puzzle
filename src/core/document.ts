@@ -2,6 +2,7 @@ import type { Registry } from "./registry.ts";
 import type { AnyPuzzleRules, PuzzleDocument, PuzzleMeta } from "./types.ts";
 import { isPuzzleLang } from "./types.ts";
 import { parseTheme } from "./puzzle-theme.ts";
+import { RESULT_MAX } from "./result.ts";
 
 export type DocumentErrorCode =
   | "invalid" // malformed or failed validation
@@ -19,7 +20,7 @@ export class DocumentError extends Error {
   }
 }
 
-const LIMITS = { title: 200, author: 100, description: 2000, createdAt: 40 } as const;
+const LIMITS = { title: 200, author: 100, description: 2000, createdAt: 40, result: RESULT_MAX } as const;
 const TYPE_ID = /^[a-z0-9-]{1,32}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,6 +61,9 @@ export function validateEnvelope(raw: unknown): PuzzleDocument {
   const description = optionalString(meta.description, LIMITS.description, "description");
   if (author !== undefined) clean.author = author;
   if (description !== undefined) clean.description = description;
+  const result = optionalString(meta.result, Infinity, "result")?.trim();
+  if (result !== undefined && [...result].length > LIMITS.result) throw new DocumentError("invalid", "meta.result");
+  if (result) clean.result = result; // blank = no result
   if (meta.verified !== undefined) {
     if (typeof meta.verified !== "boolean") throw new DocumentError("invalid", "meta.verified");
     clean.verified = meta.verified;

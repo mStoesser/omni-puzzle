@@ -984,27 +984,45 @@ Entschieden (11/2026):
 - **Nicht geheim:** Das Ergebnis steht im Rätsel-Dokument, also im Link und für Galerie-Rätsel in der Datenbank. Wer
   sich auskennt, liest es dort aus, wie die Lösung selbst. Das reicht für Spiele mit Freunden und Kindern. Echten Schutz
   bringt erst ein Server, der das Ergebnis nach geprüfter Zugfolge herausgibt (siehe Escape-Raum unter „Irgendwann“).
-  Damit der Wechsel leicht fällt, holt die App das Ergebnis über eine eigene Funktion statt direkt aus `meta`.
+  Damit der Wechsel leicht fällt, zeigen die Hüllen nur, was in `PlayViewModel.result` steht, sobald gelöst ist; ein
+  Server könnte es genau dann füllen.
 
-- [ ] Datenformat: optionales `meta.result` (Text, höchstens 500 Zeichen, getrimmt; leer = kein Ergebnis) in
+- [x] Datenformat: optionales `meta.result` (Text, höchstens 500 Zeichen, getrimmt; leer = kein Ergebnis) in
   `core/document.ts`, also auch für die Edge Function `publish`. Gehört zum Umschlag, nicht zu den Daten eines Typs:
   keine neue `typeVersion`. Tests.
-- [ ] Reine Logik für die Anzeige (`core/`): Art des Ergebnisses ableiten statt wählen lassen. Ist das ganze Feld eine
+  (`RESULT_MAX` in `core/result.ts`; gezählt werden Zeichen, nicht UTF-16-Einheiten. `preparePublication` übernimmt
+  es ins veröffentlichte Dokument; der `content_key` bleibt gleich. Die Edge Function `publish` muss dafür neu
+  deployt werden, sonst verwirft der alte Stand das Feld wie ein unbekanntes.)
+- [x] Reine Logik für die Anzeige (`core/`): Art des Ergebnisses ableiten statt wählen lassen. Ist das ganze Feld eine
   gültige `https://`-Adresse ohne Leerzeichen → Link (Domain über `URL.hostname`, also Punycode bei Sonderzeichen);
   kurz und ohne Leerzeichen (z. B. bis 12 Zeichen) → Code, groß dargestellt; sonst Text (Adressen darin bleiben
   reiner Text). `http://` und andere Schemata sind kein Link. Tests.
-- [ ] Router: Modus `escape` neben `full` (`takesMode` ohne Ketten-Routen). Teilen-Links tragen `escape`, wenn das
+  (`parseResult` in `core/result.ts`, `CODE_MAX` = 12. Adressen mit Zugangsdaten (`https://user:pw@…`) sind auch kein
+  Link.)
+- [x] Router: Modus `escape` neben `full` (`takesMode` ohne Ketten-Routen). Teilen-Links tragen `escape`, wenn das
   Rätsel ein Ergebnis hat, sonst `full` (statt der festen Konstante `LINK_MODE`): Teilen-Sheet in Editor und Spiel,
   QR-Code, Link nach dem Veröffentlichen. Tests.
-- [ ] Editor: Feld „Ergebnis beim Lösen“ bei Titel und Beschreibung, mit Hinweis, dass es nur im Escape-Modus
+  (`modeFits` und `linkMode` in `core/router.ts`; `escape` an einer Ketten-Route heißt normale Ansicht. Der Ketten-Link
+  selbst trägt weiter `full`.)
+- [x] Editor: Feld „Ergebnis beim Lösen“ bei Titel und Beschreibung, mit Hinweis, dass es nur im Escape-Modus
   erscheint und nicht geheim ist. Probespielen zeigt das Ergebnis nach dem Lösen.
-- [ ] Hülle `escape` (`ui/views/play.ts`): Leiste ohne „Verlassen“ (Rückgängig, Wiederholen, Neustart und, solange der
+  (Unter der Beschreibung. Ändern verifiziert nicht neu, weil es nicht zu den Daten gehört. Im Gelöst-Sheet des
+  Probespielens als Kasten „Ergebnis im Escape-Modus“; der Fokus liegt auf „Zurück zum Editor“.)
+- [x] Hülle `escape` (`ui/views/play.ts`): Leiste ohne „Verlassen“ (Rückgängig, Wiederholen, Neustart und, solange der
   Browser es kann, „Browserleisten ausblenden“). Beim Lösen das Ergebnis in einer Live-Region: Code groß, Text als
   Absatz, Link als Knopf „Öffnen“ mit Domain (neuer Tab, `rel="noopener noreferrer"`). Ohne Ergebnis nur „Gelöst!“.
   F und Esc schalten hier nichts um; Wake Lock wie im Vollbild.
-- [ ] „In meine Bibliothek kopieren“ (Remixen) übernimmt das Ergebnis nicht.
+  (`escapeHull` mit der Leiste aus `fullBar`. Verlässt der Browser sein Vollbild, bleibt die App im Escape-Modus.)
+- [x] „In meine Bibliothek kopieren“ (Remixen) übernimmt das Ergebnis nicht.
+  (`copyToLibrary` baut `meta` ohnehin Feld für Feld; im Browser geprüft: das Feld im Editor ist danach leer.)
 - [ ] Texte in `de.ts` und `en.ts`; Ansichten bei 390 und 1280 px, Hoch- und Querformat; Handy-Test mit einem Link
   per QR-Code.
+  (Texte da. Im Browser geprüft über die LAN-Adresse (Headless Chrome, 390 × 844, 844 × 390, 1280 × 800, dunkel):
+  Teilen-Links mit Code, Text (zweizeilig), https-Link und ohne Ergebnis öffnen im Escape-Modus, Leiste ohne
+  „Verlassen“, F und Esc ändern nichts, Lights Out gelöst → „Gelöst!“ und das Ergebnis, kein Gelöst-Sheet; derselbe
+  Link mit `?mode=full` und ohne Modus zeigt kein Ergebnis; Teilen aus dem Spiel endet auf `?mode=escape` bzw.
+  `?mode=full`; Remixen leert das Feld; Ergebnis eintragen → Probespielen zeigt es → Teilen im Editor endet auf
+  `?mode=escape`; kein waagrechter Überlauf. Veröffentlichen nicht geprüft (braucht das Backend). Handy-Test offen.)
 
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
