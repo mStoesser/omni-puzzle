@@ -152,7 +152,7 @@ function optionalText(value: unknown, max: number, path: string): string | undef
   return clean === "" ? undefined : clean;
 }
 
-function requiredText(value: unknown, max: number, path: string): string {
+function needText(value: unknown, max: number, path: string): string {
   const clean = text(value, max, path).trim();
   if (clean === "") fail(path);
   return clean;
@@ -260,8 +260,11 @@ function meta(value: unknown): EscapeRoomMeta {
  * Checks an untrusted escape room and returns a clean copy without unknown fields. Embedded puzzles go through
  * `loadDocument` (envelope, type, migration, validation); every reference must point to an existing item.
  * Throws DocumentError. Whether the room can be won is not checked here, see `checkEscapeRoom`.
+ * With `draft` (the editor, M45), what a creator fills in step by step may still be missing: empty names, labels and
+ * codes, tap areas without an action, views without content, embedded puzzles that are drafts. `draftProblems` lists
+ * these; structure, limits and references are checked as always.
  */
-export function loadEscapeRoom<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>): EscapeRoomDocument {
+export function loadEscapeRoom<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>, options: { draft?: boolean } = {}): EscapeRoomDocument {
   if (!isRecord(raw)) fail("not an object");
   if (raw.format !== ROOM_FORMAT) throw new DocumentError(typeof raw.format === "number" ? "unsupported" : "invalid", "format");
   if (raw.kind !== "escape-room") fail("kind");
@@ -269,7 +272,7 @@ export function loadEscapeRoom<T extends AnyPuzzleRules>(raw: unknown, registry:
   if ((raw.version as number) > ROOM_VERSION) throw new DocumentError("unsupported", "version");
   if (new TextEncoder().encode(JSON.stringify(raw)).length > ROOM_LIMITS.maxDocBytes) throw new DocumentError("too-large");
   const data = migrateRoom(raw.data, raw.version as number);
-  return { format: 1, kind: "escape-room", version: ROOM_VERSION, meta: meta(raw.meta), data: roomData(data, registry) };
+  return { format: 1, kind: "escape-room", version: ROOM_VERSION, meta: meta(raw.meta), data: roomData(data, registry, options.draft === true) };
 }
 
 /** Older versions of the data become the current one here (none yet). */
@@ -277,8 +280,10 @@ function migrateRoom(data: unknown, _version: number): unknown {
   return data;
 }
 
-function roomData<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>): EscapeRoomData {
+function roomData<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>, draft: boolean): EscapeRoomData {
   if (!isRecord(raw)) fail("data");
+  // In a draft, required texts may still be empty.
+  const requiredText = (value: unknown, max: number, path: string) => (draft ? text(value, max, path).trim() : needText(value, max, path));
   const rawScenes = list(raw.scenes, ROOM_LIMITS.scenes, "scenes");
   const rawPuzzles = list(raw.puzzles, ROOM_LIMITS.puzzles, "puzzles");
   const rawLocks = list(raw.locks, ROOM_LIMITS.locks, "locks");
@@ -308,7 +313,7 @@ function roomData<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>)
     if (r.image !== undefined) view.image = imageRef(r.image, `${at}.image`);
     const body = optionalText(r.text, ROOM_LIMITS.text, `${at}.text`);
     if (body !== undefined) view.text = body;
-    if (!view.image && view.text === undefined) fail(at);
+    if (!draft && !view.image && view.text === undefined) fail(at);
     return view;
   });
 
@@ -316,7 +321,7 @@ function roomData<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>)
     const r = l as Record<string, unknown>;
     const at = `locks.${i}`;
     const code = requiredText(r.code, ROOM_LIMITS.code, `${at}.code`);
-    if (normalizeCode(code) === "") fail(`${at}.code`);
+    if (!draft && normalizeCode(code) === "") fail(`${at}.code`);
     const lock: Lock = { id: r.id as string, name: requiredText(r.name, ROOM_LIMITS.name, `${at}.name`), code, onOpen: effects(r.onOpen, refs, false, `${at}.onOpen`) };
     const prompt = optionalText(r.prompt, ROOM_LIMITS.prompt, `${at}.prompt`);
     if (prompt !== undefined) lock.prompt = prompt;
@@ -328,7 +333,7 @@ function roomData<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>)
     const at = `puzzles.${i}`;
     let doc: PuzzleDocument;
     try {
-      doc = loadDocument(r.doc, registry).doc;
+      doc = loadDocument(r.doc, registry, { draft }).doc;
     } catch (error) {
       if (error instanceof DocumentError) throw new DocumentError(error.code, `${at}.doc: ${error.message}`);
       throw error;
@@ -351,7 +356,7 @@ function roomData<T extends AnyPuzzleRules>(raw: unknown, registry: Registry<T>)
         return { flag, on: c.on };
       });
       const action = effects(sp.action, refs, true, `${spotAt}.action`);
-      if (action.length === 0) fail(`${spotAt}.action`);
+      if (!draft && action.length === 0) fail(`${spotAt}.action`);
       return { id: id(sp.id, spotAt), label: requiredText(sp.label, ROOM_LIMITS.label, `${spotAt}.label`), rect: rect(sp.rect, `${spotAt}.rect`), when, action };
     });
     uniqueIds(spots, `${at}.spots`);

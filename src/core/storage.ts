@@ -14,6 +14,12 @@ export type PuzzleRecord = { id: string; doc: PuzzleDocument; updatedAt: string 
  */
 export type ProgressRecord = { key: string; solved: boolean; bestMoves: number; bestTimeMs?: number };
 
+/**
+ * An own escape room (M45). `doc` is checked when opened (`loadEscapeRoom`, rooms/logic.ts); here only its kind. Kept
+ * in the meta store (no new database version) and not synced.
+ */
+export type RoomRecord = { id: string; doc: { kind: "escape-room" } & Record<string, unknown>; updatedAt: string };
+
 /** A picture of an own puzzle (M14), keyed by the SHA-256 of its bytes. */
 export type ImageRecord = { key: string; type: ImageType; bytes: Uint8Array };
 
@@ -44,6 +50,11 @@ export type Storage = {
   applyRemote(rows: readonly RemoteRow[]): Promise<{ changed: boolean }>;
   getMeta(key: string): Promise<unknown>;
   putMeta(key: string, value: unknown): Promise<void>;
+  // Escape rooms (M45), in the meta store under `escape-room:<id>`
+  listRooms(): Promise<RoomRecord[]>; // newest first
+  getRoom(id: string): Promise<RoomRecord | null>;
+  putRoom(record: RoomRecord): Promise<void>;
+  deleteRoom(id: string): Promise<void>;
   /** Removes puzzles, tombstones, progress, images and marks; the meta entries stay. */
   clearLocal(): Promise<void>;
 };
@@ -193,6 +204,14 @@ function storageOn(run: Run): Storage {
       }),
     getMeta: (key) => run(["meta"], "readonly", (t) => t.get("meta", key)),
     putMeta: (key, value) => run(["meta"], "readwrite", async (t) => t.put("meta", value, key)),
+    listRooms: async () => sortNewestFirst(await run(["meta"], "readonly", async (t) => (await t.getAll("meta")).filter(isRoomRecord))),
+    getRoom: (id) =>
+      run(["meta"], "readonly", async (t) => {
+        const value = await t.get("meta", roomKey(id));
+        return isRoomRecord(value) ? value : null;
+      }),
+    putRoom: (record) => run(["meta"], "readwrite", async (t) => t.put("meta", record, roomKey(record.id))),
+    deleteRoom: (id) => run(["meta"], "readwrite", async (t) => t.delete("meta", roomKey(id))),
     clearLocal: () =>
       run(["puzzles", "tombstones", "progress", "images", "dirty"], "readwrite", async (t) => {
         for (const store of ["puzzles", "tombstones", "progress", "images", "dirty"] as const) t.clear(store);
@@ -250,7 +269,15 @@ export function memoryStorage(): Storage {
   return storageOn((_stores, _mode, op) => op(tables));
 }
 
-function sortNewestFirst(records: PuzzleRecord[]): PuzzleRecord[] {
+const roomKey = (id: string) => `escape-room:${id}`;
+
+function isRoomRecord(value: unknown): value is RoomRecord {
+  if (typeof value !== "object" || value === null) return false;
+  const r = value as Record<string, unknown>;
+  return typeof r.id === "string" && typeof r.updatedAt === "string" && typeof r.doc === "object" && r.doc !== null && (r.doc as Record<string, unknown>).kind === "escape-room";
+}
+
+function sortNewestFirst<T extends { updatedAt: string }>(records: T[]): T[] {
   return records.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
 }
 
