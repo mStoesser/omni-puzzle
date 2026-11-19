@@ -20,7 +20,12 @@ export type LibraryItem = {
   contentKey: string | null;
 };
 
+/** An own escape room (M45); `verified` = won by its creator, so it can be played. */
+export type LibraryRoomItem = { id: string; title: string; updatedAt: string; verified: boolean };
+
 export type LibraryViewActions = {
+  newRoom(): void; // M45
+  removeRoom(id: string): void;
   duplicate(id: string): void;
   remove(id: string): void;
   openBuild(): void;
@@ -41,6 +46,7 @@ export function libraryView(
   query: string,
   actions: LibraryViewActions,
   synced = false,
+  rooms: readonly LibraryRoomItem[] | null = null,
 ) {
   const shown = items?.filter((item) => matchesFilter(item.status, filter) && matchesTitle(item.record.doc.meta.title || t("untitled"), query)) ?? null;
   return html`
@@ -72,7 +78,43 @@ export function libraryView(
           </p>`
         : html`<ul class="card-list">${shown.map((item) => libraryEntry(item, actions))}</ul>`}
     <p class="info-box">${icon("info", 18)}<span>${t(synced ? "librarySyncedHint" : "libraryLocalHint")}</span></p>
+    ${roomsSection(rooms, actions)}
   `;
+}
+
+/** Own escape rooms (M45): only on this device, not filtered or searched with the puzzles. */
+function roomsSection(rooms: readonly LibraryRoomItem[] | null, actions: LibraryViewActions) {
+  return html`<section class="library-rooms" aria-labelledby="library-rooms">
+    <div class="section-head with-action">
+      <h2 id="library-rooms">${t("libraryRooms")}</h2>
+      <button class="compact secondary" @click=${actions.newRoom}>${icon("plus", 18)}${t("libraryNewRoom")}</button>
+    </div>
+    ${rooms === null
+      ? html`<p role="status">${t("loading")}</p>`
+      : rooms.length === 0
+        ? html`<p class="empty">${t("libraryRoomsEmpty")}</p>`
+        : html`<ul class="card-list">
+              ${rooms.map((room) => {
+                const title = room.title || t("untitled");
+                const updated = timeAgo(room.updatedAt, Date.now());
+                const menu: MenuItem[] = [
+                  { icon: "pencil", text: t("edit"), href: `#/room-edit/${room.id}` },
+                  ...(room.verified ? [{ icon: "play", text: t("play"), href: `#/room/${room.id}` } as const] : []),
+                  { icon: "trash", text: t("delete"), danger: true, onClick: () => confirm(t("confirmDelete", { title })) && actions.removeRoom(room.id) },
+                ];
+                return html`<li class="library-card">
+                  <span class="library-card-icon" aria-hidden="true">${icon("door", 22)}</span>
+                  <div class="library-card-body">
+                    <a class="library-card-link" href="#/room-edit/${room.id}">${title}</a>
+                    <span class="library-card-sub">${t("roomEdKicker")}${updated ? html` · ${t("libraryEdited", { when: updated })}` : nothing}</span>
+                    <span>${statusBadge(room.verified ? "ready" : "draft")}</span>
+                  </div>
+                  ${popoverMenu(`room-menu-${room.id}`, t("libraryMenu", { title }), menu, "icon-button quiet-icon")}
+                </li>`;
+              })}
+            </ul>
+            <p class="hint">${t("libraryRoomsHint")}</p>`}
+  </section>`;
 }
 
 function libraryEntry({ record, type, playable, status }: LibraryItem & { status: LibraryStatus }, actions: LibraryViewActions) {

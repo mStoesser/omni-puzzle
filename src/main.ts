@@ -60,7 +60,7 @@ import type { LeaderboardModel, LeaderboardViewer } from "./ui/components/leader
 import { decodeDocument, encodeDocument } from "./core/share.ts";
 import { copyRecord, memoryStorage, newPuzzleId, openStorage, progressKey, recordSolve } from "./core/storage.ts";
 import { createSyncApi, mergeProgress, ownerDecision, readSyncMeta, syncOnce } from "./core/sync.ts";
-import type { ProgressRecord, PuzzleRecord, Storage } from "./core/storage.ts";
+import type { ProgressRecord, PuzzleRecord, RoomRecord, Storage } from "./core/storage.ts";
 import { createStore } from "./core/store.ts";
 import { imageProblem, imageKey, publishedImageUrl, sniffImageType, toBase64 } from "./core/images.ts";
 import type { AnyPuzzleType, ImageSource, PuzzleDocument, PuzzleLang, SolveResult } from "./core/types.ts";
@@ -90,7 +90,10 @@ import { chainView } from "./ui/views/chain.ts";
 import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
 import { chainEditorView } from "./ui/views/chain-editor.ts";
 import type { RoomPuzzle, RoomViewModel } from "./ui/views/room.ts";
-import type { EscapeRoomDocument, RoomEvent, Step } from "./rooms/logic.ts";
+import type { EscapeRoomData, EscapeRoomDocument, EscapeRoomMeta, RoomEvent, Step } from "./rooms/logic.ts";
+import type { RoomCheck } from "./rooms/check.ts";
+import type { DraftProblem } from "./rooms/edit.ts";
+import type { RoomEditorSection } from "./ui/views/room-editor.ts";
 import type { RoomSave } from "./rooms/save.ts";
 import type { ChainEditorModel } from "./ui/views/chain-editor.ts";
 import { moderationView } from "./ui/views/moderation.ts";
@@ -150,7 +153,24 @@ type RoomState = {
   hintsOpen: boolean;
   sceneText: boolean;
   spotsVisible: boolean;
+  /** Test play from the editor (M45): nothing is saved; a victory from the start verifies exactly `data`. */
+  test: { fromStart: boolean; data: EscapeRoomData } | null;
 };
+
+/** The escape room being edited (M45). */
+type RoomEditorState = {
+  id: string;
+  doc: EscapeRoomDocument; // a draft (loadEscapeRoom with `draft`)
+  /** The data the creator won in test play from the start; compared by reference, like `verifiedData` of puzzles. */
+  verifiedData: EscapeRoomData | undefined;
+  section: RoomEditorSection;
+  scene: string;
+  spot: string | null;
+  picker: boolean;
+};
+
+/** An own escape room in the library (M45). */
+type LibraryRoom = { id: string; title: string; updatedAt: string; verified: boolean };
 
 type AppState = {
   route: Route;
@@ -188,7 +208,9 @@ type AppState = {
   publishedKeys: { userId: string; keys: ReadonlySet<string> } | null;
   sharedKeys: readonly string[]; // M35: content keys whose link was copied or sent on this device, newest first
   resume: Resume | null; // M36: the unfinished puzzle last played on this device ("Weiterspielen")
-  room: RoomState | null; // M44: the escape room of the route
+  room: RoomState | null; // M44: the escape room of the route (or test play in the editor, M45)
+  roomEditor: RoomEditorState | null; // M45
+  libraryRooms: LibraryRoom[] | null; // M45: own escape rooms, loaded with the library
   roomStatus: ReadonlyMap<string, "started" | "won">; // M44: example escape rooms played on this device
   libraryQuery: string; // M37: local title search in the library; cleared when leaving it
 };
@@ -280,6 +302,8 @@ const store = createStore<AppState>({
   sharedKeys: [],
   resume: null,
   room: null,
+  roomEditor: null,
+  libraryRooms: null,
   roomStatus: new Map(),
   libraryQuery: "",
 });
@@ -340,6 +364,7 @@ function enterRoute(route: Route, mode: Mode | null) {
   const previous = store.get().route;
   flushSave();
   flushResume();
+  flushRoomSave();
   patch({ route, mode, pending: false, error: null, notice: null, play: null, room: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
@@ -350,6 +375,9 @@ function enterRoute(route: Route, mode: Mode | null) {
       break;
     case "room":
       void openRoom(route);
+      break;
+    case "roomEdit":
+      void openRoomEditor(route);
       break;
     case "daily":
       void openDaily(route);
@@ -435,19 +463,21 @@ async function openRoom(route: Route & { name: "room" }) {
   }
   if (!isCurrent(route)) return;
   const { escapeRoomExample, loadEscapeRoom, roomSaveKey, parseRoomSave, newRoomSave } = chunk;
-  const example = escapeRoomExample(route.id);
-  if (!example) return fail(route, { text: "roomNotFound" });
+  const raw = escapeRoomExample(route.id)?.doc ?? (await storage.then((s) => s.getRoom(route.id)).catch(() => null))?.doc;
+  if (!isCurrent(route)) return;
+  if (!raw) return fail(route, { text: "roomNotFound" });
   let doc: EscapeRoomDocument;
   try {
-    doc = loadEscapeRoom(example.doc, registry);
+    doc = loadEscapeRoom(raw, registry);
   } catch (error) {
     console.warn(error);
-    return fail(route, { text: "puzzleBroken" });
+    // An own room that is still a draft: to the editor.
+    return fail(route, escapeRoomExample(route.id) ? { text: "puzzleBroken" } : { text: "roomNotPlayable", action: { href: formatRoute({ name: "roomEdit", id: route.id }), label: "edit" } });
   }
   const key = roomSaveKey(doc);
-  const raw = await storage.then((s) => s.getMeta(key)).catch(() => null);
+  const saved = await storage.then((s) => s.getMeta(key)).catch(() => null);
   if (!isCurrent(route)) return;
-  const save = parseRoomSave(raw, doc.data) ?? newRoomSave(doc.data, Date.now());
+  const save = parseRoomSave(saved, doc.data) ?? newRoomSave(doc.data, Date.now());
   const room: RoomState = {
     id: route.id,
     doc,
@@ -460,6 +490,7 @@ async function openRoom(route: Route & { name: "room" }) {
     hintsOpen: false,
     sceneText: save.introSeen,
     spotsVisible: false,
+    test: null,
   };
   patch({ pending: false, room });
   tickRoom();
@@ -492,6 +523,15 @@ function updateRoomSave(change: (save: RoomSave) => RoomSave) {
   const save = change(room.save);
   if (save === room.save) return;
   setRoom((r) => ({ ...r, save }));
+  if (room.test) {
+    // Test play saves nothing; winning from the start verifies the room (M45).
+    const editor = store.get().roomEditor;
+    if (save.progress.shared.won && room.test.fromStart && editor) {
+      patch({ roomEditor: { ...editor, verifiedData: room.test.data } });
+      roomEditorChanged();
+    }
+    return;
+  }
   void storage.then((s) => s.putMeta(room.key, save)).catch((error: unknown) => console.warn("room", error));
 }
 
@@ -610,6 +650,7 @@ const roomActions = {
     tickRoom();
   },
   hideBrowserBars: () => hideBrowserBars(),
+  backToEditor: () => patch({ room: null }),
 };
 
 function roomModel(state: AppState, room: RoomState): RoomViewModel {
@@ -626,13 +667,202 @@ function roomModel(state: AppState, room: RoomState): RoomViewModel {
     spotsVisible: room.spotsVisible,
     elapsedMs: save.wonAfterMs ?? (save.introSeen ? Math.max(0, Date.now() - save.startedAt) : 0),
     canHideBrowserBars: canHideBrowserBars(),
-    images: NO_ROOM_IMAGES,
-    backHref: "#/",
+    images: localImages,
+    backHref: escapeRoomIsExample(room.id) ? "#/" : "#/library",
+    test: room.test !== null,
   };
 }
 
-/** Own pictures come with the editor (M45); the examples use built-in ones. */
-const NO_ROOM_IMAGES = { url: () => null };
+function escapeRoomIsExample(id: string): boolean {
+  return roomChunk?.escapeRoomExample(id) !== undefined;
+}
+
+// --- Escape room editor (M45) ---
+
+async function openRoomEditor(route: Route & { name: "roomEdit" }) {
+  if (store.get().roomEditor?.id === route.id) return;
+  patch({ pending: true });
+  let chunk: RoomChunk;
+  try {
+    chunk = await loadRoomChunk();
+  } catch (error) {
+    console.warn(error);
+    return fail(route, { text: "roomUnavailable" });
+  }
+  const record = await storage.then((s) => s.getRoom(route.id)).catch(() => null);
+  if (!isCurrent(route)) return;
+  if (!record) return fail(route, { text: "roomNotFound" });
+  let doc: EscapeRoomDocument;
+  try {
+    doc = chunk.loadEscapeRoom(record.doc, registry, { draft: true });
+  } catch (error) {
+    console.warn(error);
+    return fail(route, { text: "puzzleBroken" });
+  }
+  const editor: RoomEditorState = {
+    id: record.id,
+    doc,
+    verifiedData: doc.meta.verified ? doc.data : undefined,
+    section: "scenes",
+    scene: doc.data.start,
+    spot: null,
+    picker: false,
+  };
+  patch({ pending: false, roomEditor: editor });
+}
+
+/** New escape room from the library: saved at once, then opened in the editor. */
+async function createRoom() {
+  const chunk = await loadRoomChunk().catch(() => null);
+  if (!chunk) {
+    patch({ notice: "roomUnavailable" });
+    return;
+  }
+  const id = newPuzzleId();
+  const doc = chunk.newEscapeRoom(t("roomEdNewTitle"), language(), now(), t("roomEdNewScene", { n: 1 }));
+  if (await save((s) => s.putRoom({ id, doc, updatedAt: now() }))) location.hash = formatRoute({ name: "roomEdit", id });
+}
+
+function setRoomEditor(change: (editor: RoomEditorState) => RoomEditorState) {
+  store.set((state) => (state.roomEditor ? { ...state, roomEditor: change(state.roomEditor) } : state));
+}
+
+let roomSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Saves the edited room a moment after the last change (typing, dragging). */
+function roomEditorChanged() {
+  clearTimeout(roomSaveTimer);
+  roomSaveTimer = setTimeout(() => void saveRoomEditor(), 400);
+}
+
+/** Leaving the editor (another route): save now, not after the delay. */
+function flushRoomSave() {
+  if (roomSaveTimer === undefined) return;
+  clearTimeout(roomSaveTimer);
+  void saveRoomEditor();
+}
+
+async function saveRoomEditor() {
+  roomSaveTimer = undefined;
+  const editor = store.get().roomEditor;
+  if (!editor) return;
+  const verified = editor.verifiedData === editor.doc.data;
+  const meta: EscapeRoomMeta = { ...editor.doc.meta };
+  if (verified) meta.verified = true;
+  else delete meta.verified;
+  await save((s) => s.putRoom({ id: editor.id, doc: { ...editor.doc, meta }, updatedAt: now() }));
+}
+
+/** Check results per data object: the search can take a moment, and the data only changes with an edit. */
+const roomChecks = new WeakMap<EscapeRoomData, { problems: DraftProblem[]; check: RoomCheck | null }>();
+
+function roomCheckOf(data: EscapeRoomData) {
+  let result = roomChecks.get(data);
+  if (!result) {
+    const chunk = rooms();
+    const problems = chunk.draftProblems(data, registry);
+    result = { problems, check: problems.length === 0 ? chunk.checkEscapeRoom(data) : null };
+    roomChecks.set(data, result);
+  }
+  return result;
+}
+
+const roomEditorActions = {
+  setMeta: (change: Partial<EscapeRoomMeta>) => {
+    setRoomEditor((e) => {
+      const meta = { ...e.doc.meta, ...change };
+      for (const key of Object.keys(change) as (keyof EscapeRoomMeta)[]) if (change[key] === undefined) delete meta[key];
+      return { ...e, doc: { ...e.doc, meta } };
+    });
+    roomEditorChanged();
+  },
+  change: (update: (data: EscapeRoomData) => EscapeRoomData) => {
+    const editor = store.get().roomEditor;
+    if (!editor) return;
+    const data = update(editor.doc.data);
+    if (data === editor.doc.data) return;
+    setRoomEditor((e) => ({ ...e, doc: { ...e.doc, data } }));
+    roomEditorChanged();
+  },
+  setSection: (section: RoomEditorSection) => setRoomEditor((e) => ({ ...e, section })),
+  select: (scene: string, spot: string | null) => setRoomEditor((e) => ({ ...e, scene, spot })),
+  uploadImage: async (file: File, crop: boolean) => editorImages.add(crop ? await rooms().cropTo16x9(file).catch((error: unknown) => {
+    patch({ notice: typeof error === "string" && error in ENCODE_TEXT ? ENCODE_TEXT[error as EncodeError] : "imageStoreFailed" });
+    throw error;
+  }) : file),
+  openPicker: () => {
+    setRoomEditor((e) => ({ ...e, picker: true }));
+    if (store.get().library === null) void loadLibrary();
+  },
+  closePicker: () => setRoomEditor((e) => ({ ...e, picker: false })),
+  pickPuzzle: async (libraryId: string) => {
+    const item = store.get().library?.find((i) => i.record.id === libraryId);
+    if (!item) return;
+    // Pictures of the puzzle are on this device already (it is in the library).
+    const doc = loadDocument(item.record.doc, registry, { draft: true }).doc;
+    const name = doc.meta.title || t("untitled");
+    let id = "";
+    roomEditorActions.change((data) => {
+      const added = rooms().addPuzzle(data, doc, name);
+      id = added.id;
+      return added.data;
+    });
+    setRoomEditor((e) => ({ ...e, picker: false }));
+    if (!id) patch({ notice: "roomEdLimit" });
+  },
+  testPlay: (fromScene: string | null) => {
+    const editor = store.get().roomEditor;
+    if (!editor || roomCheckOf(editor.doc.data).problems.length > 0) return;
+    let doc: EscapeRoomDocument;
+    try {
+      doc = rooms().loadEscapeRoom({ ...editor.doc, meta: { ...editor.doc.meta } }, registry);
+    } catch (error) {
+      console.warn(error); // draftProblems let through something strict loading refuses
+      return;
+    }
+    const fresh = rooms().newRoomSave(doc.data, Date.now());
+    const fromStart = fromScene === null || fromScene === doc.data.start;
+    const save: RoomSave = fromStart ? fresh : { ...fresh, introSeen: true, progress: { ...fresh.progress, scene: fromScene! } };
+    const room: RoomState = {
+      id: editor.id,
+      doc,
+      key: "",
+      save,
+      open: null,
+      puzzle: null,
+      pendingOpen: null,
+      lock: { input: "", wrong: false },
+      hintsOpen: false,
+      sceneText: save.introSeen,
+      spotsVisible: false,
+      test: { fromStart, data: editor.doc.data },
+    };
+    patch({ room });
+    tickRoom();
+  },
+};
+
+function roomEditorModel(state: AppState, editor: RoomEditorState) {
+  const { problems, check } = roomCheckOf(editor.doc.data);
+  const picker = editor.picker
+    ? (state.library ?? []).map((item) => ({ id: item.record.id, title: item.record.doc.meta.title, typeName: item.type.name }))
+    : null;
+  return {
+    doc: editor.doc,
+    verified: editor.verifiedData === editor.doc.data,
+    section: editor.section,
+    scene: editor.doc.data.scenes.some((s) => s.id === editor.scene) ? editor.scene : editor.doc.data.start,
+    spot: editor.spot,
+    problems,
+    check,
+    picker,
+    images: localImages,
+    typeName: (typeId: string) => {
+      const type = registry.get(typeId);
+      return type ? t(type.name) : typeId;
+    },
+  };
+}
 
 // --- Play ---
 
@@ -2212,7 +2442,7 @@ async function downloadImages(puzzleId: string, keys: string[]) {
 }
 
 /** Deletes local images no library puzzle uses any more (removed questions, deleted puzzles). */
-async function removeUnusedImages(items: readonly LibraryItem[]) {
+async function removeUnusedImages(items: readonly LibraryItem[], rooms: readonly RoomRecord[]) {
   const used = new Set(items.flatMap(({ record, type }) => {
     try {
       return type.imageKeys?.(loadDocument(record.doc, registry, { draft: true }).doc.data) ?? [];
@@ -2220,6 +2450,18 @@ async function removeUnusedImages(items: readonly LibraryItem[]) {
       return [];
     }
   }));
+  // Pictures of own escape rooms (M45) stay too. If the room code or a room cannot be read, nothing is deleted.
+  if (rooms.length > 0) {
+    const chunk = await loadRoomChunk().catch(() => null);
+    if (!chunk) return;
+    for (const room of rooms) {
+      try {
+        for (const key of chunk.roomImageKeys(chunk.loadEscapeRoom(room.doc, registry, { draft: true }).data, registry)) used.add(key);
+      } catch {
+        return;
+      }
+    }
+  }
   try {
     const s = await storage;
     for (const key of await s.listImageKeys()) {
@@ -2394,8 +2636,15 @@ async function loadLibrary() {
       return []; // unknown or broken entries stay in storage but are not listed
     }
   });
-  patch({ library: items });
-  void removeUnusedImages(items);
+  const rooms = await (await storage).listRooms().catch(() => []);
+  patch({
+    library: items,
+    libraryRooms: rooms.map((r) => {
+      const meta = (typeof r.doc.meta === "object" && r.doc.meta !== null ? r.doc.meta : {}) as Record<string, unknown>;
+      return { id: r.id, title: typeof meta.title === "string" ? meta.title : "", updatedAt: r.updatedAt, verified: meta.verified === true };
+    }),
+  });
+  void removeUnusedImages(items, rooms);
 }
 
 /** "In der Galerie" (M35): loaded with the library, kept until the user changes. Best effort. */
@@ -2447,6 +2696,11 @@ function libraryWithStatus(state: AppState) {
 }
 
 const libraryActions = {
+  newRoom: () => void createRoom(),
+  removeRoom: async (id: string) => {
+    if (store.get().roomEditor?.id === id) patch({ roomEditor: null });
+    if (await save((s) => s.deleteRoom(id))) await loadLibrary();
+  },
   openBuild: () => patch({ buildSheet: true }),
   setFilter: (filter: LibraryFilter) => location.replace(formatRoute({ name: "library", filter })),
   setQuery: (query: string) => patch({ libraryQuery: query }),
@@ -2793,7 +3047,7 @@ function view(state: AppState) {
       }
       return state.moderation ? moderationView(state.moderation, registry, moderationActions) : nothing;
     case "library":
-      return html`${libraryView(libraryWithStatus(state), state.route.filter, state.libraryQuery, libraryActions, syncApi !== null && state.account.user !== null)} ${siteFooter()}`;
+      return html`${libraryView(libraryWithStatus(state), state.route.filter, state.libraryQuery, libraryActions, syncApi !== null && state.account.user !== null, state.libraryRooms)} ${siteFooter()}`;
     case "imprint":
       return imprintView();
     case "privacy":
@@ -2839,6 +3093,11 @@ function view(state: AppState) {
     }
     case "room":
       return state.room && roomChunk ? roomChunk.roomView(roomModel(state, state.room), roomActions) : nothing;
+    case "roomEdit":
+      if (!roomChunk || !state.roomEditor) return nothing;
+      return state.room?.test
+        ? roomChunk.roomView(roomModel(state, state.room), roomActions)
+        : roomChunk.roomEditorView(roomEditorModel(state, state.roomEditor), roomEditorActions);
     case "chainNew":
       return chainEditorView(state.chainEditor, state.account.user !== null, registry, chainEditorActions);
     case "new":
@@ -2896,6 +3155,7 @@ function navSection(route: Route): NavSection | "focus" {
     case "new":
     case "edit":
     case "room":
+    case "roomEdit":
       return "focus";
     case "imprint":
     case "privacy":
@@ -2961,7 +3221,7 @@ function page(state: AppState) {
   `;
   if (section === "focus") {
     const context = state.shortcuts ? shortcutContext(state) : null;
-    const full = presentationOf(state) !== "standard" || state.route.name === "room";
+    const full = presentationOf(state) !== "standard" || state.room !== null;
     return html`<div class="page focus ${full ? "full" : ""}">
       ${content}
       ${context ? shortcutsDialog(context, state.play?.session.type.controls?.undo !== false, () => patch({ shortcuts: false })) : nothing}
@@ -2982,6 +3242,7 @@ function pageTitle(state: AppState): string {
   const part =
     state.play?.title ||
     state.room?.doc.meta.title ||
+    (route.name === "roomEdit" ? state.roomEditor?.doc.meta.title : "") ||
     (route.name === "library" ? t("library")
     : route.name === "gallery" ? t("gallery")
     : route.name === "moderation" ? t("moderation")

@@ -1136,13 +1136,39 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   geprüft mit dem Produktions-Build über localhost: offline neu geladen öffnet sich der Raum.)
 
 ### M45 – Escape-Raum: Editor
-- [ ] Neuer Escape-Raum aus der Bibliothek; Räume anlegen, Bild wählen (Standardbild oder eigenes, über die vorhandene
+- [x] Neuer Escape-Raum aus der Bibliothek; Räume anlegen, Bild wählen (Standardbild oder eigenes, über die vorhandene
   Bild-Verarbeitung).
-- [ ] Klickbereiche auf das Bild ziehen, verschieben, Größe ändern; Bedingung und Aktion festlegen.
-- [ ] Schalter, Schlösser, Detailansichten verwalten; Rätsel einbetten (neu bauen mit den vorhandenen Editoren oder
+  (Bibliothek: eigener Bereich „Escape-Räume“ unter den Rätseln mit „Neuer Escape-Raum“, Bearbeiten, Spielen (wenn
+  verifiziert) und Löschen. Route `#/room-edit/<id>`. Eigene Raumbilder werden auf 16:9 zugeschnitten (die Mitte, höchstens
+  1600 px breit) und dann wie Quiz-Bilder skaliert und gespeichert; Bilder in Ansichten behalten ihr Format. Das
+  Aufräumen unbenutzter Bilder behält jetzt auch die der Escape-Räume; kann es einen Raum nicht lesen, löscht es nichts.)
+- [x] Klickbereiche auf das Bild ziehen, verschieben, Größe ändern; Bedingung und Aktion festlegen.
+  (Aufziehen auf freier Fläche, Ziehen verschiebt, der Punkt an der Ecke ändert die Größe; mit der Tastatur Pfeiltasten,
+  Umschalt für die Größe, Alt für kleine Schritte. Unter dem Bild alle Bereiche als Chips, auch übereinanderliegende.
+  Aktion als Liste von Effekten; die Auswahl bietet nur, was erlaubt ist (ein öffnender Effekt, nach dem Lösen nur
+  Ansichten). Bedingungen: Schalter an oder aus.)
+- [x] Schalter, Schlösser, Detailansichten verwalten; Rätsel einbetten (neu bauen mit den vorhandenen Editoren oder
   aus der Bibliothek kopieren).
-- [ ] Prüf-Panel mit dem Ergebnis aus M43, Probespielen ab einem beliebigen Raum, „verifiziert“ nach eigenem Sieg.
-- [ ] Speichern in der Bibliothek (IndexedDB), automatisch wie bei Rätseln.
+  (Abweichung: Rätsel kommen nur als Kopie aus der Bibliothek; neue baut man dort mit den vorhandenen Editoren und fügt
+  sie dann hinzu. Ergebnis und Effekte nach dem Lösen stellt man im Escape-Raum ein. Löschen fragt nach und entfernt,
+  was darauf verweist.)
+- [x] Prüf-Panel mit dem Ergebnis aus M43, Probespielen ab einem beliebigen Raum, „verifiziert“ nach eigenem Sieg.
+  (Erst die Entwurfs-Probleme (`draftProblems`: fehlende Namen, Codes, Aktionen …), dann die Prüfung aus M43, pro
+  Datenstand zwischengespeichert. Probespielen vom Start oder „Ab hier probespielen“; nur ein Sieg vom Start mit genau
+  diesen Daten verifiziert, jede Änderung an den Daten macht ihn wieder zum Entwurf (Titel und Beschreibung nicht).)
+- [x] Speichern in der Bibliothek (IndexedDB), automatisch wie bei Rätseln.
+  (Im Meta-Speicher unter `escape-room:<id>`, ohne neue DB-Version, 0,4 s nach der letzten Änderung und beim Verlassen.
+  Escape-Räume werden nicht synchronisiert und bleiben beim Abmelden auf dem Gerät. Noch kein Rückgängig im Editor.)
+- [x] Texte in `de.ts` und `en.ts`; im Browser geprüft.
+  (Headless Chrome über die LAN-Adresse, 1280 × 900 und 390 × 844: Rätsel remixen, Escape-Raum anlegen, Bereich aufziehen
+  und verschieben, Schloss mit Code und Sieg, Bereich öffnet das Schloss, Hinweis mit dem Code, Rätsel aus der
+  Bibliothek hinzufügen und wieder entfernen, eigenes Bild (800 × 600 → 800 × 450), Probespielen bis zum Sieg →
+  verifiziert, Neuladen, Spielen aus der Bibliothek, Bild übersteht das Aufräumen; am Handy kein waagrechter Überlauf.)
+- [ ] Test am echten Desktop (Maus, Tastatur) und kurzer Blick am Tablet.
+- [ ] Bundle-Größe: Mit M45 liegt das Haupt-Bundle wieder über 500 kB (512 kB, gzip 162 kB; der nachgeladene
+  Escape-Raum-Teil 59 kB). Ursache sind vor allem die neuen Texte (rund 15 kB, beide Sprachen sind immer im Bundle; alle
+  Texte zusammen 123 kB). Entscheiden: Warnschwelle anheben oder nur die Texte der aktiven Sprache laden (spart rund
+  60 kB, braucht aber einen asynchronen Start und Sprachwechsel).
 
 ### M46 – Escape-Raum: Teilen und Galerie
 - [ ] Veröffentlichen über eine Edge Function (prüft das Dokument, jedes eingebettete Rätsel mit `rules.ts`, die

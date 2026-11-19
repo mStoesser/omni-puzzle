@@ -34,6 +34,8 @@ export type RoomViewModel = {
   canHideBrowserBars: boolean;
   images: ImageSource; // own pictures (image keys)
   backHref: string;
+  /** Test play from the editor (M45): "back to the editor" instead of leaving, nothing is saved. */
+  test: boolean;
 };
 
 export type RoomViewActions = {
@@ -55,6 +57,7 @@ export type RoomViewActions = {
   dismissSceneText(): void;
   restartRoom(): void;
   hideBrowserBars(): void;
+  backToEditor(): void;
 };
 
 /**
@@ -103,7 +106,9 @@ export function roomView(model: RoomViewModel, actions: RoomViewActions) {
 
 function roomBar(model: RoomViewModel, scene: Scene, actions: RoomViewActions) {
   return html`<nav class="full-bar room-bar" aria-label=${t("roomControls")}>
-    ${iconButton({ label: t("roomLeave"), icon: "chevronLeft", href: model.backHref })}
+    ${model.test
+      ? iconButton({ label: t("backToEditor"), icon: "chevronLeft", onClick: actions.backToEditor })
+      : iconButton({ label: t("roomLeave"), icon: "chevronLeft", href: model.backHref })}
     ${model.canHideBrowserBars ? iconButton({ label: t("fullscreenBrowser"), icon: "expand", onClick: actions.hideBrowserBars }) : nothing}
     <h1 class="room-scene-name">${scene.name}</h1>
     <span class="full-bar-gap"></span>
@@ -221,7 +226,10 @@ function wonSheet(model: RoomViewModel, actions: RoomViewActions) {
       <h2 id="room-won-title" class="solved-title">${t("roomWon")}</h2>
       ${model.data.victory ? html`<p class="room-story">${model.data.victory}</p>` : nothing}
       <p class="solved-sub">${t("roomWonTime", { time })}</p>
-      <a class="button large block" href=${model.backHref}>${t("toHome")}</a>
+      ${model.test
+        ? html`<p class="solved-sub">${t("roomWonTest")}</p>
+            <button class="large block" @click=${actions.backToEditor}>${t("backToEditor")}</button>`
+        : html`<a class="button large block" href=${model.backHref}>${t("toHome")}</a>`}
       <button class="secondary block" @click=${actions.restartRoom}>${icon("restart", 18)}${t("roomAgain")}</button>
     </div>`,
     "solved-sheet",

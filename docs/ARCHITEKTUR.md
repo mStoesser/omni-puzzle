@@ -127,6 +127,7 @@ src/
     check.ts              # Prüfung: Sieg erreichbar, Sackgassen, Unerreichbares
     examples.ts           # Beispiel-Escape-Raum „Das Arbeitszimmer“ / „The Study“ (je Sprache)
     save.ts               # gespeichertes Spiel: Schlüssel, Prüfung beim Laden (M44)
+    edit.ts               # Bearbeiten für den Editor, Entwurfs-Probleme, Bild-Schlüssel (M45)
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # Mail-Vorlagen, Sprache nach user_metadata.lang (M28)
@@ -1302,6 +1303,32 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
 - **Standardbilder** (`ui/room-images.ts`): `study`, `hall`, `cellar`, `lab` als SVG-Zeichnungen (1600 × 900) im Code,
   Platzhalter. Eigene Bilder (`{ key }`) zeigt die Ansicht über eine `ImageSource`; die liefert erst der Editor (M45).
 
+### Escape-Raum-Editor (M45)
+
+- **Speicher:** eigene Escape-Räume als `RoomRecord` (`id`, `doc`, `updatedAt`) im Meta-Speicher unter
+  `escape-room:<id>` (`listRooms`, `getRoom`, `putRoom`, `deleteRoom` in `core/storage.ts`), ohne neue DB-Version. Nicht
+  synchronisiert; `clearLocal` lässt sie stehen.
+- **Entwürfe:** `loadEscapeRoom(raw, registry, { draft: true })` erlaubt, was ein Ersteller nach und nach ausfüllt
+  (leere Namen und Codes, Bereiche ohne Aktion, leere Ansichten, Rätsel-Entwürfe); Struktur, Grenzen und Verweise prüft
+  es wie immer. `draftProblems` (`rooms/edit.ts`) listet genau das, was ohne `draft` scheitern würde.
+- **Bearbeiten** (`rooms/edit.ts`): reine Funktionen für Räume, Bereiche (`clampRect`, `rectBetween`), Schalter,
+  Schlösser, Ansichten und Rätsel. Löschen räumt Verweise mit auf (Bedingungen, Effekte, Startraum).
+  `allowedEffects` sagt, welche Effekte eine Liste noch aufnehmen darf. `roomImageKeys` sammelt die eigenen Bilder.
+- **Zustand** `AppState.roomEditor` (`main.ts`): Entwurf, verifizierte Daten (Vergleich per Referenz wie bei Rätseln),
+  gewählter Teil, Raum und Bereich, Rätsel-Auswahl offen. Jede Änderung läuft als `change(update)` über eine Funktion aus
+  `rooms/edit.ts`; gespeichert wird 0,4 s nach der letzten Änderung und beim Routenwechsel. Entwurfs-Probleme und
+  Prüfung (`checkEscapeRoom`) sind pro Datenobjekt in einer `WeakMap` zwischengespeichert.
+- **Ansicht** (`ui/views/room-editor.ts`, im nachgeladenen Teil): Teile links, Inhalt in der Mitte, Prüfung rechts;
+  zuerst für den Desktop (bewusste Ausnahme von Regel 6). Bereiche auf der Bühne mit Pointer Events (Aufziehen,
+  Verschieben, Größe) und Tastatur.
+- **Probespielen:** `AppState.room` mit `test` (Startpunkt und die Daten zum Zeitpunkt des Starts); die Raum-Ansicht
+  zeigt dann „Zurück zum Editor“ und speichert nichts. Ein Sieg vom Start setzt `verifiedData` auf genau diese Daten.
+- **Bilder:** Szenenbilder werden vor dem Speichern auf 16:9 zugeschnitten (`cropTo16x9` in `ui/image-encode.ts`), dann
+  wie alle Bilder kodiert. `removeUnusedImages` behält die Bilder der Escape-Räume und löscht nichts, wenn es einen
+  Raum nicht lesen kann.
+- **Spielen eigener Räume:** `#/room/<id>` lädt ein Beispiel oder einen eigenen Raum (streng); ein Entwurf führt mit
+  Hinweis in den Editor.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -1349,7 +1376,8 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/gallery?view=chains&sort=…` | Galerie der Ketten (M24) |
 | `#/c/<id>` | Kette: Übersicht mit Schritten, Abschluss |
 | `#/c/<id>/<n>` | Schritt n einer Kette spielen |
-| `#/room/<id>` | Escape-Raum spielen (M44), vorerst nur die Beispiele |
+| `#/room/<id>` | Escape-Raum spielen: Beispiel (M44) oder eigener (M45) |
+| `#/room-edit/<id>` | Escape-Raum-Editor (M45) |
 | `#/chain/new` | Ketten-Editor (angemeldet) |
 | `#/daily` | das heutige Rätsel des Tages mit Tagesrangliste (M26) |
 | `…?mode=full` | an `#/p/…`, `#/g/…`, `#/c/…`, `#/play/…` und `#/daily`: im Vollbild (M41); neue Teilen-Links tragen es |

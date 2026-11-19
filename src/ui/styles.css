@@ -4794,3 +4794,376 @@ a.resume-card:hover {
   font-family: var(--kk-font-display);
   font-weight: 700;
 }
+
+/* M45: escape room editor – made for the desktop first; on phones the parts stack. */
+.room-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-4);
+  padding: var(--kk-space-4) 0 var(--kk-space-6);
+}
+
+.room-editor-nav {
+  display: flex;
+  gap: var(--kk-space-2);
+  overflow-x: auto;
+}
+
+.room-editor-tab {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-2);
+  min-height: 44px;
+  padding: 0 var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-lg);
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  font-weight: 600;
+}
+
+.room-editor-tab[aria-current="true"] {
+  border-color: var(--kk-brand);
+  background: var(--kk-surface-2);
+}
+
+.room-editor-count {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--kk-muted);
+}
+
+.room-editor-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-3);
+  min-width: 0;
+}
+
+.room-editor-check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-3);
+  padding: var(--kk-space-4);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-xl);
+  background: var(--kk-surface);
+}
+
+.room-editor-check h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.room-check-status {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  margin: 0;
+  font-weight: 600;
+}
+
+.room-check-status.ok {
+  color: var(--kk-ok);
+}
+
+.room-check-status.problem {
+  color: var(--kk-danger, #e5484d);
+}
+
+.room-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-2);
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  font-size: 0.9375rem;
+}
+
+.room-check-list:empty {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .room-editor {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr) 280px;
+    align-items: start;
+  }
+
+  .room-editor-nav {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .room-editor-check {
+    position: sticky;
+    top: var(--kk-space-4);
+  }
+}
+
+.room-ed-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-3);
+}
+
+.room-ed-section-head .hint {
+  flex: 1 1 20rem;
+  margin: 0;
+}
+
+.room-ed-scenes,
+.room-ed-spots {
+  flex-wrap: wrap;
+}
+
+.room-ed-stage-wrap {
+  width: 100%;
+}
+
+.room-ed-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--kk-radius-lg);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.room-picture-missing {
+  display: block;
+  background: var(--kk-surface-2);
+}
+
+.room-ed-spot {
+  position: absolute;
+  border: 2px dashed rgb(255 255 255 / 0.8);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.15);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+  cursor: move;
+}
+
+.room-ed-spot.conditional {
+  border-style: dotted;
+}
+
+.room-ed-spot.selected {
+  border: 2px solid var(--kk-brand);
+  background: rgb(255 211 77 / 0.2);
+  z-index: 1;
+}
+
+.room-ed-spot.preview {
+  border-color: var(--kk-brand);
+  pointer-events: none;
+}
+
+.room-ed-spot:focus-visible {
+  outline: 3px solid var(--kk-brand);
+  outline-offset: 2px;
+}
+
+.room-ed-spot-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.65);
+  color: #fff;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.room-ed-handle {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--kk-surface);
+  border-radius: 50%;
+  background: var(--kk-brand);
+  cursor: nwse-resize;
+}
+
+.room-ed-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--kk-space-3);
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .room-ed-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.room-ed-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-3);
+}
+
+.room-ed-panel h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.room-ed-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.room-ed-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-2);
+  margin: 0;
+  padding: var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-lg);
+}
+
+.room-ed-list legend {
+  padding: 0 var(--kk-space-1);
+  font-weight: 600;
+}
+
+.room-ed-list .hint {
+  margin: 0;
+}
+
+.room-ed-row {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+}
+
+.room-ed-kind {
+  flex: none;
+  min-width: 8.5rem;
+  font-size: 0.9375rem;
+}
+
+.room-ed-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.room-ed-add {
+  align-self: flex-start;
+}
+
+.room-ed-image {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--kk-space-2);
+}
+
+.room-ed-image > label:first-child {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  gap: var(--kk-space-1);
+}
+
+.room-ed-upload {
+  position: relative;
+  cursor: pointer;
+}
+
+.room-ed-upload:focus-within {
+  outline: 3px solid var(--kk-brand);
+  outline-offset: 2px;
+}
+
+.room-ed-view-picture {
+  max-width: 24rem;
+  overflow: hidden;
+  border-radius: var(--kk-radius-lg);
+}
+
+.room-ed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kk-space-2);
+}
+
+.room-ed-actions .hint {
+  margin: 0;
+}
+
+.room-ed-remove {
+  align-self: flex-start;
+}
+
+.room-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-2);
+  max-height: 50dvh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.room-picker button {
+  justify-content: space-between;
+}
+
+.library-rooms {
+  margin-top: var(--kk-space-6);
+}
+
+.library-card-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--kk-radius-lg);
+  background: var(--kk-surface-2);
+}
+
+input.mono {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.08em;
+}
+
+.room-editor select,
+.room-editor .field input[type="text"],
+.room-editor .room-ed-row input[type="text"] {
+  min-height: 44px;
+  padding: 0 var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+  background: var(--kk-surface);
+  color: var(--kk-text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.room-editor select {
+  max-width: 100%;
+}

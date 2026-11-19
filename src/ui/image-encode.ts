@@ -42,3 +42,29 @@ export async function encodeImage(file: Blob): Promise<{ type: ImageType; bytes:
     bitmap.close();
   }
 }
+
+/** Escape room scenes (M45) are 16:9: the middle of a picture, cropped to that shape (before `encodeImage`). */
+export async function cropTo16x9(file: Blob): Promise<Blob> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw "unreadable" satisfies EncodeError;
+  }
+  try {
+    const ratio = 16 / 9;
+    const w = Math.min(bitmap.width, bitmap.height * ratio);
+    const h = w / ratio;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(Math.min(w, 1600)));
+    canvas.height = Math.max(1, Math.round(canvas.width / ratio));
+    const context = canvas.getContext("2d");
+    if (!context) throw "unreadable" satisfies EncodeError;
+    context.drawImage(bitmap, (bitmap.width - w) / 2, (bitmap.height - h) / 2, w, h, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw "unreadable" satisfies EncodeError;
+    return blob;
+  } finally {
+    bitmap.close();
+  }
+}
