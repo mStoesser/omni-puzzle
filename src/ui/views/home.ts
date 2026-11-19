@@ -14,11 +14,13 @@ import { sheet, statusBadge, typeBadge, typeTile, typeVars } from "../components
 import { icon, logo } from "../icons.ts";
 import { t, tn } from "../../i18n/t.ts";
 import type { Example } from "../../puzzles/index.ts";
-import type { BuiltinImage } from "../../rooms/logic.ts";
-import { builtinPicture, ROOM_VIEWBOX } from "../room-images.ts";
+import type { SVGTemplateResult } from "lit-html";
 
-/** An escape room on the home page (M44): the examples in the app's language. */
-export type HomeRoom = { href: string; title: string; image: BuiltinImage | null; status: "new" | "started" | "won" };
+/**
+ * An escape room on the home page (M44): the examples in the app's language. `picture` is the drawing of its first
+ * scene (from the escape room chunk, which is loaded on demand), to put into a 1600 × 900 viewBox.
+ */
+export type HomeRoom = { href: string; title: string; picture: SVGTemplateResult | null; status: "new" | "started" | "won" };
 
 /** The signed-in user's name for the greeting; null = signed out or no backend. */
 export type HomeAccount = NavAccount & { username: string | null };
@@ -106,8 +108,8 @@ function roomsSection(rooms: readonly HomeRoom[]) {
       ${rooms.map(
         (room) => html`<li>
           <a class="room-card" href=${room.href}>
-            ${room.image
-              ? html`<svg class="room-card-picture" viewBox=${ROOM_VIEWBOX} aria-hidden="true">${builtinPicture(room.image)}</svg>`
+            ${room.picture
+              ? html`<svg class="room-card-picture" viewBox="0 0 1600 900" aria-hidden="true">${room.picture}</svg>`
               : html`<span class="room-card-picture"></span>`}
             <span class="room-card-body">
               <span class="room-card-title">${room.title}</span>

@@ -103,6 +103,7 @@ src/
     views/                # home.ts, library.ts, play.ts (Hüllen), play-stage.ts (Bühne), editor.ts, chain.ts …
     fullscreen.ts         # Browser-Vollbild und Wake Lock (M41)
     room-images.ts        # Standardbilder für Escape-Räume als SVG (M44)
+    room-chunk.ts         # alles für Escape-Räume, per import() nachgeladen (M44)
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
     palette.ts            # Rollen-Paletten der Renderer: Standard-CSS und Theme als Inline-Stil (M29)
     piece-icons.ts        # Icons aus src/icons/pieces/ (Vite ?raw) für die Renderer (M31)
@@ -1290,6 +1291,10 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
   (Wanduhr ab „Los geht’s“) und Zeit beim Sieg. Liegt im Meta-Speicher unter `room:<sha256(version, data)>`, ein
   geänderter Raum beginnt also neu. `parseRoomSave` prüft gegen den Raum. Die Startseite liest den Status der Beispiele
   („Angefangen“, „Entkommen“).
+- **Nachladen:** `ui/room-chunk.ts` bündelt alles, was nur ein Escape-Raum braucht (Ansicht, Bilder, Logik, Beispiele,
+  Speichern). `main.ts` importiert davon nur Typen und lädt den Teil per `import()` (`loadRoomChunk`), beim Öffnen eines
+  Raums und auf der Startseite, die damit ihre Karten zeichnet. Der Service Worker (Netz zuerst, Cache als Rückfall)
+  legt ihn beim ersten Laden ab; ohne Verbindung und ohne Cache meldet der Raum `roomUnavailable`.
 - **Standardbilder** (`ui/room-images.ts`): `study`, `hall`, `cellar`, `lab` als SVG-Zeichnungen (1600 × 900) im Code,
   Platzhalter. Eigene Bilder (`{ key }`) zeigt die Ansicht über eine `ImageSource`; die liefert erst der Editor (M45).
 

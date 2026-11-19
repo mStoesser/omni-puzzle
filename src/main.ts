@@ -89,12 +89,8 @@ import { galleryView } from "./ui/views/gallery.ts";
 import { chainView } from "./ui/views/chain.ts";
 import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
 import { chainEditorView } from "./ui/views/chain-editor.ts";
-import { roomView } from "./ui/views/room.ts";
 import type { RoomPuzzle, RoomViewModel } from "./ui/views/room.ts";
-import { applyEvent, loadEscapeRoom } from "./rooms/logic.ts";
 import type { EscapeRoomDocument, RoomEvent, Step } from "./rooms/logic.ts";
-import { escapeRoomExample, escapeRoomExamples } from "./rooms/examples.ts";
-import { newRoomSave, parseRoomSave, roomSaveKey, roomStarted } from "./rooms/save.ts";
 import type { RoomSave } from "./rooms/save.ts";
 import type { ChainEditorModel } from "./ui/views/chain-editor.ts";
 import { moderationView } from "./ui/views/moderation.ts";
@@ -405,8 +401,40 @@ function fail(route: Route, error: ErrorInfo) {
 
 // --- Escape rooms (M44) ---
 
+/** The escape room code (view, pictures, logic, examples) is a chunk of its own, loaded when first needed. */
+type RoomChunk = typeof import("./ui/room-chunk.ts");
+let roomChunk: RoomChunk | null = null;
+let roomChunkLoading: Promise<RoomChunk> | null = null;
+
+function loadRoomChunk(): Promise<RoomChunk> {
+  roomChunkLoading ??= import("./ui/room-chunk.ts").then(
+    (chunk) => (roomChunk = chunk),
+    (error: unknown) => {
+      roomChunkLoading = null; // offline without the chunk cached: try again next time
+      throw error;
+    },
+  );
+  return roomChunkLoading;
+}
+
+/** Only called while a room is open, so the chunk is there. */
+function rooms(): RoomChunk {
+  if (!roomChunk) throw new Error("room chunk not loaded");
+  return roomChunk;
+}
+
 /** The examples are the only escape rooms until the editor (M45). */
 async function openRoom(route: Route & { name: "room" }) {
+  patch({ pending: true });
+  let chunk: RoomChunk;
+  try {
+    chunk = await loadRoomChunk();
+  } catch (error) {
+    console.warn(error);
+    return fail(route, { text: "roomUnavailable" });
+  }
+  if (!isCurrent(route)) return;
+  const { escapeRoomExample, loadEscapeRoom, roomSaveKey, parseRoomSave, newRoomSave } = chunk;
   const example = escapeRoomExample(route.id);
   if (!example) return fail(route, { text: "roomNotFound" });
   let doc: EscapeRoomDocument;
@@ -417,7 +445,6 @@ async function openRoom(route: Route & { name: "room" }) {
     return fail(route, { text: "puzzleBroken" });
   }
   const key = roomSaveKey(doc);
-  patch({ pending: true });
   const raw = await storage.then((s) => s.getMeta(key)).catch(() => null);
   if (!isCurrent(route)) return;
   const save = parseRoomSave(raw, doc.data) ?? newRoomSave(doc.data, Date.now());
@@ -440,8 +467,10 @@ async function openRoom(route: Route & { name: "room" }) {
 
 /** Which example escape rooms were started or won on this device (for the home page). */
 async function loadRoomStatus() {
+  const chunk = await loadRoomChunk().catch(() => null);
   const s = await storage.catch(() => null);
-  if (!s) return;
+  if (!chunk || !s) return;
+  const { escapeRoomExamples, loadEscapeRoom, parseRoomSave, roomSaveKey, roomStarted } = chunk;
   const status = new Map<string, "started" | "won">();
   for (const example of escapeRoomExamples) {
     const doc = loadEscapeRoom(example.doc, registry);
@@ -493,7 +522,7 @@ function roomStep(step: Step, before: RoomState) {
 function roomEvent(event: RoomEvent): boolean {
   const room = store.get().room;
   if (!room) return false;
-  const step = applyEvent(room.doc.data, room.save.progress, event);
+  const step = rooms().applyEvent(room.doc.data, room.save.progress, event);
   if (step.accepted) roomStep(step, room);
   return step.accepted;
 }
@@ -510,7 +539,7 @@ function updateRoomPuzzle(change: (s: AnyPlaySession) => AnyPlaySession) {
   }
   setRoom((r) => ({ ...r, puzzle: r.puzzle && { ...r.puzzle, session: next } }));
   if (!next.solved) return;
-  const step = applyEvent(room.doc.data, room.save.progress, { kind: "solved", puzzle: puzzle.id });
+  const step = rooms().applyEvent(room.doc.data, room.save.progress, { kind: "solved", puzzle: puzzle.id });
   if (!step.accepted) return;
   const won = step.progress.shared.won && room.save.wonAfterMs === null;
   updateRoomSave((s) => ({ ...s, progress: step.progress, wonAfterMs: won ? Date.now() - s.startedAt : s.wonAfterMs }));
@@ -576,7 +605,7 @@ const roomActions = {
     const room = store.get().room;
     if (!room) return;
     if (!room.save.progress.shared.won && !confirm(t("roomRestartConfirm"))) return;
-    updateRoomSave(() => newRoomSave(room.doc.data, Date.now()));
+    updateRoomSave(() => rooms().newRoomSave(room.doc.data, Date.now()));
     setRoom((r) => ({ ...r, open: null, puzzle: null, pendingOpen: null, hintsOpen: false, sceneText: r.save.introSeen, lock: { input: "", wrong: false } }));
     tickRoom();
   },
@@ -2742,14 +2771,14 @@ function view(state: AppState) {
         daily: homeDaily(state),
         typeSheet: state.typeSheet,
         resume: state.resume,
-        rooms: escapeRoomExamples
+        rooms: (roomChunk?.escapeRoomExamples ?? [])
           .filter((e) => e.lang === language())
           .map((e) => {
             const first = e.doc.data.scenes.find((x) => x.id === e.doc.data.start)?.image;
             return {
               href: formatRoute({ name: "room", id: e.id }),
               title: e.doc.meta.title,
-              image: first && "builtin" in first ? first.builtin : null,
+              picture: first && "builtin" in first && roomChunk ? roomChunk.builtinPicture(first.builtin) : null,
               status: state.roomStatus.get(e.id) ?? ("new" as const),
             };
           }),
@@ -2809,7 +2838,7 @@ function view(state: AppState) {
       return html`${playView(play, playStats(state), playActions)}${state.share ? shareDialog(state.share, shareActions, NO_PUBLISH) : nothing}`;
     }
     case "room":
-      return state.room ? roomView(roomModel(state, state.room), roomActions) : nothing;
+      return state.room && roomChunk ? roomChunk.roomView(roomModel(state, state.room), roomActions) : nothing;
     case "chainNew":
       return chainEditorView(state.chainEditor, state.account.user !== null, registry, chainEditorActions);
     case "new":

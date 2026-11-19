@@ -1122,8 +1122,12 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   ganze Beispiel von Intro bis Sieg (Ansicht, Lichterspiel mit Ergebnis, falscher und richtiger Code, Tür, Hinweise,
   Neuladen mitten im Spiel, Rangierspiel per Tastatur, Schlüssel, Haustür), „Bereiche zeigen“, Hochformat mit
   Dreh-Hinweis, Startseite mit Status, Neu starten; kein waagrechter Überlauf. Hell, Handy- und Tablet-Test offen.)
-- [ ] Bundle-Größe: Mit M44 ist das Haupt-Bundle von 482 auf 519 kB gewachsen (gzip 154 → 166 kB) und Vite warnt über
+- [x] Bundle-Größe: Mit M44 ist das Haupt-Bundle von 482 auf 519 kB gewachsen (gzip 154 → 166 kB) und Vite warnt über
   500 kB. Entscheiden, ob der Escape-Raum (Ansicht, Bilder) per `import()` nachgeladen wird.
+  (Ja: `ui/room-chunk.ts` bündelt Ansicht, Bilder, Logik, Beispiele und Speichern und wird per `import()` geladen,
+  beim Öffnen eines Raums und auf der Startseite (für die Karten). Haupt-Bundle 493 kB (gzip 157 kB), der Escape-Raum
+  29 kB (gzip 10 kB); keine Warnung mehr. Der Service Worker speichert den Teil beim ersten Laden mit Verbindung;
+  geprüft mit dem Produktions-Build über localhost: offline neu geladen öffnet sich der Raum.)
 
 ### M45 – Escape-Raum: Editor
 - [ ] Neuer Escape-Raum aus der Bibliothek; Räume anlegen, Bild wählen (Standardbild oder eigenes, über die vorhandene
