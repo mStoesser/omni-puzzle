@@ -119,6 +119,10 @@ src/
     lightsout/ { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     pipes/     { index.ts, rules.ts, logic.ts, solver.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
     nonogram/  { index.ts, rules.ts, logic.ts, edit.ts, render.ts, editor.ts, examples.ts, *.test.ts }
+  rooms/                  # Escape-Räume (Phase 6), kein Rätseltyp, rein und DOM-frei (M43)
+    logic.ts              # Datenformat, loadEscapeRoom, Codes, Fortschritt aus Ereignissen, mergeShared
+    check.ts              # Prüfung: Sieg erreichbar, Sackgassen, Unerreichbares
+    examples.ts           # Beispiel-Escape-Raum „Das Arbeitszimmer“
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # Mail-Vorlagen, Sprache nach user_metadata.lang (M28)
@@ -1217,6 +1221,52 @@ Solver und Daten bleiben unberührt.
   Spalte `doc`. Die Hüllen zeigen, was in `PlayViewModel.result` steht, sobald gelöst ist. Ein späterer Server, der das
   Ergebnis erst nach geprüfter Zugfolge herausgibt (Escape-Raum, ROADMAP „Irgendwann“), würde `result` in diesem
   Moment füllen, statt es aus `meta` zu übernehmen.
+
+### Escape-Räume: Datenformat und Logik (M43)
+
+Ein Escape-Raum ist kein Rätseltyp, sondern bettet Rätsel ein; er liegt deshalb in `src/rooms/` und berührt den Core
+bewusst (Regel 5). Alles dort ist rein und DOM-frei. Benennung im Code: das ganze Spiel ist der *escape room*, jeder
+seiner Räume eine *scene* (in der Oberfläche „Raum“).
+
+- **Dokument** `EscapeRoomDocument`: `{ format: 1, kind: "escape-room", version, meta, data }`. `meta` wie bei Rätseln
+  (Titel, Datum, Autor, Beschreibung, Sprache, `verified` = vom Ersteller gewonnen). `data`:
+  - `start` (Szene), optional `intro` und `victory` (Texte vor dem Start und beim Sieg);
+  - `flags`: Schalter mit Namen; sie gehen nur an, nie aus;
+  - `scenes`: Name, Bild (`{ builtin }` oder `{ key }` wie bei Rätsel-Bildern), Text beim Betreten, Hinweise und
+    `spots` (Klickbereiche: Rechteck in Prozent des 16:9-Bildes, mindestens `MIN_SPOT` = 5 × 9 %, Name für
+    Screenreader, Bedingungen `{ flag, on }`, die alle gelten müssen, und eine Aktion);
+  - `puzzles`: eingebettete Rätsel-Dokumente (mit `meta.result` aus M42) und Effekte beim Lösen (`onSolve`);
+  - `locks`: Code-Schlösser mit Code, optionaler Frage und Effekten beim Öffnen (`onOpen`);
+  - `views`: Detailbild, Text oder beides.
+- **Effekte:** `puzzle`, `lock`, `view` öffnen etwas (höchstens eines pro Liste), `go`, `flag`, `win` wirken sofort.
+  `onSolve` und `onOpen` dürfen keine Rätsel oder Schlösser öffnen, nur Ansichten.
+- **Laden** (`loadEscapeRoom(raw, registry)`): prüft Hülle, Grenzen (`ROOM_LIMITS`: 20 Räume, 30 Bereiche pro Raum,
+  30 Rätsel, 30 Schlösser, 50 Ansichten, 64 Schalter, 512 KB), eindeutige IDs und dass jeder Verweis existiert; jedes
+  eingebettete Rätsel geht durch `loadDocument` (Fehler mit Pfad, z. B. `puzzles.1.doc: …`). Unbekannte Felder fallen
+  weg, Texte werden getrimmt. Ob ein `builtin`-Bild existiert, prüft erst der Spieler (M44).
+- **Codes:** ohne Leerzeichen, Groß- und Kleinschreibung egal (`normalizeCode`, `codeMatches`).
+- **Fortschritt** (`applyEvent(data, progress, event)`): Ereignisse sind „Bereich angetippt“, „Rätsel gelöst“, „Code
+  eingegeben“; Züge innerhalb eines Rätsels sind keine. `Progress` = aktuelle Szene (pro Spieler) und `Shared`
+  (eingeschaltete Schalter, gelöste Rätsel, offene Schlösser, Sieg; sortierte Listen). Ein Ereignis, das nicht passt
+  (Bereich gerade nicht antippbar, falscher Code, Rätsel ohne aktiven Bereich), wird mit `accepted: false` abgelehnt.
+  „Gelöst“ und „Code“ gelten, wenn *irgendein* aktiver Bereich das Rätsel bzw. Schloss öffnet, egal in welcher Szene:
+  In einer Gruppe steht jemand anders vielleicht woanders. Ein offenes Schloss führt beim Antippen seine `onOpen`-Effekte
+  erneut aus (die offene Tür führt weiter), ein gelöstes Rätsel öffnet sich wieder (Ergebnis nachsehen).
+- **Gruppe vorbereitet:** `Shared` wächst nur, `mergeShared` (Vereinigung) ist kommutativ, assoziativ und idempotent.
+  Die Ereignisse zweier Spieler ergeben vereinigt denselben Stand wie ein Spieler mit allen Ereignissen (getestet).
+- **Prüfung** (`checkEscapeRoom`): Breitensuche über die Zustände; sie nimmt an, dass jedes Rätsel gelöst und jeder
+  Code bekannt ist. Ergebnis: `status` (gewinnbar, nicht gewinnbar, abgebrochen), `steps` (wenigste Aktionen bis zum
+  Sieg), `deadEnds` (erreichbare Zustände, aus denen kein Sieg mehr möglich ist) und Probleme: kein Sieg vorhanden,
+  nicht gewinnbar, Sackgassen, unerreichbare Räume, Bereiche, Rätsel, Schlösser und Ansichten, Schalter, die nie
+  angehen, unverifizierte Rätsel und Codes, die in keinem Text, Ergebnis oder Hinweis vorkommen (vielleicht stehen sie
+  auf einem Bild, daher nur ein Hinweis). Grenze 20 000 Zustände. Reicht sie nicht (viele Schalter in beliebiger
+  Reihenfolge), folgt eine reduzierte Suche: Schritte, die nichts verderben können (gleiche Szene, kein Schalter, den ein
+  Bereich aus braucht, der eigene Bereich braucht keinen Schalter aus), werden sofort ausgeführt, nur die übrigen
+  verzweigen. Sie bleibt exakt für „gewinnbar“ und das Unerreichbare, kennt aber weder Sackgassen noch die wenigsten
+  Aktionen (`null`).
+- **Beispiel** (`examples.ts`): „Das Arbeitszimmer“, zwei Räume mit Lichterspiel (Ergebnis „3 1 4“), Tresor-Code, Tür,
+  die erst nach dem Tresor aufgeht, Rangierspiel, das einen Schalter setzt, und Haustür zum Sieg. Texte vorerst nur
+  Deutsch, die Bilder `study` und `hall` kommen mit M44.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

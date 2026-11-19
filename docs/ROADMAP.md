@@ -1060,20 +1060,35 @@ Entschieden (11/2026):
 
 ### M43 – Escape-Raum: Datenformat und Logik
 Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläche.
-- [ ] Ort im Code festlegen (Vorschlag: `src/rooms/` mit `logic.ts`, `check.ts`, `examples.ts`; Escape-Räume sind
+- [x] Ort im Code festlegen (Vorschlag: `src/rooms/` mit `logic.ts`, `check.ts`, `examples.ts`; Escape-Räume sind
   kein Rätseltyp, berühren also bewusst den Core, Regel 5).
-- [ ] Datenformat `EscapeRoomDocument` (eigene Hülle mit `format`, `kind: "escape-room"`, `version`, `meta` wie bei
+  (Wie vorgeschlagen. Im Code heißt das ganze Spiel *escape room*, jeder Raum darin *scene*.)
+- [x] Datenformat `EscapeRoomDocument` (eigene Hülle mit `format`, `kind: "escape-room"`, `version`, `meta` wie bei
   Rätseln und `data`): Startraum, Räume (Titel, Bild: Standardbild-ID oder Bild-Schlüssel, Text beim Betreten,
   Hinweise), Klickbereiche (Rechteck in Prozent, Name für Screenreader, Bedingung, Aktion), Schalter, Schlösser (Code,
   Effekte bei Erfolg), eingebettete Rätsel (Rätsel-Dokument und Effekte beim Lösen), Detailansichten (Bild oder Text),
   Sieg-Text. `validate` mit Grenzen (Zahl der Räume, Bereiche, Rätsel, Textlängen, Dokumentgröße) und `migrate`.
-- [ ] Code-Vergleich: getrimmt, ohne Leerzeichen, Groß- und Kleinschreibung egal.
-- [ ] Fortschritt als reine Funktion: Ereignisse (Rätsel gelöst, Code richtig, Raum betreten, Ansicht geöffnet) →
+  (`loadEscapeRoom` in `rooms/logic.ts` mit `ROOM_LIMITS` und `MIN_SPOT` = 5 × 9 % des Bildes; eingebettete Rätsel
+  gehen durch `loadDocument`. Effekte: höchstens ein „öffnendes“ (Rätsel, Schloss, Ansicht) pro Liste; nach dem Lösen
+  oder Öffnen nur noch Ansichten, keine weiteren Rätsel oder Schlösser. `migrate` ist vorbereitet, es gibt erst
+  Version 1. Ob ein Standardbild existiert, prüft erst M44.)
+- [x] Code-Vergleich: getrimmt, ohne Leerzeichen, Groß- und Kleinschreibung egal.
+- [x] Fortschritt als reine Funktion: Ereignisse (Rätsel gelöst, Code richtig, Raum betreten, Ansicht geöffnet) →
   Zustand (aktueller Raum pro Spieler; gemeinsam: gesetzte Schalter, gelöste Rätsel, offene Schlösser, Sieg). Der
   gemeinsame Teil wächst nur (Vereinigung zweier Stände ist definiert und getestet).
-- [ ] Prüfung: Sieg erreichbar? Nie erreichbare Räume, Bereiche und Schlösser, Schlösser ohne Hinweis auf den Code
+  (`applyEvent` lehnt unpassende Ereignisse ab. „Gelöst“ und „Code“ zählen, wenn irgendein aktiver Bereich das Rätsel
+  bzw. Schloss öffnet, egal in welcher Szene, damit es in der Gruppe passt. Ein offenes Schloss führt beim Antippen
+  seine Effekte erneut aus. Getestet: zwei Spieler vereinigt = ein Spieler mit allen Ereignissen.)
+- [x] Prüfung: Sieg erreichbar? Nie erreichbare Räume, Bereiche und Schlösser, Schlösser ohne Hinweis auf den Code
   (soweit erkennbar), ungültige eingebettete Rätsel. Zustandssuche mit Grenze wie bei den Solvern.
-- [ ] Ein Beispiel-Escape-Raum mit Standardbild (für Tests und später den Spieler).
+  (`checkEscapeRoom` in `rooms/check.ts`: dazu Sackgassen (erreichbare Zustände ohne Weg zum Sieg), wenigste Aktionen,
+  Schalter, die nie angehen, und unverifizierte Rätsel; ungültige Rätsel lehnt schon das Laden ab. Grenze 20 000
+  Zustände; reicht sie nicht, eine reduzierte Suche, die harmlose Schritte sofort ausführt: weiter exakt für
+  „gewinnbar“ und Unerreichbares, ohne Sackgassen und Schrittzahl. 25 unabhängige Schalter: etwa 0,2 s. Viele Schalter,
+  die Bereiche ausblenden, können auch die reduzierte Suche sprengen; dann meldet sie „abgebrochen“.)
+- [x] Ein Beispiel-Escape-Raum mit Standardbild (für Tests und später den Spieler).
+  („Das Arbeitszimmer“ in `rooms/examples.ts`, zwei Räume. Texte vorerst nur Deutsch; die Bilder `study` und `hall`
+  sind nur IDs, gezeichnet werden sie in M44. 671 Tests grün.)
 
 ### M44 – Escape-Raum: Spieler
 - [ ] Route und Bühne: Raumbild in 16:9 im Vollbild, Klickbereiche als Knöpfe (Tastatur, Screenreader), Verhalten im
@@ -1082,7 +1097,8 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   oder richtig), Detailbild und Text, Raumwechsel, Sieg-Bildschirm.
 - [ ] Knopf „Bereiche zeigen“, Hinweise pro Raum, optional Raum-Uhr.
 - [ ] Fortschritt in IndexedDB (weiterspielen), „Neu starten“ (z. B. für die nächste Gruppe am Tablet).
-- [ ] Standardbilder (16:9, Lizenz geklärt: selbst erstellt oder CC0).
+- [ ] Standardbilder (16:9, Lizenz geklärt: selbst erstellt oder CC0), mindestens `study` und `hall` für das Beispiel.
+- [ ] Beispiel-Escape-Raum auch auf Englisch (Texte pro Sprache wie bei den Rätsel-Beispielen).
 - [ ] Texte in `de.ts` und `en.ts`; 390 und 1280 px, Hoch- und Querformat; Handy- und Tablet-Test.
 
 ### M45 – Escape-Raum: Editor
