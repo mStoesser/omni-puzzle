@@ -104,6 +104,7 @@ src/
     fullscreen.ts         # Browser-Vollbild und Wake Lock (M41)
     room-images.ts        # Standardbilder für Escape-Räume als SVG (M44)
     room-chunk.ts         # alles für Escape-Räume, per import() nachgeladen (M44)
+    components/press-guard.ts  # Klick nur, wenn der Druck auf dem Knopf begann (Knöpfe, die beim Lösen erscheinen)
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
     palette.ts            # Rollen-Paletten der Renderer: Standard-CSS und Theme als Inline-Stil (M29)
     piece-icons.ts        # Icons aus src/icons/pieces/ (Vite ?raw) für die Renderer (M31)
@@ -1286,7 +1287,10 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
 - **Rätsel im Raum:** eigene Session in `RoomState.puzzle`, gezeichnet mit `playStage` (M40) in einer Leiste mit „Zurück
   zum Raum“. Es zählt nicht für Fortschritt, Ranglisten, Weiterspielen oder Tastenkürzel der normalen Spielansicht;
   Töne und Vibration gibt es. Beim Lösen meldet die App `{ kind: "solved" }` und zeigt das Ergebnis (`resultView` aus
-  `play.ts`).
+  `play.ts`). Die Knöpfe, die beim Lösen erscheinen, sind abgesichert (`ui/components/press-guard.ts`): Viele Typen
+  ziehen auf `pointerup`, und der folgende `click` träfe sonst den Knopf, der gerade unter dem Finger erschienen ist.
+  Ein Klick zählt nur, wenn der Druck auf dem Knopf begann; Tastatur-Klicks (`detail` 0) immer. Dasselbe gilt für die
+  Einblendung im Vollbild (M41) und den Ergebnis-Link im Escape-Modus (M42).
 - **Speichern** (`rooms/save.ts`): `RoomSave` = Fortschritt, aufgedeckte Hinweise pro Raum, Intro gesehen, Startzeit
   (Wanduhr ab „Los geht’s“) und Zeit beim Sieg. Liegt im Meta-Speicher unter `room:<sha256(version, data)>`, ein
   geänderter Raum beginnt also neu. `parseRoomSave` prüft gegen den Raum. Die Startseite liest den Status der Beispiele

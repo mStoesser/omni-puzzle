@@ -17,6 +17,7 @@ import { reportDialog } from "../components/report-dialog.ts";
 import { shortcutsButton } from "../components/shortcuts-dialog.ts";
 import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
 import { iconButton, popoverMenu, sheet, stat, typeVars } from "../components/ui.ts";
+import { guarded, markPress } from "../components/press-guard.ts";
 import type { MenuItem } from "../components/ui.ts";
 import { icon } from "../icons.ts";
 import { buttonShortcut } from "../keyboard.ts";
@@ -159,7 +160,10 @@ function escapeSolved(result: PuzzleResult | null) {
   </div>`;
 }
 
-/** A result as code (large), text or link (button with the visible domain; opens in a new tab). */
+/**
+ * A result as code (large), text or link (button with the visible domain; opens in a new tab). The link is guarded: it
+ * appears when solved, maybe under the finger of the solving tap (press-guard.ts).
+ */
 export function resultView(result: PuzzleResult) {
   switch (result.kind) {
     case "code":
@@ -168,7 +172,9 @@ export function resultView(result: PuzzleResult) {
       return html`<p class="escape-result escape-text">${result.text}</p>`;
     case "link":
       return html`<p class="escape-result escape-link">
-        <a class="button" href=${result.url} target="_blank" rel="noopener noreferrer">${t("escapeResultOpen")}${icon("chevronRight", 18)}</a>
+        <a class="button" href=${result.url} target="_blank" rel="noopener noreferrer" @pointerdown=${markPress} @click=${guarded()}
+          >${t("escapeResultOpen")}${icon("chevronRight", 18)}</a
+        >
         <span class="escape-domain">${result.domain}</span>
       </p>`;
   }
@@ -195,9 +201,11 @@ function fullSolved(model: PlayViewModel, actions: PlayViewActions) {
     <p class="full-solved-title">${icon("check", 22)}${t("solvedTitle")}</p>
     <div class="full-solved-actions">
       ${model.next
-        ? html`<a class="button" href=${hrefWithMode(model.next.href, "full")}>${t("fullscreenNext")}${icon("chevronRight", 18)}</a>`
+        ? html`<a class="button" href=${hrefWithMode(model.next.href, "full")} @pointerdown=${markPress} @click=${guarded()}
+            >${t("fullscreenNext")}${icon("chevronRight", 18)}</a
+          >`
         : nothing}
-      <button type="button" class=${model.next ? "secondary" : ""} @click=${actions.exitFull}>${t("fullscreenLeave")}</button>
+      <button type="button" class=${model.next ? "secondary" : ""} @pointerdown=${markPress} @click=${guarded(actions.exitFull)}>${t("fullscreenLeave")}</button>
     </div>
   </div>`;
 }

@@ -1121,7 +1121,12 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   (Texte da. Im Browser geprüft über die LAN-Adresse (Headless Chrome, 844 × 390, 390 × 844, 1280 × 800, dunkel): das
   ganze Beispiel von Intro bis Sieg (Ansicht, Lichterspiel mit Ergebnis, falscher und richtiger Code, Tür, Hinweise,
   Neuladen mitten im Spiel, Rangierspiel per Tastatur, Schlüssel, Haustür), „Bereiche zeigen“, Hochformat mit
-  Dreh-Hinweis, Startseite mit Status, Neu starten; kein waagrechter Überlauf. Hell, Handy- und Tablet-Test offen.)
+  Dreh-Hinweis, Startseite mit Status, Neu starten; kein waagrechter Überlauf. Hell, Handy- und Tablet-Test offen.
+  Beim Handy-Test gefunden: Der letzte Tipp in Lights Out löste das Rätsel und traf zugleich „Zurück zum Raum“, das unter
+  dem Finger erschien (Züge auf `pointerup`, der folgende `click` landet auf dem neuen Knopf). Behoben mit
+  `ui/components/press-guard.ts`: Knöpfe, die beim Lösen erscheinen, zählen nur einen Klick, dessen Druck auf ihnen
+  begann (Tastatur immer). Gilt auch für „Weiter“/„Vollbild verlassen“ (M41) und den Ergebnis-Link (M42). Mit
+  Touch-Emulation nachgestellt, vorher und nachher.)
 - [x] Bundle-Größe: Mit M44 ist das Haupt-Bundle von 482 auf 519 kB gewachsen (gzip 154 → 166 kB) und Vite warnt über
   500 kB. Entscheiden, ob der Escape-Raum (Ansicht, Bilder) per `import()` nachgeladen wird.
   (Ja: `ui/room-chunk.ts` bündelt Ansicht, Bilder, Logik, Beispiele und Speichern und wird per `import()` geladen,

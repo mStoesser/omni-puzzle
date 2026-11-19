@@ -9,6 +9,7 @@ import type { EscapeRoomData, ImageRef, Opening, Scene } from "../../rooms/logic
 import type { RoomSave } from "../../rooms/save.ts";
 import { t } from "../../i18n/t.ts";
 import { iconButton, sheet } from "../components/ui.ts";
+import { guarded, markPress } from "../components/press-guard.ts";
 import { icon } from "../icons.ts";
 import { builtinPicture, ROOM_VIEWBOX } from "../room-images.ts";
 import { playStage } from "./play-stage.ts";
@@ -227,7 +228,10 @@ function wonSheet(model: RoomViewModel, actions: RoomViewActions) {
   );
 }
 
-/** A puzzle inside the room: like escape mode, but with the way back to the room. */
+/**
+ * A puzzle inside the room: like escape mode, but with the way back to the room. The buttons that appear when solved
+ * are guarded: they may appear under the finger that made the solving move (press-guard.ts).
+ */
 function roomPuzzle(model: RoomViewModel, puzzle: RoomPuzzle, actions: RoomViewActions) {
   const { session } = puzzle;
   const showUndo = session.type.controls?.undo !== false;
@@ -262,8 +266,10 @@ function roomPuzzle(model: RoomViewModel, puzzle: RoomPuzzle, actions: RoomViewA
             <p class="full-solved-title">${icon("check", 22)}${t(puzzle.alreadySolved ? "roomAlreadySolved" : "solvedTitle")}</p>
             ${result ? html`<p class="escape-result-label">${t("escapeResult")}</p>${resultView(result)}` : nothing}
             <div class="full-solved-actions">
-              <button type="button" @click=${actions.backToRoom}>${icon("chevronLeft", 18)}${t("roomBack")}</button>
-              ${puzzle.alreadySolved ? html`<button type="button" class="secondary" @click=${actions.replayPuzzle}>${t("roomPlayAgain")}</button>` : nothing}
+              <button type="button" @pointerdown=${markPress} @click=${guarded(actions.backToRoom)}>${icon("chevronLeft", 18)}${t("roomBack")}</button>
+              ${puzzle.alreadySolved
+                ? html`<button type="button" class="secondary" @pointerdown=${markPress} @click=${guarded(actions.replayPuzzle)}>${t("roomPlayAgain")}</button>`
+                : nothing}
             </div>
           </div>`
         : nothing}
