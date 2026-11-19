@@ -115,7 +115,7 @@ import { buildSheet, tabBar, topNav } from "./ui/components/nav.ts";
 import type { NavSection } from "./ui/components/nav.ts";
 import { applyTheme, readTheme, setTheme, watchSystemTheme } from "./ui/theme.ts";
 import type { ThemeChoice } from "./ui/theme.ts";
-import { applyLanguage, readLanguageChoice, storeLanguageChoice, watchSystemLanguage } from "./ui/language.ts";
+import { applyLanguage, readLanguageChoice, startLanguage, storeLanguageChoice, watchSystemLanguage } from "./ui/language.ts";
 import type { LanguageChoice } from "./ui/language.ts";
 import type { EncodeError } from "./ui/image-encode.ts";
 import { focusBoardNow, focusBoardOnStart, forwardKeyToBoard } from "./ui/board-focus.ts";
@@ -251,8 +251,9 @@ const auth = backend ? createAuth(backend, { store: browserStore }) : null;
 const DAILY_DAYS_KEY = "raetsel-daily-days";
 const api = backend && auth ? createApi(backend, { accessToken: auth.accessToken }) : null;
 
-// Before anything is rendered or formatted: texts follow the chosen language from the start.
-applyLanguage(readLanguageChoice());
+// Before anything is rendered or formatted: texts follow the chosen language from the start. Only that language's
+// texts are downloaded (a chunk of their own); the app waits for them here.
+await startLanguage(readLanguageChoice());
 
 const store = createStore<AppState>({
   route: parseAddress(location.hash).route,
@@ -3175,9 +3176,15 @@ const profileActions = {
     setTheme(theme);
     patch({ theme });
   },
-  setLanguage: (choice: LanguageChoice) => {
+  setLanguage: async (choice: LanguageChoice) => {
+    try {
+      await applyLanguage(choice);
+    } catch (error) {
+      console.warn("language", error);
+      patch({ notice: "languageUnavailable" }); // offline and never loaded: the language stays
+      return;
+    }
     storeLanguageChoice(choice);
-    applyLanguage(choice);
     patch({ language: choice }); // renders everything again in the new language
     void updateMailLanguage();
   },
@@ -3378,9 +3385,13 @@ function scheduleRender() {
 applyTheme(readTheme());
 watchSystemTheme();
 watchSystemLanguage(() => {
-  applyLanguage("system");
-  store.set((state) => ({ ...state })); // render again in the new language
-  void updateMailLanguage();
+  applyLanguage("system").then(
+    () => {
+      store.set((state) => ({ ...state })); // render again in the new language
+      void updateMailLanguage();
+    },
+    (error: unknown) => console.warn("language", error), // offline: keep the current language
+  );
 });
 store.subscribe(scheduleRender);
 // Save pending edits before the page is hidden (tab switch, app switch, closing).

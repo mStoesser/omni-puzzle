@@ -616,7 +616,10 @@ Die Datenbank `raetsel` enthält diese Stores:
   damit die App auch in einem Unterordner läuft (GitHub Pages: `https://<user>.github.io/<repo>/`) und ebenso direkt
   unter der eigenen Domain (`https://kibix.app/`).
 - `public/sw.js`: Netzwerk zuerst, Cache als Fallback. Beim Installieren werden App-Shell und die gebauten
-  Bundles (aus `index.html` gelesen) gecacht, also funktioniert die App schon nach dem ersten Besuch offline.
+  Bundles (aus `index.html` gelesen) gecacht, also funktioniert die App schon nach dem ersten Besuch offline. Seit v2
+  folgt er in den Bundles den Verweisen `"./name-hash.js"` und cacht auch die per `import()` geladenen Teile (beide
+  Sprachen, Escape-Raum); ohne die Texte könnte die App nach einem Update offline nicht starten. Doppelte Verweise
+  werden vorher entfernt, sonst scheitert `cache.addAll` und mit ihm die ganze Installation.
   Offline-Navigation (auch geteilte Links) bekommt die App-Shell. Geteilte Rätsel funktionieren offline,
   weil sie komplett im Link stecken. Registriert wird der Service Worker nur im Produktions-Build.
 
@@ -900,6 +903,12 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   die App kann, sonst Englisch. Unter Profil › Darstellung › Sprache fest wählbar, gespeichert im `localStorage`
   (`knobelkiste-lang`). `main.ts` setzt sie vor dem ersten Rendern; ein Wechsel rendert neu ohne Neuladen,
   `<html lang>`, `document.title` und die Seitenbeschreibung folgen. Das Manifest bleibt deutsch.
+- **Nur die aktive Sprache laden** (seit M45): `i18n/t.ts` importiert `de.ts` nur als Typ und lädt die Texte einer
+  Sprache per `import()` (`loadMessages`), jede Sprache ist eine eigene Datei. `main.ts` wartet beim Start mit
+  Top-Level-`await` auf `startLanguage` (gewählte Sprache, sonst die andere; lädt keine, startet die App trotzdem und zeigt
+  die Schlüssel). `applyLanguage` ist asynchron; scheitert ein Wechsel offline, bleibt die Sprache und ein Hinweis
+  erscheint (`languageUnavailable`). `setLanguage` verlangt geladene Texte; Tests geben sie mit `provideMessages` vor
+  oder laden sie. Spart rund 55 kB beim Start.
 - **Formate:** Datum, relative Zeiten und Zahlen nutzen die aktive Locale. Zur Sprache passende Browser-Locales werden
   übernommen (z. B. `en-GB`), sonst `de-DE` bzw. `en-US`. Formatter werden mit `perLocale()` gecacht und nach einem
   Wechsel neu gebaut. Ausnahme: Die Normalisierung von Quiz-Antworten (`core/hash.ts`) bleibt fest `de-DE`, sonst

@@ -1165,10 +1165,16 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   Bibliothek hinzufügen und wieder entfernen, eigenes Bild (800 × 600 → 800 × 450), Probespielen bis zum Sieg →
   verifiziert, Neuladen, Spielen aus der Bibliothek, Bild übersteht das Aufräumen; am Handy kein waagrechter Überlauf.)
 - [ ] Test am echten Desktop (Maus, Tastatur) und kurzer Blick am Tablet.
-- [ ] Bundle-Größe: Mit M45 liegt das Haupt-Bundle wieder über 500 kB (512 kB, gzip 162 kB; der nachgeladene
+- [x] Bundle-Größe: Mit M45 liegt das Haupt-Bundle wieder über 500 kB (512 kB, gzip 162 kB; der nachgeladene
   Escape-Raum-Teil 59 kB). Ursache sind vor allem die neuen Texte (rund 15 kB, beide Sprachen sind immer im Bundle; alle
   Texte zusammen 123 kB). Entscheiden: Warnschwelle anheben oder nur die Texte der aktiven Sprache laden (spart rund
   60 kB, braucht aber einen asynchronen Start und Sprachwechsel).
+  (Entschieden: nur die aktive Sprache laden. `i18n/t.ts` lädt die Texte per `import()`, `main.ts` wartet beim Start
+  darauf. Haupt-Bundle 327 kB (gzip 102 kB); der Bundler legt gemeinsamen Code von App und Escape-Raum-Teil in eine
+  eigene, vorgeladene Datei (74 kB), dazu eine Sprache (55–59 kB): zusammen rund 460 statt 512 kB beim Start, keine
+  Warnung mehr. Der Service Worker (v2) cacht jetzt auch die nachgeladenen Teile; dabei gefunden und behoben: ein
+  doppelt genannter Teil ließ `cache.addAll` und damit die Installation scheitern. Geprüft mit dem Produktions-Build
+  über localhost: Start lädt nur Englisch, Wechsel lädt Deutsch nach, offline neu geladen startet die App.)
 
 ### M46 – Escape-Raum: Teilen und Galerie
 - [ ] Veröffentlichen über eine Edge Function (prüft das Dokument, jedes eingebettete Rätsel mit `rules.ts`, die

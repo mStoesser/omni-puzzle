@@ -771,6 +771,7 @@ export const de = {
   libraryNewRoom: "Neuer Escape-Raum",
   libraryRoomsEmpty: "Noch keine eigenen Escape-Räume. Escape-Räume bleiben auf diesem Gerät, sie werden nicht synchronisiert.",
   libraryRoomsHint: "Escape-Räume bleiben auf diesem Gerät, sie werden nicht synchronisiert.",
+  languageUnavailable: "Die Sprache ließ sich nicht laden. Bist du offline?",
   roomNotFound: "Diesen Escape-Raum gibt es nicht.",
   roomControls: "Escape-Raum",
   roomLeave: "Escape-Raum verlassen",

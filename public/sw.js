@@ -1,7 +1,7 @@
 // Service worker: network first, cache as fallback, so the app works offline after the first visit
 // and always gets updates when online. Shared puzzles work offline too: they live completely in the link.
 // Bump VERSION when the caching logic changes; old caches are deleted on activation.
-const VERSION = "v1";
+const VERSION = "v2"; // v2: also caches the chunks loaded with import() (languages, escape rooms)
 const CACHE = `raetsel-${VERSION}`;
 const SHELL = ["./", "./manifest.webmanifest", "./icons/icon.svg", "./icons/icon-192.png"];
 
@@ -12,8 +12,20 @@ self.addEventListener("install", (event) => {
       await cache.addAll(SHELL);
       // The built index.html references hashed bundles; cache them right away, not only on the second visit.
       const html = await (await cache.match("./")).text();
-      const assets = [...html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1]);
+      const assets = [...html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => new URL(m[1], self.registration.scope).href);
       await cache.addAll(assets);
+      // Chunks loaded later with import() (the texts of each language, escape rooms) are named in the bundles as
+      // "./name-hash.js". Without them the app could not start offline after an update: the texts are a chunk too.
+      const seen = new Set(assets);
+      for (let i = 0; i < assets.length; i++) {
+        if (!assets[i].endsWith(".js")) continue;
+        const code = await (await cache.match(assets[i])).text();
+        // A chunk may be named more than once; addAll refuses duplicates (and the whole install would fail).
+        const found = [...new Set([...code.matchAll(/["'`]\.\/([\w-]+-[\w-]{8}\.js)["'`]/g)].map((m) => new URL(m[1], assets[i]).href))].filter((url) => !seen.has(url));
+        for (const url of found) seen.add(url);
+        await cache.addAll(found);
+        assets.push(...found);
+      }
       await self.skipWaiting();
     })(),
   );

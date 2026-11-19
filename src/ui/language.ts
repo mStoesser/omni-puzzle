@@ -1,6 +1,6 @@
 // Language choice (M28): "system" (default) follows the browser's languages, "de"/"en" are fixed.
 // Stored per device in localStorage, like the theme. Applying it switches all texts and formats (i18n/t.ts).
-import { isLang, primaryLanguage, setLanguage, t } from "../i18n/t.ts";
+import { isLang, language, loadMessages, primaryLanguage, setLanguage, t } from "../i18n/t.ts";
 import type { Lang } from "../i18n/t.ts";
 
 export type LanguageChoice = Lang | "system";
@@ -35,13 +35,34 @@ function browserLanguages(): readonly string[] {
   return navigator.languages?.length ? navigator.languages : [navigator.language];
 }
 
-/** Switches texts and formats; `<html lang>` and the page description follow. Returns the language. */
-export function applyLanguage(choice: LanguageChoice): Lang {
+/**
+ * Loads the texts of the chosen language and switches texts and formats; `<html lang>` and the page description
+ * follow. Returns the language. If the texts cannot be loaded (offline, never loaded before), the language stays and
+ * the promise rejects.
+ */
+export async function applyLanguage(choice: LanguageChoice): Promise<Lang> {
   const { lang, locale } = resolveLanguage(choice, browserLanguages());
+  await loadMessages(lang);
   setLanguage(lang, locale);
   document.documentElement.lang = lang;
   document.querySelector('meta[name="description"]')?.setAttribute("content", t("appDescription"));
-  return lang;
+  return language();
+}
+
+/**
+ * At the start: the chosen language, or – if its texts cannot be loaded – the other one. If neither loads, the app
+ * still starts (texts show as their keys) instead of staying blank.
+ */
+export async function startLanguage(choice: LanguageChoice): Promise<void> {
+  const { lang } = resolveLanguage(choice, browserLanguages());
+  for (const attempt of [choice, lang === "de" ? "en" : "de"] as const) {
+    try {
+      await applyLanguage(attempt);
+      return;
+    } catch (error) {
+      console.warn("language", error);
+    }
+  }
 }
 
 export function storeLanguageChoice(choice: LanguageChoice) {

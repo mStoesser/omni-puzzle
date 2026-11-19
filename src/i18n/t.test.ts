@@ -2,8 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { de } from "./de.ts";
 import { en } from "./en.ts";
-import { language, locale, perLocale, setLanguage, t, tn } from "./t.ts";
+import { hasMessages, language, loadMessages, locale, perLocale, provideMessages, setLanguage, t, tn } from "./t.ts";
 import type { MessageKey } from "./t.ts";
+
+provideMessages("de", de);
+provideMessages("en", en);
 
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
@@ -58,6 +61,19 @@ test("switches the language of texts, plurals and formats", () => {
   assert.equal(tn("galleryLikes", 1), "1 Like");
   assert.equal(tn("chainSteps", 3), "3 Rätsel");
   assert.equal(tn("galleryPlays", 2), "2 × gespielt");
+});
+
+test("the texts of a language are loaded on demand; switching to one that is not loaded fails", async () => {
+  // A fresh copy of the module, so nothing is provided yet.
+  const fresh = await import(`./t.ts?fresh=${Date.now()}`);
+  assert.equal(fresh.hasMessages("en"), false);
+  assert.equal(fresh.t("undo"), "undo"); // before the start: the key
+  assert.throws(() => fresh.setLanguage("en"));
+  await fresh.loadMessages("en");
+  fresh.setLanguage("en");
+  assert.equal(fresh.t("undo"), "Undo");
+  assert.equal(hasMessages("de"), true);
+  await loadMessages("de"); // already there: nothing happens
 });
 
 test("perLocale makes the value again only after a change", () => {

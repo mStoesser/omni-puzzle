@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { formatDay, timeAgo } from "./time.ts";
-import { setLanguage } from "../i18n/t.ts";
+import { loadMessages, setLanguage } from "../i18n/t.ts";
+
+await loadMessages("de");
+await loadMessages("en");
 
 const now = Date.parse("2026-11-03T12:00:00Z");
 

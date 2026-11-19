@@ -775,6 +775,7 @@ export const en: Messages = {
   libraryNewRoom: "New escape room",
   libraryRoomsEmpty: "No escape rooms of your own yet. Escape rooms stay on this device; they are not synced.",
   libraryRoomsHint: "Escape rooms stay on this device; they are not synced.",
+  languageUnavailable: "The language could not be loaded. Are you offline?",
   roomNotFound: "This escape room does not exist.",
   roomControls: "Escape room",
   roomLeave: "Leave the escape room",
