@@ -979,11 +979,11 @@ Entschieden (11/2026):
 - **Nur im Escape-Modus:** In der normalen Ansicht und im Vollbild (Galerie, Link ohne Modus) bleibt das Ergebnis
   unsichtbar. Ausnahme: das Probespielen im Editor, damit der Ersteller es prüfen kann.
 - **Ketten bleiben vorerst außen vor:** `mode=escape` gilt nicht für Ketten-Routen (dort normale Ansicht); Ketten
-  kommen mit dem Escape-Raum.
+  kommen frühestens mit dem Escape-Raum (Phase 6).
 - **Links nur mit `https://`,** auch bei Galerie-Rätseln, mit sichtbarer Domain. Missbrauch geht über das Melden.
 - **Nicht geheim:** Das Ergebnis steht im Rätsel-Dokument, also im Link und für Galerie-Rätsel in der Datenbank. Wer
   sich auskennt, liest es dort aus, wie die Lösung selbst. Das reicht für Spiele mit Freunden und Kindern. Echten Schutz
-  bringt erst ein Server, der das Ergebnis nach geprüfter Zugfolge herausgibt (siehe Escape-Raum unter „Irgendwann“).
+  bringt erst ein Server, der das Ergebnis nach geprüfter Zugfolge herausgibt (siehe „Geheime Codes und Ergebnisse“ unter „Irgendwann“).
   Damit der Wechsel leicht fällt, zeigen die Hüllen nur, was in `PlayViewModel.result` steht, sobald gelöst ist; ein
   Server könnte es genau dann füllen.
 
@@ -1025,6 +1025,91 @@ Entschieden (11/2026):
   `?mode=escape`; kein waagrechter Überlauf. Veröffentlichen nicht im Headless-Browser geprüft (braucht das Backend). Nach Push und Deployment vom User am Handy
   getestet: funktioniert alles.)
 
+## Phase 6: Escape-Raum
+
+Ein Point-and-Click-Escape-Spiel aus der Knobelkiste: Man startet in einem Raum (ein Hintergrundbild), tippt auf
+Bereiche im Bild und löst so Rätsel, öffnet Schlösser, findet Hinweise und kommt in weitere Räume, bis man entkommt.
+
+Entschieden (11/2026):
+- **Schalter statt Gedächtnislücken:** Ein Escape-Raum hat benannte Schalter (z. B. „Truhe offen“). Aktionen setzen
+  Schalter, Klickbereiche haben optional eine Bedingung (Schalter an bzw. aus); so erscheinen Bereiche erst später, eine
+  offene Truhe sieht anders aus, ein Rätsel kommt in einer zweiten, lösbaren Fassung. **Schalter gehen nur an, nie aus:**
+  Der Fortschritt wächst nur, das macht das Gruppenspiel konfliktfrei (siehe unten).
+- **Eine Aktion ist eine Liste von Effekten:** Rätsel öffnen, Code-Schloss, Detailbild oder Text ansehen, in einen
+  anderen Raum gehen, Schalter setzen, Sieg. Später kommen Effekte dazu (Animation, Audio, Video), ohne Umbau.
+- **Rätsel stecken im Raum-Dokument** (eingebettete Rätsel-Dokumente), nicht als Verweis auf die Galerie: Sie sollen
+  nicht öffentlich mit Ergebnis in der Galerie stehen. Jedes Rätsel muss gültig und vom Ersteller gelöst sein.
+  Ein gelöstes Rätsel zeigt sein Ergebnis (M42) und kann zusätzlich Effekte auslösen (z. B. direkt einen Schalter
+  setzen, statt dass man den Code abtippt). Nach dem Rätsel geht es „Zurück zum Raum“.
+- **Bühne 16:9:** Raumbilder haben das feste Seitenverhältnis 16:9, Klickbereiche liegen in Prozent darauf. Im
+  Hochformat lässt sich das Bild seitlich verschieben (oder der Hinweis „Handy drehen“, im Spieler-Meilenstein
+  entscheiden). Detailbilder dürfen andere Formate haben.
+- **Gegen Pixelsuche:** Mindestgröße für Klickbereiche (Tap-Ziel ≥ 44 px bei üblicher Handygröße), ein Knopf, der alle
+  aktiven Bereiche kurz aufleuchten lässt, und gestaffelte Text-Hinweise pro Raum.
+- **Prüfbar:** Eine reine Prüfung durchsucht die Zustände (Schalter, gelöste Rätsel, offene Schlösser, Raum) und meldet,
+  ob der Sieg erreichbar ist, wie der Solver bei Rätseln; dazu Sackgassen wie nie erreichbare Räume. Teilen erst nach
+  eigenem Durchspielen.
+- **Nicht geheim:** Codes und Ergebnisse stehen im Dokument. Für Spiele mit Freunden reicht das; echter Schutz siehe
+  „Geheime Codes und Ergebnisse“ unter „Irgendwann“.
+- **Editor zuerst für den Desktop:** Bereiche auf ein Bild zeichnen und Aktionen verknüpfen ist am Handy mühsam.
+  Bewusste Ausnahme von „Mobile first“ (CLAUDE.md, Regel 6); spielen muss am Handy gut gehen.
+- **Gruppenspiel mitplanen, später bauen:** Jeder spielt am eigenen Handy, der Fortschritt ist gemeinsam. Gelöst wird
+  einzeln am Gerät; geteilt wird nur, *was* gelöst ist (Schalter, gelöste Rätsel, offene Schlösser, Sieg). Weil das nur
+  wächst, ist der gemeinsame Stand einfach die Vereinigung aller Meldungen, ohne Konflikte. In welchem Raum jemand
+  gerade ist, bleibt pro Handy. Deshalb ist schon der Einzelspieler-Fortschritt eine reine Funktion aus Ereignissen.
+
+### M43 – Escape-Raum: Datenformat und Logik
+Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläche.
+- [ ] Ort im Code festlegen (Vorschlag: `src/rooms/` mit `logic.ts`, `check.ts`, `examples.ts`; Escape-Räume sind
+  kein Rätseltyp, berühren also bewusst den Core, Regel 5).
+- [ ] Datenformat `EscapeRoomDocument` (eigene Hülle mit `format`, `kind: "escape-room"`, `version`, `meta` wie bei
+  Rätseln und `data`): Startraum, Räume (Titel, Bild: Standardbild-ID oder Bild-Schlüssel, Text beim Betreten,
+  Hinweise), Klickbereiche (Rechteck in Prozent, Name für Screenreader, Bedingung, Aktion), Schalter, Schlösser (Code,
+  Effekte bei Erfolg), eingebettete Rätsel (Rätsel-Dokument und Effekte beim Lösen), Detailansichten (Bild oder Text),
+  Sieg-Text. `validate` mit Grenzen (Zahl der Räume, Bereiche, Rätsel, Textlängen, Dokumentgröße) und `migrate`.
+- [ ] Code-Vergleich: getrimmt, ohne Leerzeichen, Groß- und Kleinschreibung egal.
+- [ ] Fortschritt als reine Funktion: Ereignisse (Rätsel gelöst, Code richtig, Raum betreten, Ansicht geöffnet) →
+  Zustand (aktueller Raum pro Spieler; gemeinsam: gesetzte Schalter, gelöste Rätsel, offene Schlösser, Sieg). Der
+  gemeinsame Teil wächst nur (Vereinigung zweier Stände ist definiert und getestet).
+- [ ] Prüfung: Sieg erreichbar? Nie erreichbare Räume, Bereiche und Schlösser, Schlösser ohne Hinweis auf den Code
+  (soweit erkennbar), ungültige eingebettete Rätsel. Zustandssuche mit Grenze wie bei den Solvern.
+- [ ] Ein Beispiel-Escape-Raum mit Standardbild (für Tests und später den Spieler).
+
+### M44 – Escape-Raum: Spieler
+- [ ] Route und Bühne: Raumbild in 16:9 im Vollbild, Klickbereiche als Knöpfe (Tastatur, Screenreader), Verhalten im
+  Hochformat (verschieben oder „drehen“, hier entscheiden).
+- [ ] Aktionen: Rätsel in einer Hülle mit Ergebnis und „Zurück zum Raum“, Code-Schloss (Eingabe, Rückmeldung falsch
+  oder richtig), Detailbild und Text, Raumwechsel, Sieg-Bildschirm.
+- [ ] Knopf „Bereiche zeigen“, Hinweise pro Raum, optional Raum-Uhr.
+- [ ] Fortschritt in IndexedDB (weiterspielen), „Neu starten“ (z. B. für die nächste Gruppe am Tablet).
+- [ ] Standardbilder (16:9, Lizenz geklärt: selbst erstellt oder CC0).
+- [ ] Texte in `de.ts` und `en.ts`; 390 und 1280 px, Hoch- und Querformat; Handy- und Tablet-Test.
+
+### M45 – Escape-Raum: Editor
+- [ ] Neuer Escape-Raum aus der Bibliothek; Räume anlegen, Bild wählen (Standardbild oder eigenes, über die vorhandene
+  Bild-Verarbeitung).
+- [ ] Klickbereiche auf das Bild ziehen, verschieben, Größe ändern; Bedingung und Aktion festlegen.
+- [ ] Schalter, Schlösser, Detailansichten verwalten; Rätsel einbetten (neu bauen mit den vorhandenen Editoren oder
+  aus der Bibliothek kopieren).
+- [ ] Prüf-Panel mit dem Ergebnis aus M43, Probespielen ab einem beliebigen Raum, „verifiziert“ nach eigenem Sieg.
+- [ ] Speichern in der Bibliothek (IndexedDB), automatisch wie bei Rätseln.
+
+### M46 – Escape-Raum: Teilen und Galerie
+- [ ] Veröffentlichen über eine Edge Function (prüft das Dokument, jedes eingebettete Rätsel mit `rules.ts`, die
+  Erreichbarkeit und die Bilder), unveränderlich wie Rätsel und Ketten, zurückziehen, Melden und Moderation.
+- [ ] Galerie: Umschalter um „Escape-Räume“ erweitern; Karten mit Vorschaubild und eigenem Fortschritt.
+- [ ] Teilen per Link nur, wenn das Dokument klein genug ist und nur Standardbilder nutzt (eigene Bilder brauchen das
+  Veröffentlichen; QR-Codes fassen nur wenige Kilobyte). Teilen-Links und QR-Code öffnen im Vollbild.
+
+### M47 – Escape-Raum: Gruppenspiel
+- [ ] Spielrunde auf dem Server: Eine Person startet sie, die anderen treten per QR-Code oder kurzem Code bei, ohne
+  Konto; ein geheimes Runden-Token berechtigt. Nur veröffentlichte Escape-Räume, nur online.
+- [ ] Edge Function nimmt Ereignisse an und prüft sie gegen das Dokument; der gemeinsame Stand ist die Vereinigung
+  (aus M43). Kein direkter Tabellenzugriff (RLS).
+- [ ] Abgleich per Abfrage alle paar Sekunden (kein neues Paket; Supabase Realtime bräuchte ohne Bibliothek ein eigenes
+  WebSocket-Protokoll). Anzeige, wer dabei ist und was andere gerade gelöst haben.
+- [ ] Alte Runden räumt der vorhandene Aufräum-Job ab; Tageslimit gegen Missbrauch.
+
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
   Stellung (Solver von einem Zustand aus, Core-Erweiterung), Typen ohne Solver (Nonogramm, Quiz), zählt eine Lösung
@@ -1033,16 +1118,15 @@ Entschieden (11/2026):
 - [ ] „Lösung abspielen“ im Prüf-Panel des Editors.
 - [ ] App-Store-Versionen per Capacitor. Vorher prüfen: neue Pakete (Regel 1), Entwicklerkonten und Kosten, Store-Regeln
   für nutzergenerierte Inhalte.
-- [ ] Escape-Raum: eigene Kategorie, ähnlich wie eine Kette angelegt, unter der Rätsel gespeichert werden; konfigurierbar
-  (noch zu spezifizieren). Baut auf M24 (Ketten) und M42 (Escape-Modus mit Ergebnis) auf; Ketten im Escape-Modus kommen
-  erst hier. Ideen: Raum-Anzeige (Geschichte, Raum-Uhr, Code-Schloss), Codes, die ein Schloss öffnen, gemeinsamer
-  Fortschritt mehrerer Handys, ein Kiosk-Tablet für die nächste Gruppe zurücksetzen, Verlassen auf dem Kiosk erschweren
-  (z. B. lange drücken; ganz verhindern kann ein Browser es nicht).
-  Geheimes Ergebnis (Weg 1): Das Ergebnis liegt in einer Tabelle ohne Leserecht, nicht im Dokument. Nach dem Lösen
-  schickt die App die Zugfolge an eine Edge Function, die sie mit `rules.ts` nachspielt wie `submit-score`, und gibt
-  es nur bei „gelöst“ heraus (mit Limit gegen Durchprobieren). Preis: nur veröffentlicht und online. Grenze: Wer die
-  Daten hat, kann einen Solver lösen lassen; geheim heißt „nur durch Lösen“. Verworfen: das Ergebnis mit einem
-  Schlüssel aus der Lösung verschlüsseln, weil das nur bei Typen mit genau einer Lösung geht.
+- [ ] Escape-Raum, Ideen für nach Phase 6: Aktionen lösen Animationen aus, Audio- und Videonachrichten, Intro-Video,
+  Inventar (Gegenstände sammeln und benutzen; Schalter wie „Schlüssel gefunden“ ersetzen es vorerst), Ketten im
+  Escape-Modus, weitere Schlösser (Richtungen, Farben), Verlassen auf einem Kiosk-Tablet erschweren (z. B. lange
+  drücken; ganz verhindern kann ein Browser es nicht).
+- [ ] Geheime Codes und Ergebnisse (Weg 1): Sie liegen in einer Tabelle ohne Leserecht, nicht im Dokument. Nach dem
+  Lösen schickt die App die Zugfolge an eine Edge Function, die sie mit `rules.ts` nachspielt wie `submit-score`, und
+  gibt das Ergebnis nur bei „gelöst“ heraus (mit Limit gegen Durchprobieren). Preis: nur veröffentlicht und online.
+  Grenze: Wer die Daten hat, kann einen Solver lösen lassen; geheim heißt „nur durch Lösen“. Verworfen: das Ergebnis
+  mit einem Schlüssel aus der Lösung verschlüsseln, weil das nur bei Typen mit genau einer Lösung geht.
 - [ ] Weitere Typen aus dem Katalog (Flow, Logikgatter, Sudoku, Schiebepuzzle, Water-Sort …).
 
 ---

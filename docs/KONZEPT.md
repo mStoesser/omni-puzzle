@@ -72,6 +72,14 @@ Das ist das langfristige Alleinstellungsmerkmal.
 In Phase 3 besteht eine Kette aus veröffentlichten Galerie-Rätseln; Lösen schaltet das nächste frei, Texte pro Schritt
 erzählen die Geschichte (**umgesetzt in M24**). Codes, die ein Schloss öffnen, kommen später.
 
+Einzelne Rätsel können ein Ergebnis zeigen (Code, Text oder Link), wenn man sie im Escape-Modus spielt (**M42**).
+
+### Meta: Escape-Raum (Phase 6)
+Ein Point-and-Click-Escape-Spiel: Räume sind Hintergrundbilder (16:9), auf denen Klickbereiche liegen. Ein Tipp öffnet
+ein Rätsel, ein Code-Schloss, ein Detailbild oder einen Text, führt in einen anderen Raum oder zum Sieg. Schalter, die
+nur angehen, merken sich den Fortschritt und machen Bereiche abhängig davon sichtbar. Die Rätsel stecken im
+Escape-Raum selbst. Später können Gruppen gemeinsam spielen, jeder am eigenen Handy. Details in der Roadmap.
+
 ### Warum genau diese drei für das MVP?
 Quiz (textbasiert, ohne Raster), Laser (Strahlberechnung, Drehen) und Rush Hour (Ziehen, Zustandssuche)
 sind absichtlich sehr verschieden. Wenn die Plugin-Schnittstelle diese drei sauber trägt, trägt sie auch den Rest.
