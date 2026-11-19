@@ -1117,7 +1117,7 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   Standardbilder jetzt ab.)
 - [x] Beispiel-Escape-Raum auch auf Englisch (Texte pro Sprache wie bei den Rätsel-Beispielen).
   („The Study“; die Startseite zeigt unter „Escape-Räume“ das Beispiel in der App-Sprache.)
-- [ ] Texte in `de.ts` und `en.ts`; 390 und 1280 px, Hoch- und Querformat; Handy- und Tablet-Test.
+- [x] Texte in `de.ts` und `en.ts`; 390 und 1280 px, Hoch- und Querformat; Handy- und Tablet-Test.
   (Texte da. Im Browser geprüft über die LAN-Adresse (Headless Chrome, 844 × 390, 390 × 844, 1280 × 800, dunkel): das
   ganze Beispiel von Intro bis Sieg (Ansicht, Lichterspiel mit Ergebnis, falscher und richtiger Code, Tür, Hinweise,
   Neuladen mitten im Spiel, Rangierspiel per Tastatur, Schlüssel, Haustür), „Bereiche zeigen“, Hochformat mit
@@ -1126,7 +1126,8 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   dem Finger erschien (Züge auf `pointerup`, der folgende `click` landet auf dem neuen Knopf). Behoben mit
   `ui/components/press-guard.ts`: Knöpfe, die beim Lösen erscheinen, zählen nur einen Klick, dessen Druck auf ihnen
   begann (Tastatur immer). Gilt auch für „Weiter“/„Vollbild verlassen“ (M41) und den Ergebnis-Link (M42). Mit
-  Touch-Emulation nachgestellt, vorher und nachher.)
+  Touch-Emulation nachgestellt, vorher und nachher. Danach vom User auf Handy und Tablet getestet, auch hell: alles
+  erfolgreich.)
 - [x] Bundle-Größe: Mit M44 ist das Haupt-Bundle von 482 auf 519 kB gewachsen (gzip 154 → 166 kB) und Vite warnt über
   500 kB. Entscheiden, ob der Escape-Raum (Ansicht, Bilder) per `import()` nachgeladen wird.
   (Ja: `ui/room-chunk.ts` bündelt Ansicht, Bilder, Logik, Beispiele und Speichern und wird per `import()` geladen,
