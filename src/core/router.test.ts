@@ -76,8 +76,11 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "edit", id: "x1" },
     { name: "play", id: "x2" },
     { name: "published", id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f" },
+    { name: "room", id: "room-study" },
   ];
   for (const route of routes) assert.deepEqual(parseRoute(formatRoute(route)), route);
+  assert.deepEqual(parseRoute("#/room/a b"), { name: "home" });
+  assert.equal(takesMode({ name: "room", id: "room-study" }), false); // always shown on its own full screen stage
 });
 
 const GALLERY_ID = "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f";

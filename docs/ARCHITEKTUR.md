@@ -102,6 +102,7 @@ src/
   ui/
     views/                # home.ts, library.ts, play.ts (Hüllen), play-stage.ts (Bühne), editor.ts, chain.ts …
     fullscreen.ts         # Browser-Vollbild und Wake Lock (M41)
+    room-images.ts        # Standardbilder für Escape-Räume als SVG (M44)
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
     palette.ts            # Rollen-Paletten der Renderer: Standard-CSS und Theme als Inline-Stil (M29)
     piece-icons.ts        # Icons aus src/icons/pieces/ (Vite ?raw) für die Renderer (M31)
@@ -122,7 +123,8 @@ src/
   rooms/                  # Escape-Räume (Phase 6), kein Rätseltyp, rein und DOM-frei (M43)
     logic.ts              # Datenformat, loadEscapeRoom, Codes, Fortschritt aus Ereignissen, mergeShared
     check.ts              # Prüfung: Sieg erreichbar, Sackgassen, Unerreichbares
-    examples.ts           # Beispiel-Escape-Raum „Das Arbeitszimmer“
+    examples.ts           # Beispiel-Escape-Raum „Das Arbeitszimmer“ / „The Study“ (je Sprache)
+    save.ts               # gespeichertes Spiel: Schlüssel, Prüfung beim Laden (M44)
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # Mail-Vorlagen, Sprache nach user_metadata.lang (M28)
@@ -1268,6 +1270,29 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
   die erst nach dem Tresor aufgeht, Rangierspiel, das einen Schalter setzt, und Haustür zum Sieg. Texte vorerst nur
   Deutsch, die Bilder `study` und `hall` kommen mit M44.
 
+### Escape-Raum spielen (M44)
+
+- **Route** `#/room/<id>` (vorerst nur die Beispiele, je eines pro Sprache). Navigationsbereich „focus“, Seite mit
+  `.page.full` wie das Vollbild; der Wake Lock gilt auch hier. Kein `?mode=`: Ein Escape-Raum hat immer seine eigene
+  Bühne.
+- **Zustand** `AppState.room` (`RoomState` in `main.ts`): Dokument, Speicherschlüssel, gespeichertes Spiel (`RoomSave`),
+  was gerade offen ist (Schloss oder Ansicht), das laufende Rätsel, was ein gelöstes Rätsel beim Zurückkehren öffnet,
+  Code-Eingabe, Hinweis-Dialog, Raumtext, „Bereiche zeigen“. Jede Änderung läuft über `applyEvent` (M43); die Ansicht
+  rechnet nichts selbst.
+- **Ansicht** (`ui/views/room.ts`): Leiste, Bühne in 16:9 (so groß, wie sie passt, über Container-Einheiten),
+  Klickbereiche als absolut platzierte `<button>` mit `aria-label`, Dialoge (`sheet`) für Intro, Schloss, Ansicht,
+  Hinweise und Sieg. Im Hochformat bis 600 px Breite deckt ein Hinweis „Handy drehen“ die Bühne ab (nur CSS).
+- **Rätsel im Raum:** eigene Session in `RoomState.puzzle`, gezeichnet mit `playStage` (M40) in einer Leiste mit „Zurück
+  zum Raum“. Es zählt nicht für Fortschritt, Ranglisten, Weiterspielen oder Tastenkürzel der normalen Spielansicht;
+  Töne und Vibration gibt es. Beim Lösen meldet die App `{ kind: "solved" }` und zeigt das Ergebnis (`resultView` aus
+  `play.ts`).
+- **Speichern** (`rooms/save.ts`): `RoomSave` = Fortschritt, aufgedeckte Hinweise pro Raum, Intro gesehen, Startzeit
+  (Wanduhr ab „Los geht’s“) und Zeit beim Sieg. Liegt im Meta-Speicher unter `room:<sha256(version, data)>`, ein
+  geänderter Raum beginnt also neu. `parseRoomSave` prüft gegen den Raum. Die Startseite liest den Status der Beispiele
+  („Angefangen“, „Entkommen“).
+- **Standardbilder** (`ui/room-images.ts`): `study`, `hall`, `cellar`, `lab` als SVG-Zeichnungen (1600 × 900) im Code,
+  Platzhalter. Eigene Bilder (`{ key }`) zeigt die Ansicht über eine `ImageSource`; die liefert erst der Editor (M45).
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -1315,6 +1340,7 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/gallery?view=chains&sort=…` | Galerie der Ketten (M24) |
 | `#/c/<id>` | Kette: Übersicht mit Schritten, Abschluss |
 | `#/c/<id>/<n>` | Schritt n einer Kette spielen |
+| `#/room/<id>` | Escape-Raum spielen (M44), vorerst nur die Beispiele |
 | `#/chain/new` | Ketten-Editor (angemeldet) |
 | `#/daily` | das heutige Rätsel des Tages mit Tagesrangliste (M26) |
 | `…?mode=full` | an `#/p/…`, `#/g/…`, `#/c/…`, `#/play/…` und `#/daily`: im Vollbild (M41); neue Teilen-Links tragen es |

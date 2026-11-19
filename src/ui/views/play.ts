@@ -160,7 +160,7 @@ function escapeSolved(result: PuzzleResult | null) {
 }
 
 /** A result as code (large), text or link (button with the visible domain; opens in a new tab). */
-function resultView(result: PuzzleResult) {
+export function resultView(result: PuzzleResult) {
   switch (result.kind) {
     case "code":
       return html`<p class="escape-result escape-code">${result.text}</p>`;

@@ -57,7 +57,15 @@ export type Scene = {
 };
 
 /** A built-in picture (shipped with the app) or an own one (image key, like in puzzles). */
-export type ImageRef = { builtin: string } | { key: string };
+export type ImageRef = { builtin: BuiltinImage } | { key: string };
+
+/** The pictures that come with the app (M44, simple SVG illustrations in 16:9; `ui/room-images.ts`). */
+export const BUILTIN_IMAGES = ["study", "hall", "cellar", "lab"] as const;
+export type BuiltinImage = (typeof BUILTIN_IMAGES)[number];
+
+function isBuiltinImage(value: unknown): value is BuiltinImage {
+  return (BUILTIN_IMAGES as readonly unknown[]).includes(value);
+}
 
 /** A tap area: a rectangle in percent of the scene picture. */
 export type Spot = {
@@ -172,7 +180,7 @@ function uniqueIds<T extends { id: string }>(items: readonly T[], path: string):
 
 function imageRef(value: unknown, path: string): ImageRef {
   if (!isRecord(value)) fail(path);
-  if (typeof value.builtin === "string" && value.key === undefined) return { builtin: id(value.builtin, path) };
+  if (isBuiltinImage(value.builtin) && value.key === undefined) return { builtin: value.builtin };
   if (typeof value.key === "string" && value.builtin === undefined && IMAGE_KEY.test(value.key)) return { key: value.key };
   fail(path);
 }

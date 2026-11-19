@@ -4545,3 +4545,252 @@ a.resume-card:hover {
   gap: var(--kk-space-2);
   text-align: center;
 }
+
+/* M44: escape rooms – the scene as a 16:9 picture with tap areas, filling the full screen page. */
+.room {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.room-scene-name {
+  margin: 0 var(--kk-space-2);
+  overflow: hidden;
+  font-family: var(--kk-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.room-time {
+  margin-inline-end: var(--kk-space-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--kk-muted);
+}
+
+.room-stage-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0 var(--kk-space-2) var(--kk-space-2);
+  container-type: size;
+}
+
+/* As large as fits, always 16:9 (the tap areas are in percent of it). */
+.room-stage {
+  position: relative;
+  width: min(100cqw, 100cqh * 16 / 9);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--kk-radius-lg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+
+.room-picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.room-spot {
+  position: absolute;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--kk-radius-lg);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 160ms, background-color 160ms, box-shadow 160ms;
+}
+
+.room-spot:hover,
+.room-spot:focus-visible,
+.show-spots .room-spot {
+  border-color: var(--kk-brand);
+  background: rgb(255 211 77 / 0.18);
+  box-shadow: 0 0 0 4px rgb(255 211 77 / 0.25);
+}
+
+.room-spot:focus-visible {
+  outline: 3px solid var(--kk-brand);
+  outline-offset: 2px;
+}
+
+.room-note {
+  position: absolute;
+  inset-inline: var(--kk-space-3);
+  bottom: var(--kk-space-4);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--kk-space-2);
+  max-width: 40rem;
+  margin-inline: auto;
+  padding: var(--kk-space-3) var(--kk-space-3) var(--kk-space-3) var(--kk-space-4);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-xl);
+  background: var(--kk-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+.room-note p {
+  flex: 1;
+  margin: var(--kk-space-2) 0 0;
+}
+
+/* Phones held upright: the room needs landscape; puzzles inside the room work upright too. */
+.room-rotate {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+  .room-rotate {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--kk-space-4);
+    padding: var(--kk-space-5);
+    background: var(--kk-bg);
+    text-align: center;
+  }
+
+  .room-note {
+    display: none;
+  }
+}
+
+.room-rotate p {
+  max-width: 18rem;
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.room-rotate-phone {
+  width: 48px;
+  height: 80px;
+  border: 3px solid currentColor;
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .room-rotate-phone {
+    animation: room-rotate 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes room-rotate {
+  0%,
+  20% {
+    transform: rotate(0deg);
+  }
+  50%,
+  80% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.room-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-3);
+}
+
+.room-dialog .sheet-title {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+}
+
+.room-story {
+  margin: 0;
+  font-size: 1.0625rem;
+  white-space: pre-line;
+}
+
+.room-code {
+  font-family: ui-monospace, monospace;
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.room-dialog .status-problem:empty {
+  display: none;
+}
+
+.room-hints {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-2);
+  margin: 0;
+  padding-inline-start: 1.5rem;
+}
+
+.room-hints:empty {
+  display: none;
+}
+
+.room-view-picture {
+  overflow: hidden;
+  border-radius: var(--kk-radius-lg);
+}
+
+/* Home page: the escape rooms. */
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--kk-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.room-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-xl);
+  background: var(--kk-surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.room-card:hover {
+  border-color: var(--kk-brand);
+}
+
+.room-card-picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--kk-surface-2);
+}
+
+.room-card-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kk-space-2);
+  padding: var(--kk-space-3) var(--kk-space-4);
+}
+
+.room-card-title {
+  font-family: var(--kk-font-display);
+  font-weight: 700;
+}

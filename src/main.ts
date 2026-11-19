@@ -89,6 +89,13 @@ import { galleryView } from "./ui/views/gallery.ts";
 import { chainView } from "./ui/views/chain.ts";
 import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
 import { chainEditorView } from "./ui/views/chain-editor.ts";
+import { roomView } from "./ui/views/room.ts";
+import type { RoomPuzzle, RoomViewModel } from "./ui/views/room.ts";
+import { applyEvent, loadEscapeRoom } from "./rooms/logic.ts";
+import type { EscapeRoomDocument, RoomEvent, Step } from "./rooms/logic.ts";
+import { escapeRoomExample, escapeRoomExamples } from "./rooms/examples.ts";
+import { newRoomSave, parseRoomSave, roomSaveKey, roomStarted } from "./rooms/save.ts";
+import type { RoomSave } from "./rooms/save.ts";
 import type { ChainEditorModel } from "./ui/views/chain-editor.ts";
 import { moderationView } from "./ui/views/moderation.ts";
 import type { DailyPlanModel, ModerationViewModel } from "./ui/views/moderation.ts";
@@ -133,6 +140,22 @@ type GalleryState = GalleryViewModel & { next: GalleryCursor | null };
 /** `reload`: the content needs a newer app version, so the page offers to reload. */
 type ErrorInfo = { text: MessageKey; action?: { href: string; label: MessageKey }; reload?: boolean };
 
+/** An escape room being played (M44); the view model adds what is computed when rendering. */
+type RoomState = {
+  id: string;
+  doc: EscapeRoomDocument;
+  key: string; // meta-store key of the saved game
+  save: RoomSave;
+  open: RoomViewModel["open"];
+  puzzle: RoomPuzzle | null;
+  /** What a solved puzzle opens (a view), shown when going back to the room. */
+  pendingOpen: RoomViewModel["open"];
+  lock: { input: string; wrong: boolean };
+  hintsOpen: boolean;
+  sceneText: boolean;
+  spotsVisible: boolean;
+};
+
 type AppState = {
   route: Route;
   mode: Mode | null; // M41: how the puzzle of the route is shown, from the link (`?mode=full`)
@@ -169,6 +192,8 @@ type AppState = {
   publishedKeys: { userId: string; keys: ReadonlySet<string> } | null;
   sharedKeys: readonly string[]; // M35: content keys whose link was copied or sent on this device, newest first
   resume: Resume | null; // M36: the unfinished puzzle last played on this device ("Weiterspielen")
+  room: RoomState | null; // M44: the escape room of the route
+  roomStatus: ReadonlyMap<string, "started" | "won">; // M44: example escape rooms played on this device
   libraryQuery: string; // M37: local title search in the library; cleared when leaving it
 };
 
@@ -258,6 +283,8 @@ const store = createStore<AppState>({
   publishedKeys: null,
   sharedKeys: [],
   resume: null,
+  room: null,
+  roomStatus: new Map(),
   libraryQuery: "",
 });
 
@@ -317,12 +344,16 @@ function enterRoute(route: Route, mode: Mode | null) {
   const previous = store.get().route;
   flushSave();
   flushResume();
-  patch({ route, mode, pending: false, error: null, notice: null, play: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
+  patch({ route, mode, pending: false, error: null, notice: null, play: null, room: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
     case "home":
       void loadNewest();
       void loadDaily();
+      void loadRoomStatus();
+      break;
+    case "room":
+      void openRoom(route);
       break;
     case "daily":
       void openDaily(route);
@@ -371,6 +402,208 @@ function enterRoute(route: Route, mode: Mode | null) {
 function fail(route: Route, error: ErrorInfo) {
   if (isCurrent(route)) patch({ pending: false, error });
 }
+
+// --- Escape rooms (M44) ---
+
+/** The examples are the only escape rooms until the editor (M45). */
+async function openRoom(route: Route & { name: "room" }) {
+  const example = escapeRoomExample(route.id);
+  if (!example) return fail(route, { text: "roomNotFound" });
+  let doc: EscapeRoomDocument;
+  try {
+    doc = loadEscapeRoom(example.doc, registry);
+  } catch (error) {
+    console.warn(error);
+    return fail(route, { text: "puzzleBroken" });
+  }
+  const key = roomSaveKey(doc);
+  patch({ pending: true });
+  const raw = await storage.then((s) => s.getMeta(key)).catch(() => null);
+  if (!isCurrent(route)) return;
+  const save = parseRoomSave(raw, doc.data) ?? newRoomSave(doc.data, Date.now());
+  const room: RoomState = {
+    id: route.id,
+    doc,
+    key,
+    save,
+    open: null,
+    puzzle: null,
+    pendingOpen: null,
+    lock: { input: "", wrong: false },
+    hintsOpen: false,
+    sceneText: save.introSeen,
+    spotsVisible: false,
+  };
+  patch({ pending: false, room });
+  tickRoom();
+}
+
+/** Which example escape rooms were started or won on this device (for the home page). */
+async function loadRoomStatus() {
+  const s = await storage.catch(() => null);
+  if (!s) return;
+  const status = new Map<string, "started" | "won">();
+  for (const example of escapeRoomExamples) {
+    const doc = loadEscapeRoom(example.doc, registry);
+    const save = parseRoomSave(await s.getMeta(roomSaveKey(doc)).catch(() => null), doc.data);
+    if (save?.progress.shared.won) status.set(example.id, "won");
+    else if (save && roomStarted(save, doc.data)) status.set(example.id, "started");
+  }
+  patch({ roomStatus: status });
+}
+
+function setRoom(change: (room: RoomState) => RoomState) {
+  store.set((state) => (state.room ? { ...state, room: change(state.room) } : state));
+}
+
+/** Changes the saved game and writes it (small, so at once). */
+function updateRoomSave(change: (save: RoomSave) => RoomSave) {
+  const room = store.get().room;
+  if (!room) return;
+  const save = change(room.save);
+  if (save === room.save) return;
+  setRoom((r) => ({ ...r, save }));
+  void storage.then((s) => s.putMeta(room.key, save)).catch((error: unknown) => console.warn("room", error));
+}
+
+/** Takes over an accepted step: progress, the clock at the victory, the scene text, what opens. */
+function roomStep(step: Step, before: RoomState) {
+  const { save } = before;
+  const won = step.progress.shared.won && save.wonAfterMs === null;
+  updateRoomSave((s) => ({ ...s, progress: step.progress, wonAfterMs: won ? Date.now() - s.startedAt : s.wonAfterMs }));
+  const entered = step.progress.scene !== save.progress.scene;
+  const open = step.open;
+  if (open?.kind === "puzzle") {
+    const entry = before.doc.data.puzzles.find((p) => p.id === open.puzzle);
+    const type = entry ? registry.get(entry.doc.type) : undefined;
+    if (!entry || !type) return;
+    const puzzle: RoomPuzzle = {
+      id: entry.id,
+      session: session.createSession(type, entry.doc.data),
+      ...(entry.doc.meta.result ? { result: entry.doc.meta.result } : {}),
+      alreadySolved: save.progress.shared.solved.includes(entry.id),
+    };
+    setRoom((r) => ({ ...r, puzzle, sceneText: r.sceneText || entered }));
+    requestAnimationFrame(() => focusBoardNow());
+    return;
+  }
+  setRoom((r) => ({ ...r, open, sceneText: entered || (r.sceneText && open === null), lock: { input: "", wrong: false } }));
+}
+
+function roomEvent(event: RoomEvent): boolean {
+  const room = store.get().room;
+  if (!room) return false;
+  const step = applyEvent(room.doc.data, room.save.progress, event);
+  if (step.accepted) roomStep(step, room);
+  return step.accepted;
+}
+
+function updateRoomPuzzle(change: (s: AnyPlaySession) => AnyPlaySession) {
+  const room = store.get().room;
+  const puzzle = room?.puzzle;
+  if (!room || !puzzle || puzzle.alreadySolved || puzzle.session.solved) return;
+  const next = change(puzzle.session);
+  if (next === puzzle.session) return;
+  if (store.get().feedback) {
+    const kind = moveFeedback(puzzle.session, next);
+    if (kind) giveFeedback(kind);
+  }
+  setRoom((r) => ({ ...r, puzzle: r.puzzle && { ...r.puzzle, session: next } }));
+  if (!next.solved) return;
+  const step = applyEvent(room.doc.data, room.save.progress, { kind: "solved", puzzle: puzzle.id });
+  if (!step.accepted) return;
+  const won = step.progress.shared.won && room.save.wonAfterMs === null;
+  updateRoomSave((s) => ({ ...s, progress: step.progress, wonAfterMs: won ? Date.now() - s.startedAt : s.wonAfterMs }));
+  const open = step.open?.kind === "view" ? step.open : null; // onSolve opens at most a view
+  setRoom((r) => ({ ...r, pendingOpen: open, sceneText: r.sceneText || step.progress.scene !== room.save.progress.scene }));
+}
+
+let roomTicker: ReturnType<typeof setInterval> | undefined;
+
+/** The room clock in the bar: a render every second while a room is open and not won. */
+function tickRoom() {
+  if (roomTicker !== undefined) return;
+  roomTicker = setInterval(() => {
+    const room = store.get().room;
+    if (!room || room.save.progress.shared.won) {
+      clearInterval(roomTicker);
+      roomTicker = undefined;
+      return;
+    }
+    scheduleRender();
+  }, 1000);
+}
+
+let spotsTimer: ReturnType<typeof setTimeout> | undefined;
+
+const roomActions = {
+  tap: (spot: string) => void roomEvent({ kind: "spot", spot }),
+  closeOpen: () => setRoom((r) => ({ ...r, open: null, lock: { input: "", wrong: false } })),
+  setCode: (input: string) => setRoom((r) => ({ ...r, lock: { input, wrong: false } })),
+  submitCode: () => {
+    const room = store.get().room;
+    if (room?.open?.kind !== "lock") return;
+    if (!roomEvent({ kind: "code", lock: room.open.lock, code: room.lock.input })) {
+      setRoom((r) => ({ ...r, lock: { ...r.lock, wrong: true } }));
+      if (store.get().feedback) giveFeedback("invalid");
+    } else if (store.get().feedback) giveFeedback("solved");
+  },
+  dispatch: (move: unknown) => updateRoomPuzzle((s) => session.dispatch(s, move)),
+  undo: () => updateRoomPuzzle(session.undo),
+  redo: () => updateRoomPuzzle(session.redo),
+  restartPuzzle: () => updateRoomPuzzle(session.restart),
+  backToRoom: () => setRoom((r) => ({ ...r, puzzle: null, open: r.pendingOpen, pendingOpen: null })),
+  replayPuzzle: () => setRoom((r) => ({ ...r, puzzle: r.puzzle && { ...r.puzzle, alreadySolved: false } })),
+  openHints: () => setRoom((r) => ({ ...r, hintsOpen: true })),
+  closeHints: () => setRoom((r) => ({ ...r, hintsOpen: false })),
+  nextHint: () =>
+    updateRoomSave((s) => {
+      const scene = s.progress.scene;
+      return { ...s, hints: { ...s.hints, [scene]: (s.hints[scene] ?? 0) + 1 } };
+    }),
+  showSpots: () => {
+    setRoom((r) => ({ ...r, spotsVisible: true }));
+    clearTimeout(spotsTimer);
+    spotsTimer = setTimeout(() => setRoom((r) => ({ ...r, spotsVisible: false })), 1800);
+  },
+  dismissIntro: () => {
+    // The clock starts when the player starts, not when the page opened.
+    updateRoomSave((s) => (s.introSeen ? s : { ...s, introSeen: true, startedAt: Date.now() }));
+    setRoom((r) => ({ ...r, sceneText: true }));
+  },
+  dismissSceneText: () => setRoom((r) => ({ ...r, sceneText: false })),
+  restartRoom: () => {
+    const room = store.get().room;
+    if (!room) return;
+    if (!room.save.progress.shared.won && !confirm(t("roomRestartConfirm"))) return;
+    updateRoomSave(() => newRoomSave(room.doc.data, Date.now()));
+    setRoom((r) => ({ ...r, open: null, puzzle: null, pendingOpen: null, hintsOpen: false, sceneText: r.save.introSeen, lock: { input: "", wrong: false } }));
+    tickRoom();
+  },
+  hideBrowserBars: () => hideBrowserBars(),
+};
+
+function roomModel(state: AppState, room: RoomState): RoomViewModel {
+  const { save } = room;
+  return {
+    title: room.doc.meta.title,
+    data: room.doc.data,
+    save,
+    open: room.open,
+    puzzle: room.puzzle,
+    lock: room.lock,
+    hintsOpen: room.hintsOpen,
+    sceneText: room.sceneText,
+    spotsVisible: room.spotsVisible,
+    elapsedMs: save.wonAfterMs ?? (save.introSeen ? Math.max(0, Date.now() - save.startedAt) : 0),
+    canHideBrowserBars: canHideBrowserBars(),
+    images: NO_ROOM_IMAGES,
+    backHref: "#/",
+  };
+}
+
+/** Own pictures come with the editor (M45); the examples use built-in ones. */
+const NO_ROOM_IMAGES = { url: () => null };
 
 // --- Play ---
 
@@ -2509,6 +2742,17 @@ function view(state: AppState) {
         daily: homeDaily(state),
         typeSheet: state.typeSheet,
         resume: state.resume,
+        rooms: escapeRoomExamples
+          .filter((e) => e.lang === language())
+          .map((e) => {
+            const first = e.doc.data.scenes.find((x) => x.id === e.doc.data.start)?.image;
+            return {
+              href: formatRoute({ name: "room", id: e.id }),
+              title: e.doc.meta.title,
+              image: first && "builtin" in first ? first.builtin : null,
+              status: state.roomStatus.get(e.id) ?? ("new" as const),
+            };
+          }),
       };
       return homeView(model, homeActions);
     }
@@ -2564,6 +2808,8 @@ function view(state: AppState) {
       play = { ...play, presentation, canHideBrowserBars: presentation !== "standard" && canHideBrowserBars() };
       return html`${playView(play, playStats(state), playActions)}${state.share ? shareDialog(state.share, shareActions, NO_PUBLISH) : nothing}`;
     }
+    case "room":
+      return state.room ? roomView(roomModel(state, state.room), roomActions) : nothing;
     case "chainNew":
       return chainEditorView(state.chainEditor, state.account.user !== null, registry, chainEditorActions);
     case "new":
@@ -2620,6 +2866,7 @@ function navSection(route: Route): NavSection | "focus" {
     case "daily":
     case "new":
     case "edit":
+    case "room":
       return "focus";
     case "imprint":
     case "privacy":
@@ -2685,7 +2932,8 @@ function page(state: AppState) {
   `;
   if (section === "focus") {
     const context = state.shortcuts ? shortcutContext(state) : null;
-    return html`<div class="page focus ${presentationOf(state) !== "standard" ? "full" : ""}">
+    const full = presentationOf(state) !== "standard" || state.route.name === "room";
+    return html`<div class="page focus ${full ? "full" : ""}">
       ${content}
       ${context ? shortcutsDialog(context, state.play?.session.type.controls?.undo !== false, () => patch({ shortcuts: false })) : nothing}
     </div>`;
@@ -2704,6 +2952,7 @@ function pageTitle(state: AppState): string {
   const { route } = state;
   const part =
     state.play?.title ||
+    state.room?.doc.meta.title ||
     (route.name === "library" ? t("library")
     : route.name === "gallery" ? t("gallery")
     : route.name === "moderation" ? t("moderation")
@@ -2832,7 +3081,7 @@ function scheduleRender() {
     focusBoardOnStart(boardFocusKey(state));
     if (focusAfterMode) afterModeFocus(focusAfterMode);
     focusAfterMode = null;
-    keepScreenOn(presentationOf(state) !== "standard");
+    keepScreenOn(presentationOf(state) !== "standard" || state.room !== null);
   });
 }
 

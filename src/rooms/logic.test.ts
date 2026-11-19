@@ -76,6 +76,7 @@ test("tap areas: inside the picture and at least MIN_SPOT large", () => {
 test("texts, pictures, views and codes", () => {
   invalid((d) => (d.data.scenes[0].name = "  "));
   invalid((d) => (d.data.scenes[0].image = { key: "abc" }));
+  invalid((d) => (d.data.scenes[0].image = { builtin: "castle" })); // not shipped with the app
   invalid((d) => (d.data.scenes[0].image = { builtin: "study", key: "a".repeat(64) }));
   invalid((d) => (d.data.views[0] = { id: "painting", name: "Bild" }));
   invalid((d) => (d.data.locks[0].code = " "));
@@ -83,9 +84,9 @@ test("texts, pictures, views and codes", () => {
   invalid((d) => (d.data.scenes[0].hints = Array(6).fill("Tipp")));
   const doc = example();
   doc.data.scenes[0].image = { key: "a".repeat(64) };
-  doc.data.views[0] = { id: "painting", name: " Bild ", image: { builtin: "painting" }, text: "  " };
+  doc.data.views[0] = { id: "painting", name: " Bild ", image: { builtin: "hall" }, text: "  " };
   const loaded = load(doc);
-  assert.deepEqual(loaded.data.views[0], { id: "painting", name: "Bild", image: { builtin: "painting" } });
+  assert.deepEqual(loaded.data.views[0], { id: "painting", name: "Bild", image: { builtin: "hall" } });
 });
 
 test("an embedded puzzle is checked like a puzzle document, with its path in the error", () => {

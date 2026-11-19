@@ -1091,15 +1091,39 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   sind nur IDs, gezeichnet werden sie in M44. 671 Tests grün.)
 
 ### M44 – Escape-Raum: Spieler
-- [ ] Route und Bühne: Raumbild in 16:9 im Vollbild, Klickbereiche als Knöpfe (Tastatur, Screenreader), Verhalten im
+- [x] Route und Bühne: Raumbild in 16:9 im Vollbild, Klickbereiche als Knöpfe (Tastatur, Screenreader), Verhalten im
   Hochformat (verschieben oder „drehen“, hier entscheiden).
-- [ ] Aktionen: Rätsel in einer Hülle mit Ergebnis und „Zurück zum Raum“, Code-Schloss (Eingabe, Rückmeldung falsch
+  (Entschieden: Hinweis „Handy drehen“, nur per CSS bei Hochformat bis 600 px Breite; Tablets im Hochformat zeigen den
+  Raum kleiner. Rätsel im Raum gehen auch hochkant. Route `#/room/<id>`, vorerst nur für die Beispiele. Die Bühne ist
+  so groß, wie sie in 16:9 passt (Container-Einheiten); Bereiche sind unsichtbare Knöpfe mit Namen, bei Hover und Fokus
+  umrandet. Leiste: Verlassen, „Browserleisten ausblenden“, Raumname, Uhr, „Bereiche zeigen“, Hinweise, Neu starten.)
+- [x] Aktionen: Rätsel in einer Hülle mit Ergebnis und „Zurück zum Raum“, Code-Schloss (Eingabe, Rückmeldung falsch
   oder richtig), Detailbild und Text, Raumwechsel, Sieg-Bildschirm.
-- [ ] Knopf „Bereiche zeigen“, Hinweise pro Raum, optional Raum-Uhr.
-- [ ] Fortschritt in IndexedDB (weiterspielen), „Neu starten“ (z. B. für die nächste Gruppe am Tablet).
-- [ ] Standardbilder (16:9, Lizenz geklärt: selbst erstellt oder CC0), mindestens `study` und `hall` für das Beispiel.
-- [ ] Beispiel-Escape-Raum auch auf Englisch (Texte pro Sprache wie bei den Rätsel-Beispielen).
+  (`ui/views/room.ts`. Rätsel laufen mit eigener Session ohne Fortschritt, Ranglisten und Timer der normalen
+  Spielansicht, mit Tönen und Vibration. Nach dem Lösen erscheinen das Ergebnis (M42) und „Zurück zum Raum“; was
+  `onSolve` öffnet, kommt beim Zurückkehren. Ein schon gelöstes Rätsel zeigt sein Ergebnis gleich mit „Nochmal lösen“.
+  Schloss als Dialog mit Code-Feld; falscher Code mit Meldung und Vibration. Text beim Betreten eines Raums als
+  schließbare Karte über dem Bild.)
+- [x] Knopf „Bereiche zeigen“, Hinweise pro Raum, optional Raum-Uhr.
+  (Bereiche leuchten 1,8 s auf. Hinweise einzeln aufdecken, gespeichert pro Raum. Die Uhr ist Wanduhrzeit ab „Los
+  geht’s“, wie in einem echten Escape-Raum, und läuft auch bei geschlossener App weiter; sie steht immer in der
+  Leiste, eine Einstellung zum Ausblenden gibt es noch nicht.)
+- [x] Fortschritt in IndexedDB (weiterspielen), „Neu starten“ (z. B. für die nächste Gruppe am Tablet).
+  (`rooms/save.ts`: im Meta-Speicher unter `room:<sha256 von Version und Daten>`, ohne neue DB-Version; beim Laden gegen
+  den Raum geprüft, Unpassendes startet neu. Die Startseite zeigt „Angefangen“ bzw. „Entkommen“.)
+- [x] Standardbilder (16:9, Lizenz geklärt: selbst erstellt oder CC0), mindestens `study` und `hall` für das Beispiel.
+  (`ui/room-images.ts`: Arbeitszimmer, Flur, Keller, Labor als einfache SVG-Zeichnungen im Code, selbst erstellt.
+  Platzhalter, die der User später ersetzt. `BUILTIN_IMAGES` in `rooms/logic.ts`; `loadEscapeRoom` lehnt unbekannte
+  Standardbilder jetzt ab.)
+- [x] Beispiel-Escape-Raum auch auf Englisch (Texte pro Sprache wie bei den Rätsel-Beispielen).
+  („The Study“; die Startseite zeigt unter „Escape-Räume“ das Beispiel in der App-Sprache.)
 - [ ] Texte in `de.ts` und `en.ts`; 390 und 1280 px, Hoch- und Querformat; Handy- und Tablet-Test.
+  (Texte da. Im Browser geprüft über die LAN-Adresse (Headless Chrome, 844 × 390, 390 × 844, 1280 × 800, dunkel): das
+  ganze Beispiel von Intro bis Sieg (Ansicht, Lichterspiel mit Ergebnis, falscher und richtiger Code, Tür, Hinweise,
+  Neuladen mitten im Spiel, Rangierspiel per Tastatur, Schlüssel, Haustür), „Bereiche zeigen“, Hochformat mit
+  Dreh-Hinweis, Startseite mit Status, Neu starten; kein waagrechter Überlauf. Hell, Handy- und Tablet-Test offen.)
+- [ ] Bundle-Größe: Mit M44 ist das Haupt-Bundle von 482 auf 519 kB gewachsen (gzip 154 → 166 kB) und Vite warnt über
+  500 kB. Entscheiden, ob der Escape-Raum (Ansicht, Bilder) per `import()` nachgeladen wird.
 
 ### M45 – Escape-Raum: Editor
 - [ ] Neuer Escape-Raum aus der Bibliothek; Räume anlegen, Bild wählen (Standardbild oder eigenes, über die vorhandene

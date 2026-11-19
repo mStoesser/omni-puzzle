@@ -14,6 +14,11 @@ import { sheet, statusBadge, typeBadge, typeTile, typeVars } from "../components
 import { icon, logo } from "../icons.ts";
 import { t, tn } from "../../i18n/t.ts";
 import type { Example } from "../../puzzles/index.ts";
+import type { BuiltinImage } from "../../rooms/logic.ts";
+import { builtinPicture, ROOM_VIEWBOX } from "../room-images.ts";
+
+/** An escape room on the home page (M44): the examples in the app's language. */
+export type HomeRoom = { href: string; title: string; image: BuiltinImage | null; status: "new" | "started" | "won" };
 
 /** The signed-in user's name for the greeting; null = signed out or no backend. */
 export type HomeAccount = NavAccount & { username: string | null };
@@ -36,6 +41,7 @@ export type HomeViewModel = {
   daily: HomeDaily | null; // null = no backend, or it could not be loaded (offline)
   typeSheet: string | null; // type whose levels are shown in a sheet (phones)
   resume: Resume | null; // M36: the unfinished puzzle last played on this device
+  rooms: readonly HomeRoom[]; // M44
 };
 
 export type HomeViewActions = {
@@ -82,10 +88,38 @@ export function homeView(model: HomeViewModel, actions: HomeViewActions) {
           </ul>`}
     </section>
 
+    ${model.rooms.length > 0 ? roomsSection(model.rooms) : nothing}
     ${model.gallery ? newInGallery(model.gallery, types) : nothing}
     ${siteFooter()}
     ${sheetType ? levelSheet(sheetType, examplesOf(sheetType, examples), solvedExamples, model.gallery !== null, actions) : nothing}
   `;
+}
+
+/** Escape rooms (M44): a card with the first scene's picture per room. */
+function roomsSection(rooms: readonly HomeRoom[]) {
+  return html`<section aria-labelledby="home-rooms">
+    <div class="section-head">
+      <h2 id="home-rooms">${t("homeRooms")}</h2>
+      <span class="section-note">${t("homeRoomsText")}</span>
+    </div>
+    <ul class="room-grid">
+      ${rooms.map(
+        (room) => html`<li>
+          <a class="room-card" href=${room.href}>
+            ${room.image
+              ? html`<svg class="room-card-picture" viewBox=${ROOM_VIEWBOX} aria-hidden="true">${builtinPicture(room.image)}</svg>`
+              : html`<span class="room-card-picture"></span>`}
+            <span class="room-card-body">
+              <span class="room-card-title">${room.title}</span>
+              ${room.status === "new" ? nothing : room.status === "won"
+                  ? html`<span class="badge badge-solved">${icon("check", 14)}${t("homeRoomWon")}</span>`
+                  : html`<span class="badge badge-draft">${t("homeRoomStarted")}</span>`}
+            </span>
+          </a>
+        </li>`,
+      )}
+    </ul>
+  </section>`;
 }
 
 function examplesOf(type: AnyPuzzleType, examples: readonly Example[]) {

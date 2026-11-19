@@ -18,7 +18,8 @@ export type Route =
   | { name: "play"; id: string }
   | { name: "published"; id: string }
   | { name: "chain"; id: string; step: number | null } // step: 1-based, null = overview
-  | { name: "chainNew" };
+  | { name: "chainNew" }
+  | { name: "room"; id: string }; // an escape room (M44): built-in example, later own ones
 
 const TYPE_ID = /^[a-z0-9-]{1,32}$/;
 const LOCAL_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -64,6 +65,8 @@ export function parseRoute(hash: string): Route {
       return PUBLISHED_ID.test(arg) ? { name: "published", id: arg } : HOME;
     case "chain":
       return arg === "new" ? { name: "chainNew" } : HOME;
+    case "room":
+      return LOCAL_ID.test(arg) ? { name: "room", id: arg } : HOME;
     default:
       return HOME;
   }
@@ -105,6 +108,8 @@ export function formatRoute(route: Route): string {
       return route.step === null ? `#/c/${route.id}` : `#/c/${route.id}/${route.step}`;
     case "chainNew":
       return "#/chain/new";
+    case "room":
+      return `#/room/${route.id}`;
   }
 }
 
