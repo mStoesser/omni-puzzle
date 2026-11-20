@@ -39,6 +39,8 @@ import {
 } from "./core/moderation.ts";
 import type { ModerationItem } from "./core/moderation.ts";
 import * as chains from "./core/chains.ts";
+import * as roomsApi from "./rooms/published.ts";
+import type { PublishedRoom, RoomItem } from "./rooms/published.ts";
 import * as dailies from "./core/daily.ts";
 import type { Daily } from "./core/daily.ts";
 import { fetchCardPreview } from "./core/preview.ts";
@@ -51,13 +53,13 @@ import type { Address, Mode } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
 import type { AnyPlaySession } from "./core/session.ts";
-import { PUBLISH } from "./core/publish.ts";
+import { PUBLISH, PublishError } from "./core/publish.ts";
 import * as scores from "./core/scores.ts";
 import { IDLE_TIMER, continuedTimer, elapsedMs, isRunning, pauseTimer, resumeTimer, startTimer } from "./core/timer.ts";
 import { RESUME_KEY, parseResume, replay, resumeAction } from "./core/resume.ts";
 import type { Resume } from "./core/resume.ts";
 import type { LeaderboardModel, LeaderboardViewer } from "./ui/components/leaderboard.ts";
-import { decodeDocument, encodeDocument } from "./core/share.ts";
+import { MAX_CODE_LENGTH, decodeDocument, decodeValue, encodeDocument, encodeValue } from "./core/share.ts";
 import { copyRecord, memoryStorage, newPuzzleId, openStorage, progressKey, recordSolve } from "./core/storage.ts";
 import { createSyncApi, mergeProgress, ownerDecision, readSyncMeta, syncOnce } from "./core/sync.ts";
 import type { ProgressRecord, PuzzleRecord, RoomRecord, Storage } from "./core/storage.ts";
@@ -89,7 +91,8 @@ import { galleryView } from "./ui/views/gallery.ts";
 import { chainView } from "./ui/views/chain.ts";
 import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
 import { chainEditorView } from "./ui/views/chain-editor.ts";
-import type { RoomPuzzle, RoomViewModel } from "./ui/views/room.ts";
+import type { RoomAccess, RoomPuzzle, RoomViewModel } from "./ui/views/room.ts";
+import type { ReportDialogModel } from "./ui/components/report-dialog.ts";
 import type { EscapeRoomData, EscapeRoomDocument, EscapeRoomMeta, RoomEvent, Step } from "./rooms/logic.ts";
 import type { RoomCheck } from "./rooms/check.ts";
 import type { DraftProblem } from "./rooms/edit.ts";
@@ -99,6 +102,7 @@ import type { ChainEditorModel } from "./ui/views/chain-editor.ts";
 import { moderationView } from "./ui/views/moderation.ts";
 import type { DailyPlanModel, ModerationViewModel } from "./ui/views/moderation.ts";
 import type { GalleryViewModel } from "./ui/views/gallery.ts";
+import type { RoomCardModel } from "./ui/components/room-card.ts";
 import { homeView, siteFooter } from "./ui/views/home.ts";
 import type { HomeDaily } from "./ui/views/home.ts";
 import { imprintView } from "./ui/views/imprint.ts";
@@ -155,7 +159,16 @@ type RoomState = {
   spotsVisible: boolean;
   /** Test play from the editor (M45): nothing is saved; a victory from the start verifies exactly `data`. */
   test: { fromStart: boolean; data: EscapeRoomData } | null;
+  source: RoomSource;
+  infoOpen: boolean; // M46: the sheet about a published or shared room
+  report: ReportDialogModel | null;
 };
+
+/**
+ * Where the room being played comes from: an example or own room, a share link, or the gallery (M46). `reported`: null
+ * while not known.
+ */
+type RoomSource = { kind: "local" } | { kind: "shared" } | { kind: "published"; room: PublishedRoom; reported: boolean | null };
 
 /** The escape room being edited (M45). */
 type RoomEditorState = {
@@ -212,6 +225,7 @@ type AppState = {
   roomEditor: RoomEditorState | null; // M45
   libraryRooms: LibraryRoom[] | null; // M45: own escape rooms, loaded with the library
   roomStatus: ReadonlyMap<string, "started" | "won">; // M44: example escape rooms played on this device
+  roomCardStatus: ReadonlyMap<string, "started" | "won">; // M46: gallery rooms played on this device, by content key
   libraryQuery: string; // M37: local title search in the library; cleared when leaving it
 };
 
@@ -278,6 +292,7 @@ const store = createStore<AppState>({
     confirmDelete: false,
     publications: null,
     chains: null,
+    rooms: null,
     editingPublication: null,
     confirmWithdraw: null,
     panel: null,
@@ -306,6 +321,7 @@ const store = createStore<AppState>({
   roomEditor: null,
   libraryRooms: null,
   roomStatus: new Map(),
+  roomCardStatus: new Map(),
   libraryQuery: "",
 });
 
@@ -380,6 +396,12 @@ function enterRoute(route: Route, mode: Mode | null) {
     case "roomEdit":
       void openRoomEditor(route);
       break;
+    case "publishedRoom":
+      void openPublishedRoom(route);
+      break;
+    case "sharedRoom":
+      void openSharedRoom(route);
+      break;
     case "daily":
       void openDaily(route);
       break;
@@ -452,35 +474,86 @@ function rooms(): RoomChunk {
   return roomChunk;
 }
 
-/** The examples are the only escape rooms until the editor (M45). */
+/** An example or own escape room (M44, M45). */
 async function openRoom(route: Route & { name: "room" }) {
   patch({ pending: true });
-  let chunk: RoomChunk;
-  try {
-    chunk = await loadRoomChunk();
-  } catch (error) {
-    console.warn(error);
-    return fail(route, { text: "roomUnavailable" });
-  }
-  if (!isCurrent(route)) return;
-  const { escapeRoomExample, loadEscapeRoom, roomSaveKey, parseRoomSave, newRoomSave } = chunk;
-  const raw = escapeRoomExample(route.id)?.doc ?? (await storage.then((s) => s.getRoom(route.id)).catch(() => null))?.doc;
+  const chunk = await roomChunkFor(route);
+  if (!chunk) return;
+  const example = chunk.escapeRoomExample(route.id);
+  const raw = example?.doc ?? (await storage.then((s) => s.getRoom(route.id)).catch(() => null))?.doc;
   if (!isCurrent(route)) return;
   if (!raw) return fail(route, { text: "roomNotFound" });
+  // An own room that is still a draft goes to the editor.
+  const broken: ErrorInfo = example ? { text: "puzzleBroken" } : { text: "roomNotPlayable", action: { href: formatRoute({ name: "roomEdit", id: route.id }), label: "edit" } };
+  await startRoom(route, route.id, raw, { kind: "local" }, broken);
+}
+
+/** A published escape room (M46): played like an own one, with its pictures from the server. */
+async function openPublishedRoom(route: Route & { name: "publishedRoom" }) {
+  if (!api) return fail(route, { text: "publishedUnavailable" });
+  patch({ pending: true });
+  const chunk = await roomChunkFor(route);
+  if (!chunk) return;
+  let room: PublishedRoom | null;
+  try {
+    room = await roomsApi.fetchPublishedRoom(api, route.id);
+  } catch (error) {
+    console.warn(error);
+    return fail(route, { text: apiErrorText(error) });
+  }
+  if (!isCurrent(route)) return;
+  if (!room) return fail(route, { text: "roomPublishedNotFound" });
+  // The title may have been changed since publishing; the column is the current one.
+  const raw = typeof room.doc === "object" && room.doc !== null ? { ...room.doc, meta: { ...(room.doc as { meta?: object }).meta, title: room.title } } : room.doc;
+  if (await startRoom(route, route.id, raw, { kind: "published", room, reported: null }, { text: "puzzleBroken" })) {
+    countPlayOnce(room.id, roomsApi.registerRoomPlay);
+    void loadRoomReport();
+  }
+}
+
+/** An escape room in a share link (M46). */
+async function openSharedRoom(route: Route & { name: "sharedRoom" }) {
+  patch({ pending: true });
+  const chunk = await roomChunkFor(route);
+  if (!chunk) return;
+  let raw: unknown;
+  try {
+    raw = await decodeValue(route.code);
+  } catch (error) {
+    if (isCurrent(route)) fail(route, linkError(error));
+    return;
+  }
+  if (!isCurrent(route)) return;
+  await startRoom(route, "", raw, { kind: "shared" }, { text: "linkInvalid" });
+}
+
+async function roomChunkFor(route: Route): Promise<RoomChunk | null> {
+  try {
+    return await loadRoomChunk();
+  } catch (error) {
+    console.warn(error);
+    fail(route, { text: "roomUnavailable" });
+    return null;
+  }
+}
+
+/** Checks the room, reads its saved game and opens it; false if it cannot be played. */
+async function startRoom(route: Route, id: string, raw: unknown, source: RoomSource, broken: ErrorInfo): Promise<boolean> {
+  const { loadEscapeRoom, roomSaveKey, parseRoomSave, newRoomSave } = rooms();
   let doc: EscapeRoomDocument;
   try {
     doc = loadEscapeRoom(raw, registry);
   } catch (error) {
     console.warn(error);
-    // An own room that is still a draft: to the editor.
-    return fail(route, escapeRoomExample(route.id) ? { text: "puzzleBroken" } : { text: "roomNotPlayable", action: { href: formatRoute({ name: "roomEdit", id: route.id }), label: "edit" } });
+    fail(route, broken);
+    return false;
   }
   const key = roomSaveKey(doc);
   const saved = await storage.then((s) => s.getMeta(key)).catch(() => null);
-  if (!isCurrent(route)) return;
+  if (!isCurrent(route)) return false;
   const save = parseRoomSave(saved, doc.data) ?? newRoomSave(doc.data, Date.now());
   const room: RoomState = {
-    id: route.id,
+    id,
     doc,
     key,
     save,
@@ -492,9 +565,62 @@ async function openRoom(route: Route & { name: "room" }) {
     sceneText: save.introSeen,
     spotsVisible: false,
     test: null,
+    source,
+    infoOpen: false,
+    report: null,
   };
   patch({ pending: false, room });
   tickRoom();
+  return true;
+}
+
+async function loadRoomReport() {
+  const { room, account } = store.get();
+  if (!api || room?.source.kind !== "published" || !account.user || room.source.reported !== null) return;
+  const id = room.source.room.id;
+  try {
+    const reported = await roomsApi.hasReportedRoom(api, account.user.id, id);
+    setRoom((r) => (r.source.kind === "published" && r.source.room.id === id ? { ...r, source: { ...r.source, reported } } : r));
+  } catch (error) {
+    console.warn("room report", error);
+  }
+}
+
+async function sendRoomReport(reason: ReportReason, comment: string) {
+  const { room, account } = store.get();
+  if (!api || room?.source.kind !== "published" || !room.report || !account.user || room.report.state !== "form") return;
+  const id = room.source.room.id;
+  const setReport = (report: ReportDialogModel, reported?: boolean) =>
+    setRoom((r) =>
+      r.source.kind === "published" && r.source.room.id === id
+        ? { ...r, report, source: reported === undefined ? r.source : { ...r.source, reported } }
+        : r,
+    );
+  setReport({ state: "busy", error: null, subject: "room" });
+  try {
+    await roomsApi.reportRoom(api, account.user.id, id, reason, comment);
+    setReport({ state: "done", error: null, subject: "room" }, true);
+  } catch (error) {
+    console.warn("room report", error);
+    const already = error instanceof ApiError && error.kind === "conflict";
+    setReport({ state: "form", error: already ? "roomReportAlready" : apiErrorText(error), subject: "room" });
+  }
+}
+
+/** Who may report the open room; like chainAccess. */
+function roomAccess(source: RoomSource & { kind: "published" }, user: { id: string } | null): RoomAccess {
+  if (source.room.hidden) return "hidden";
+  if (!user) return "signed-out";
+  if (source.room.authorId === user.id) return "own";
+  return source.reported === null ? "loading" : source.reported ? "reported" : "yes";
+}
+
+/** The share sheet of a published or shared room: its link opens on the room's own full screen stage. */
+function openRoomShare() {
+  const room = store.get().room;
+  if (!room || room.source.kind === "local") return;
+  const route: Route = room.source.kind === "published" ? { name: "publishedRoom", id: room.source.room.id } : store.get().route;
+  patch({ share: { title: room.doc.meta.title, url: appUrl(route, false), copy: "idle", contentKey: null, hasImages: false, qr: false, room: true } });
 }
 
 /** Which example escape rooms were started or won on this device (for the home page). */
@@ -652,12 +778,47 @@ const roomActions = {
   },
   hideBrowserBars: () => hideBrowserBars(),
   backToEditor: () => patch({ room: null }),
+  openInfo: () => setRoom((r) => ({ ...r, infoOpen: true })),
+  closeInfo: () => setRoom((r) => ({ ...r, infoOpen: false })),
+  share: () => {
+    setRoom((r) => ({ ...r, infoOpen: false }));
+    openRoomShare();
+  },
+  openReport: () => {
+    const room = store.get().room;
+    if (room?.source.kind === "published" && room.source.reported === false) setRoom((r) => ({ ...r, infoOpen: false, report: { state: "form", error: null, subject: "room" } }));
+  },
+  report: {
+    send: (reason: ReportReason, comment: string) => void sendRoomReport(reason, comment),
+    close: () => setRoom((r) => ({ ...r, report: null })),
+  },
 };
 
 function roomModel(state: AppState, room: RoomState): RoomViewModel {
-  const { save } = room;
+  const { save, source } = room;
+  const { meta } = room.doc;
+  let info: RoomViewModel["info"] = null;
+  if (source.kind === "published") {
+    const { room: published } = source;
+    info = {
+      author: published.author,
+      description: published.description,
+      playCount: published.playCount,
+      publishedAt: published.publishedAt,
+      access: roomAccess(source, state.account.user),
+    };
+  } else if (source.kind === "shared") {
+    info = { author: meta.author ?? null, description: meta.description ?? "", playCount: null, publishedAt: null, access: null };
+  }
+  let backHref = escapeRoomIsExample(room.id) ? "#/" : "#/library";
+  if (source.kind === "shared") backHref = "#/";
+  if (source.kind === "published") {
+    // Back to the gallery's rooms with the filter the player came from.
+    const filter = state.gallery?.filter.view === "rooms" ? state.gallery.filter : { ...DEFAULT_FILTER, view: "rooms" as const };
+    backHref = formatRoute({ name: "gallery", filter });
+  }
   return {
-    title: room.doc.meta.title,
+    title: meta.title,
     data: room.doc.data,
     save,
     open: room.open,
@@ -668,9 +829,12 @@ function roomModel(state: AppState, room: RoomState): RoomViewModel {
     spotsVisible: room.spotsVisible,
     elapsedMs: save.wonAfterMs ?? (save.introSeen ? Math.max(0, Date.now() - save.startedAt) : 0),
     canHideBrowserBars: canHideBrowserBars(),
-    images: localImages,
-    backHref: escapeRoomIsExample(room.id) ? "#/" : "#/library",
+    images: source.kind === "published" ? publishedImages(source.room.id) : localImages,
+    backHref,
     test: room.test !== null,
+    info,
+    infoOpen: room.infoOpen,
+    report: room.report,
   };
 }
 
@@ -747,11 +911,8 @@ async function saveRoomEditor() {
   roomSaveTimer = undefined;
   const editor = store.get().roomEditor;
   if (!editor) return;
-  const verified = editor.verifiedData === editor.doc.data;
-  const meta: EscapeRoomMeta = { ...editor.doc.meta };
-  if (verified) meta.verified = true;
-  else delete meta.verified;
-  await save((s) => s.putRoom({ id: editor.id, doc: { ...editor.doc, meta }, updatedAt: now() }));
+  const doc = savedRoomDoc(editor);
+  await save((s) => s.putRoom({ id: editor.id, doc, updatedAt: now() }));
 }
 
 /** Check results per data object: the search can take a moment, and the data only changes with an edit. */
@@ -768,7 +929,100 @@ function roomCheckOf(data: EscapeRoomData) {
   return result;
 }
 
+/** The edited room as it is saved: verified only with exactly the won data. */
+function savedRoomDoc(editor: RoomEditorState): EscapeRoomDocument {
+  const meta: EscapeRoomMeta = { ...editor.doc.meta };
+  if (editor.verifiedData === editor.doc.data) meta.verified = true;
+  else delete meta.verified;
+  return { ...editor.doc, meta };
+}
+
+/**
+ * M46: the share sheet of the room editor. A link only for rooms with built-in pictures that fit into one (own
+ * pictures need the gallery); publishing is the second way, as for puzzles.
+ */
+async function openRoomEditorShare() {
+  const editor = store.get().roomEditor;
+  if (!editor || editor.verifiedData !== editor.doc.data) return;
+  let doc: EscapeRoomDocument;
+  try {
+    doc = rooms().loadEscapeRoom(savedRoomDoc(editor), registry);
+  } catch (error) {
+    console.warn(error); // verified, so it loads; just in case
+    return;
+  }
+  const base: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", contentKey: null, hasImages: false, qr: false, room: true };
+  if (rooms().roomImageKeys(doc.data, registry).length > 0) return patch({ share: { ...base, linkProblem: "images" } });
+  patch({ share: base });
+  const code = await encodeValue(doc);
+  const url = appUrl({ name: "sharedRoom", code }, false);
+  store.set((state) =>
+    state.share?.room && state.share.url === null && !state.share.linkProblem
+      ? { ...state, share: code.length > MAX_CODE_LENGTH ? { ...state.share, linkProblem: "too-large" } : { ...state.share, url } }
+      : state,
+  );
+}
+
+function openRoomPublish() {
+  const state = store.get();
+  const { roomEditor: editor, account } = state;
+  if (!editor || !account.profile || publishing(state) !== "signed-in" || editor.verifiedData !== editor.doc.data) return;
+  patch({
+    share: null,
+    publish: {
+      title: editor.doc.meta.title,
+      author: account.profile.username,
+      description: editor.doc.meta.description ?? "",
+      hasResult: false,
+      state: "confirm",
+      error: null,
+      publishedId: null,
+      room: { perDay: roomsApi.ROOM_PER_DAY },
+    },
+  });
+}
+
+/** Publishes the edited room; checked here first with the server's own code, so problems name the puzzle at once. */
+async function publishRoom(description: string) {
+  const { roomEditor: editor, publish: dialog } = store.get();
+  if (!api || !editor || !dialog?.room || dialog.state !== "confirm") return;
+  const doc = savedRoomDoc(editor);
+  const nameOf = (error: unknown) => {
+    const id = roomsApi.roomPublishErrorPuzzle(error);
+    return id ? (doc.data.puzzles.find((p) => p.id === id)?.name ?? id) : "";
+  };
+  let contentKey: string;
+  try {
+    contentKey = rooms().prepareRoomPublication({ doc, title: doc.meta.title, description }, registry).contentKey;
+  } catch (error) {
+    console.warn(error);
+    const apiError = error instanceof PublishError ? new ApiError("invalid", 400, error.message, error.code) : error;
+    setPublish({ error: roomsApi.roomPublishErrorText(apiError), errorName: nameOf(apiError) });
+    return;
+  }
+  setPublish({ state: "busy", error: null, publishedId: null });
+  try {
+    const images = await imagesForUpload(rooms().roomImageKeys(doc.data, registry));
+    const id = await roomsApi.publishRoom(api, { doc, title: doc.meta.title, description, images });
+    setPublish({ state: "done", publishedId: id });
+    setAccount({ rooms: null }); // reload on the account page
+  } catch (error) {
+    console.warn(error);
+    setPublish({ state: "confirm", error: error instanceof InputProblem ? error.text : roomsApi.roomPublishErrorText(error), errorName: nameOf(error) });
+    if (error instanceof ApiError && error.code === "duplicate") {
+      const existing = await roomsApi.findRoomByContentKey(api, contentKey).catch(() => null);
+      if (existing) setPublish({ publishedId: existing });
+    }
+  }
+}
+
 const roomEditorActions = {
+  openShare: () => void openRoomEditorShare(),
+  share: { copied: (ok: boolean) => shareActions.copied(ok), sent: () => shareActions.sent(), toggleQr: () => shareActions.toggleQr(), close: () => shareActions.close() },
+  publish: {
+    publish: (description: string) => void publishRoom(description),
+    close: () => patch({ publish: null }),
+  },
   setMeta: (change: Partial<EscapeRoomMeta>) => {
     setRoomEditor((e) => {
       const meta = { ...e.doc.meta, ...change };
@@ -837,6 +1091,9 @@ const roomEditorActions = {
       sceneText: save.introSeen,
       spotsVisible: false,
       test: { fromStart, data: editor.doc.data },
+      source: { kind: "local" },
+      infoOpen: false,
+      report: null,
     };
     patch({ room });
     tickRoom();
@@ -862,6 +1119,16 @@ function roomEditorModel(state: AppState, editor: RoomEditorState) {
       const type = registry.get(typeId);
       return type ? t(type.name) : typeId;
     },
+    share: state.share,
+    sharePublish: {
+      publishing: publishing(state),
+      username: state.account.profile?.username ?? null,
+      minMoves: null,
+      theme: null,
+      room: { steps: check?.steps ?? null },
+      openPublish: openRoomPublish,
+    },
+    publish: state.publish,
   };
 }
 
@@ -1270,11 +1537,11 @@ async function moderate(action: () => Promise<void>) {
 
 const moderationActions = {
   release: (item: ModerationItem) =>
-    void moderate(() => (item.kind === "chain" ? releaseChain(api!, item.id) : releasePuzzle(api!, item.id))),
-  hide: (item: ModerationItem) => void moderate(() => (item.kind === "chain" ? hideChain(api!, item.id) : hidePuzzle(api!, item.id))),
+    void moderate(() => ({ chain: releaseChain, room: roomsApi.releaseRoom, puzzle: releasePuzzle })[item.kind](api!, item.id)),
+  hide: (item: ModerationItem) => void moderate(() => ({ chain: hideChain, room: roomsApi.hideRoom, puzzle: hidePuzzle })[item.kind](api!, item.id)),
   askDelete: (id: string | null) => setModeration({ confirmDelete: id, message: null }),
   remove: (item: ModerationItem) =>
-    void moderate(() => (item.kind === "chain" ? chains.withdrawChain(api!, item.id) : withdrawPublication(api!, item.id))),
+    void moderate(() => ({ chain: chains.withdrawChain, room: roomsApi.withdrawRoom, puzzle: withdrawPublication })[item.kind](api!, item.id)),
   setBanned: (userId: string, ban: boolean) => void moderate(() => setBanned(api!, userId, ban)),
   resetName: (userId: string) => void moderate(() => resetUsername(api!, userId)),
   clearScores: (userId: string) => void moderate(() => scores.clearScores(api!, userId)),
@@ -1693,7 +1960,7 @@ async function openGallery(route: Route & { name: "gallery" }) {
   // Back from a puzzle to the same filter: keep what was loaded instead of starting over.
   if (keep && keep.status !== "error" && JSON.stringify(keep.filter) === JSON.stringify(route.filter)) return;
   patch({
-    gallery: { filter: route.filter, items: [], chains: [], status: "loading", error: null, hasMore: false, announcement: "", next: null },
+    gallery: { filter: route.filter, items: [], chains: [], rooms: [], status: "loading", error: null, hasMore: false, announcement: "", next: null },
   });
   await loadGalleryPage(route);
 }
@@ -1701,28 +1968,34 @@ async function openGallery(route: Route & { name: "gallery" }) {
 async function loadGalleryPage(route: Route & { name: "gallery" }) {
   const gallery = store.get().gallery;
   if (!api || !gallery) return;
-  const more = gallery.items.length + gallery.chains.length > 0;
+  const more = gallery.items.length + gallery.chains.length + gallery.rooms.length > 0;
   patch({ gallery: { ...gallery, status: more ? "loading-more" : "loading", error: null, announcement: "" } });
+  const { view } = route.filter;
   try {
     const page =
-      route.filter.view === "chains"
+      view === "chains"
         ? { chains: await chains.fetchChainPage(api, route.filter.sort, gallery.next, route.filter.q) }
-        : { puzzles: await fetchGalleryPage(api, route.filter, gallery.next) };
+        : view === "rooms"
+          ? { rooms: await roomsApi.fetchRoomPage(api, route.filter, gallery.next) }
+          : { puzzles: await fetchGalleryPage(api, route.filter, gallery.next) };
     if (!isCurrent(route)) return;
-    const next = page.chains?.next ?? page.puzzles?.next ?? null;
-    const count = page.chains?.items.length ?? page.puzzles?.items.length ?? 0;
+    const next = page.chains?.next ?? page.rooms?.next ?? page.puzzles?.next ?? null;
+    const count = page.chains?.items.length ?? page.rooms?.items.length ?? page.puzzles?.items.length ?? 0;
+    const loadedKey = view === "chains" ? "galleryChainsLoaded" : view === "rooms" ? "galleryRoomsLoaded" : "galleryLoaded";
     patch({
       gallery: {
         ...gallery,
         items: [...gallery.items, ...(page.puzzles?.items ?? [])],
         chains: [...gallery.chains, ...(page.chains?.items ?? [])],
+        rooms: [...gallery.rooms, ...(page.rooms?.items ?? [])],
         next,
         hasMore: next !== null,
         status: "idle",
         error: null,
-        announcement: more ? tn(route.filter.view === "chains" ? "galleryChainsLoaded" : "galleryLoaded", count) : "",
+        announcement: more ? tn(loadedKey, count) : "",
       },
     });
+    if (page.rooms) void loadRoomCardStatus(page.rooms.items);
   } catch (error) {
     console.warn("gallery", error);
     if (isCurrent(route)) patch({ gallery: { ...gallery, status: "error", error: apiErrorText(error) } });
@@ -1746,6 +2019,34 @@ const galleryActions = {
     if (route) void loadGalleryPage(route);
   },
 };
+
+/** How far this device got in the rooms of the gallery (M46): read from the saved games, without the rooms themselves. */
+async function loadRoomCardStatus(items: readonly RoomItem[]) {
+  const s = await storage.catch(() => null);
+  void loadRoomChunk().then(scheduleRender, () => {}); // the built-in pictures of the cards
+  if (!s) return;
+  const status = new Map(store.get().roomCardStatus);
+  for (const item of items) {
+    const raw = (await s.getMeta(`room:${item.contentKey}`).catch(() => null)) as { wonAfterMs?: unknown } | null;
+    if (raw && typeof raw === "object") status.set(item.contentKey, typeof raw.wonAfterMs === "number" ? "won" : "started");
+  }
+  patch({ roomCardStatus: status });
+}
+
+function roomCardOf(item: RoomItem, state: AppState): RoomCardModel {
+  const { cover } = item;
+  let picture: RoomCardModel["picture"] = null;
+  if (cover && "key" in cover) picture = backend ? { url: publishedImageUrl(backend.url, item.id, cover.key) } : null;
+  else if (cover && roomChunk) picture = roomChunk.coverPicture(cover.builtin);
+  const by = item.author === null ? t("galleryByUnknown") : t("galleryBy", { author: item.author });
+  return {
+    href: formatRoute({ name: "publishedRoom", id: item.id }),
+    title: item.title,
+    picture,
+    sub: [by, tn("roomScenes", item.sceneCount), tn("galleryPlays", item.playCount)].join(" · "),
+    status: state.roomCardStatus.get(item.contentKey) ?? "new",
+  };
+}
 
 function isSolved(contentKey: string) {
   return store.get().progress.get(contentKey)?.solved === true;
@@ -2775,16 +3076,20 @@ async function loadPublications() {
   const userId = store.get().account.user?.id;
   if (!api || !userId) return;
   try {
-    const [list, ownChains] = await Promise.all([listOwnPublications(api, userId), chains.listOwnChains(api, userId)]);
+    const [list, ownChains, ownRooms] = await Promise.all([
+      listOwnPublications(api, userId),
+      chains.listOwnChains(api, userId),
+      roomsApi.listOwnRooms(api, userId),
+    ]);
     const publications = list.map((p) => {
       const type = registry.get(p.type);
       return { ...p, typeName: type ? t(type.name) : p.type };
     });
-    if (store.get().account.user?.id === userId) setAccount({ publications, chains: ownChains });
+    if (store.get().account.user?.id === userId) setAccount({ publications, chains: ownChains, rooms: ownRooms });
   } catch (error) {
     console.warn("publications", error);
     if (store.get().account.user?.id === userId) {
-      setAccount({ publications: [], chains: [], message: { tone: "error", text: apiErrorText(error) } });
+      setAccount({ publications: [], chains: [], rooms: [], message: { tone: "error", text: apiErrorText(error) } });
     }
   }
 }
@@ -2838,7 +3143,7 @@ function onSession(session: Session | null) {
   const { account } = store.get();
   const user = session?.user ?? null;
   if (user?.id === account.user?.id) return;
-  setAccount({ user, profile: null, confirmDelete: false, publications: null, chains: null, editingPublication: null, confirmWithdraw: null, panel: null });
+  setAccount({ user, profile: null, confirmDelete: false, publications: null, chains: null, rooms: null, editingPublication: null, confirmWithdraw: null, panel: null });
   if (user) void loadProfile(user.id);
   if (user) void updateMailLanguage();
   const { route } = store.get();
@@ -2971,6 +3276,23 @@ const accountActions = {
       await loadPublications();
       return { tone: "ok", text: "myChainsWithdrawn" };
     }),
+  saveRoom: (id: string, title: string, description: string) =>
+    accountTask(async () => {
+      const clean = title.trim();
+      if (clean === "" || clean.length > PUBLISH.maxTitle) throw new InputProblem("publishInvalidTitle");
+      if (description.trim().length > PUBLISH.maxDescription) throw new InputProblem("publishInvalidDescription");
+      await roomsApi.updateRoomPublication(api!, id, { title: clean, description: description.trim() });
+      setAccount({ editingPublication: null });
+      await loadPublications();
+      return { tone: "ok", text: "myPublicationsSaved" };
+    }),
+  withdrawRoom: (id: string) =>
+    void accountTask(async () => {
+      await roomsApi.withdrawRoom(api!, id);
+      setAccount({ confirmWithdraw: null });
+      await loadPublications();
+      return { tone: "ok", text: "myRoomsWithdrawn" };
+    }),
   askWithdraw: (id: string | null) => setAccount({ confirmWithdraw: id, editingPublication: null, message: null }),
   withdraw: (id: string) =>
     void accountTask(async () => {
@@ -3041,7 +3363,9 @@ function view(state: AppState) {
       return homeView(model, homeActions);
     }
     case "gallery":
-      return state.gallery ? galleryView(state.gallery, registry, isSolved, galleryActions) : nothing;
+      return state.gallery
+        ? galleryView(state.gallery, registry, isSolved, state.gallery.rooms.map((item) => roomCardOf(item, state)), galleryActions)
+        : nothing;
     case "moderation":
       if (!state.account.profile?.isModerator) {
         return state.account.user && !state.account.profile ? html`<p>${t("loading")}</p>` : messageView(t("moderationOnly"));
@@ -3094,6 +3418,10 @@ function view(state: AppState) {
     }
     case "room":
       return state.room && roomChunk ? roomChunk.roomView(roomModel(state, state.room), roomActions) : nothing;
+    case "publishedRoom":
+    case "sharedRoom":
+      if (!state.room || !roomChunk) return nothing;
+      return html`${roomChunk.roomView(roomModel(state, state.room), roomActions)}${state.share ? shareDialog(state.share, shareActions, NO_PUBLISH) : nothing}`;
     case "roomEdit":
       if (!roomChunk || !state.roomEditor) return nothing;
       return state.room?.test
@@ -3157,6 +3485,8 @@ function navSection(route: Route): NavSection | "focus" {
     case "edit":
     case "room":
     case "roomEdit":
+    case "publishedRoom":
+    case "sharedRoom":
       return "focus";
     case "imprint":
     case "privacy":

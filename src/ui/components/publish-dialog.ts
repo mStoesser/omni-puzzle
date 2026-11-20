@@ -14,6 +14,10 @@ export type PublishDialogModel = {
   error: MessageKey | null;
   /** After success: the new puzzle; after a duplicate: the existing one. */
   publishedId: string | null;
+  /** M46: an escape room; `perDay` is its daily limit. */
+  room?: { perDay: number };
+  /** M46: the embedded puzzle an error is about, by name. */
+  errorName?: string;
 };
 
 export type PublishDialogActions = {
@@ -22,9 +26,11 @@ export type PublishDialogActions = {
 };
 
 export function publishDialog(model: PublishDialogModel, actions: PublishDialogActions) {
-  const route = model.publishedId ? ({ name: "published", id: model.publishedId } as const) : null;
+  const { room } = model;
+  const route = model.publishedId ? ({ name: room ? "publishedRoom" : "published", id: model.publishedId } as const) : null;
   const href = route ? formatAddress(route, null) : null; // opened here in the app: the normal view
-  const url = route ? `${location.origin}${location.pathname}${formatAddress(route, linkMode(model.hasResult))}` : ""; // the link to pass on
+  // The link to pass on; an escape room has no mode, it always opens on its own full screen stage.
+  const url = route ? `${location.origin}${location.pathname}${formatAddress(route, room ? null : linkMode(model.hasResult))}` : "";
   return sheet(
     "publish-title",
     actions.close,
@@ -32,7 +38,7 @@ export function publishDialog(model: PublishDialogModel, actions: PublishDialogA
       <h2 id="publish-title" class="sheet-title">${t("publishTitle")}</h2>
       ${model.state === "done"
         ? html`
-            <p class="status-ok" role="status">${t("publishDone")}</p>
+            <p class="status-ok" role="status">${t(room ? "roomPublishDone" : "publishDone")}</p>
             <input
               type="text"
               readonly
@@ -43,7 +49,7 @@ export function publishDialog(model: PublishDialogModel, actions: PublishDialogA
             />
             <div class="dialog-actions">
               <button class="secondary" @click=${actions.close}>${t("close")}</button>
-              <a class="button" href=${href!}>${t("publishOpen")}</a>
+              <a class="button" href=${href!}>${t(room ? "roomPublishOpen" : "publishOpen")}</a>
             </div>
           `
         : html`
@@ -54,8 +60,8 @@ export function publishDialog(model: PublishDialogModel, actions: PublishDialogA
                 actions.publish(String(form.get("description") ?? ""));
               }}
             >
-              <p>${t("publishIntro", { title: model.title, author: model.author })}</p>
-              <p class="notice">${t("publishImmutable")}</p>
+              <p>${t(room ? "roomPublishIntro" : "publishIntro", { title: model.title, author: model.author })}</p>
+              <p class="notice">${t(room ? "roomPublishImmutable" : "publishImmutable")}</p>
               <label class="field">
                 <span>${t("publishDescription")}</span>
                 <textarea name="description" rows="3" maxlength=${PUBLISH.maxDescription} .value=${model.description}></textarea>
@@ -63,8 +69,8 @@ export function publishDialog(model: PublishDialogModel, actions: PublishDialogA
               </label>
               ${model.error
                 ? html`<p class="status-problem" role="alert">
-                    ${t(model.error, { perDay: PUBLISH.perDay })}
-                    ${href ? html` <a href=${href}>${t("publishDuplicateOpen")}</a>` : nothing}
+                    ${t(model.error, { perDay: room?.perDay ?? PUBLISH.perDay, name: model.errorName ?? "" })}
+                    ${href ? html` <a href=${href}>${t(room ? "roomPublishDuplicateOpen" : "publishDuplicateOpen")}</a>` : nothing}
                   </p>`
                 : nothing}
               ${model.state === "busy" ? html`<p role="status">${t("publishBusy")}</p>` : nothing}

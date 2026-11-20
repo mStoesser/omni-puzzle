@@ -27,12 +27,12 @@ export async function hasReportedChain(api: Api, userId: string, chainId: string
 
 export type ModerationReport = { reason: ReportReason; comment: string; reporter: string | null; createdAt: string };
 
-/** A hidden puzzle or chain, or one with open reports, as shown to moderators. */
+/** A hidden puzzle, chain or escape room (M46), or one with open reports, as shown to moderators. */
 export type ModerationItem = {
-  kind: "puzzle" | "chain";
+  kind: "puzzle" | "chain" | "room";
   id: string;
-  type: string; // "" for chains
-  stepCount: number; // 0 for puzzles
+  type: string; // "" for chains and rooms
+  stepCount: number; // steps of a chain, scenes of a room; 0 for puzzles
   title: string;
   hidden: boolean;
   publishedAt: string;
@@ -50,6 +50,7 @@ type Row = {
   published_at: string;
   doc?: unknown;
   steps?: unknown;
+  scene_count?: number;
   author: { id: string; username: string; banned: boolean; is_moderator: boolean } | null;
   reports: { reason: ReportReason; comment: string; created_at: string; reporter: { username: string } | null }[];
 };
@@ -70,15 +71,20 @@ function moderationQuery(select: string, author: string): Record<string, string>
 }
 
 /**
- * Hidden puzzles and chains and those with open reports, most reported first (at most MODERATION_LIMIT of each).
- * Only moderators see hidden ones and all reports.
+ * Hidden puzzles, chains and escape rooms and those with open reports, most reported first (at most MODERATION_LIMIT of
+ * each). Only moderators see hidden ones and all reports. Rooms come without their document (up to 512 KB each).
  */
 export async function fetchModerationQueue(api: Api): Promise<ModerationItem[]> {
-  const [puzzles, chains] = await Promise.all([
+  const [puzzles, chains, rooms] = await Promise.all([
     api.rest<Row[]>("puzzles", { query: moderationQuery("id,type,title,hidden,published_at,doc", "puzzles_author_id_fkey") }),
     api.rest<Row[]>("chains", { query: moderationQuery("id,title,hidden,published_at,steps", "chains_author_id_fkey") }),
+    api.rest<Row[]>("rooms", { query: moderationQuery("id,title,hidden,published_at,scene_count", "rooms_author_id_fkey") }),
   ]);
-  const rows = [...puzzles.map((row) => ({ row, kind: "puzzle" as const })), ...chains.map((row) => ({ row, kind: "chain" as const }))];
+  const rows = [
+    ...puzzles.map((row) => ({ row, kind: "puzzle" as const })),
+    ...chains.map((row) => ({ row, kind: "chain" as const })),
+    ...rooms.map((row) => ({ row, kind: "room" as const })),
+  ];
   return rows
     .sort((a, b) => b.row.report_count - a.row.report_count || b.row.published_at.localeCompare(a.row.published_at))
     .map(({ row, kind }) => toItem(row, kind));
@@ -89,7 +95,7 @@ function toItem(row: Row, kind: ModerationItem["kind"]): ModerationItem {
     kind,
     id: row.id,
     type: row.type ?? "",
-    stepCount: Array.isArray(row.steps) ? row.steps.length : 0,
+    stepCount: Array.isArray(row.steps) ? row.steps.length : (row.scene_count ?? 0),
     title: row.title,
     hidden: row.hidden,
     publishedAt: row.published_at,

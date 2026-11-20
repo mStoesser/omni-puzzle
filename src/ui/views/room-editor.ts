@@ -10,6 +10,10 @@ import type { Condition, Effect, EscapeRoomData, EscapeRoomDocument, EscapeRoomM
 import { LANG_NAMES, t, tn } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { iconButton, segment, sheet } from "../components/ui.ts";
+import { publishDialog } from "../components/publish-dialog.ts";
+import type { PublishDialogActions, PublishDialogModel } from "../components/publish-dialog.ts";
+import { shareDialog } from "../components/share-dialog.ts";
+import type { ShareDialogActions, ShareDialogModel, SharePublish } from "../components/share-dialog.ts";
 import { icon } from "../icons.ts";
 import { builtinPicture, ROOM_VIEWBOX } from "../room-images.ts";
 
@@ -29,6 +33,10 @@ export type RoomEditorModel = {
   picker: readonly PickablePuzzle[] | null; // the puzzle picker is open
   images: ImageSource;
   typeName(typeId: string): string; // a puzzle type's name in the UI language
+  /** M46: the share sheet (link and gallery) and the publish dialog. */
+  share: ShareDialogModel | null;
+  sharePublish: SharePublish;
+  publish: PublishDialogModel | null;
 };
 
 export type RoomEditorActions = {
@@ -43,6 +51,9 @@ export type RoomEditorActions = {
   closePicker(): void;
   pickPuzzle(libraryId: string): void;
   testPlay(fromScene: string | null): void;
+  openShare(): void;
+  share: ShareDialogActions;
+  publish: PublishDialogActions;
 };
 
 const SECTIONS: readonly { id: RoomEditorSection; label: MessageKey }[] = [
@@ -115,6 +126,8 @@ export function roomEditorView(model: RoomEditorModel, actions: RoomEditorAction
       <aside class="room-editor-check" aria-labelledby="room-check-title">${checkPanel(model, actions)}</aside>
     </div>
     ${model.picker ? pickerSheet(model.picker, actions) : nothing}
+    ${model.share ? shareDialog(model.share, actions.share, model.sharePublish) : nothing}
+    ${model.publish ? publishDialog(model.publish, actions.publish) : nothing}
   `;
 }
 
@@ -712,6 +725,7 @@ function checkPanel(model: RoomEditorModel, actions: RoomEditorActions) {
     </ul>
     ${model.problems.length === 0 && !model.verified ? html`<p class="editor-hint">${t("roomEdVerifyHint")}</p>` : nothing}
     <button type="button" class="block" ?disabled=${model.problems.length > 0} @click=${() => actions.testPlay(null)}>${icon("play", 18)}${t("testPlay")}</button>
+    <button type="button" class="secondary block" ?disabled=${!model.verified} @click=${actions.openShare}>${icon("share", 18)}${t("roomEdShare")}</button>
   `;
 }
 

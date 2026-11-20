@@ -81,6 +81,13 @@ test("the chain view keeps only its own sorts and drops type and level", () => {
   assert.equal(parseGalleryFilter("view=other").view, "puzzles");
 });
 
+test("the room view (M46) keeps its sorts and the language, but drops type and level", () => {
+  const rooms = parseGalleryFilter("view=rooms&type=laser&level=2&lang=en&sort=plays&q=keller");
+  assert.deepEqual(rooms, { view: "rooms", type: null, level: null, lang: "en", sort: "plays", q: "keller" });
+  assert.equal(formatGalleryFilter(rooms), "view=rooms&lang=en&sort=plays&q=keller");
+  assert.equal(parseGalleryFilter("view=rooms&sort=hardest").sort, "new");
+});
+
 test("normalizeSearch keeps letters, digits, dots, apostrophes and hyphens; the rest becomes spaces", () => {
   assert.equal(normalizeSearch("  Große   Halle "), "Große Halle");
   assert.equal(normalizeSearch("laser_lisa"), "laser lisa"); // _ is a LIKE wildcard

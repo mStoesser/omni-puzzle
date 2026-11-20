@@ -71,9 +71,13 @@ function moderationItem(item: ModerationItem, model: ModerationViewModel, regist
   const { author } = item;
   const { busy } = model;
   return html`<li class="publication">
-    <h2 class="moderation-title"><a href=${item.kind === "chain" ? `#/c/${item.id}` : `#/g/${item.id}`}>${item.title}</a></h2>
+    <h2 class="moderation-title"><a href=${item.kind === "chain" ? `#/c/${item.id}` : item.kind === "room" ? `#/r/${item.id}` : `#/g/${item.id}`}>${item.title}</a></h2>
     <p class="hint">
-      ${item.kind === "chain" ? t("moderationChain", { steps: tn("chainSteps", item.stepCount) }) : type ? t(type.name) : item.type} · ${date(item.publishedAt)} ·
+      ${item.kind === "chain"
+        ? t("moderationChain", { steps: tn("chainSteps", item.stepCount) })
+        : item.kind === "room"
+          ? t("moderationRoom", { scenes: tn("roomScenes", item.stepCount) })
+          : type ? t(type.name) : item.type} · ${date(item.publishedAt)} ·
       <strong>${item.hidden ? t("moderationHidden") : t("moderationVisible")}</strong>
       ${item.reports.length > 0 ? html` · ${tn("moderationReports", item.reports.length)}` : nothing}
     </p>
@@ -188,7 +192,7 @@ function planRow(entry: PlannedDay, isToday: boolean, busy: boolean, registry: R
 
 /** Thumbnails of the puzzle's pictures, so moderators see them without playing. */
 function images(item: ModerationItem, registry: Registry, actions: ModerationViewActions) {
-  if (item.kind === "chain") return nothing;
+  if (item.kind !== "puzzle") return nothing;
   let keys: string[] = [];
   try {
     const { type, doc } = loadDocument(item.doc, registry);

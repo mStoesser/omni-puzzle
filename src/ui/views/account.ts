@@ -3,6 +3,7 @@ import { PASSWORD_MIN, USERNAME } from "../../core/account.ts";
 import type { Profile } from "../../core/account.ts";
 import { PUBLISH } from "../../core/publish.ts";
 import type { OwnChain } from "../../core/chains.ts";
+import type { OwnRoom } from "../../rooms/published.ts";
 import type { OwnPublication } from "../../core/published.ts";
 import { LANG_NAMES, LANGS, locale, t, tn } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
@@ -26,6 +27,7 @@ export type AccountViewModel = {
   confirmDelete: boolean;
   publications: (OwnPublication & { typeName: string })[] | null; // null = not loaded yet
   chains: OwnChain[] | null; // null = not loaded yet
+  rooms: OwnRoom[] | null; // M46: published escape rooms; null = not loaded yet
   editingPublication: string | null; // id (puzzle or chain) with the open edit form
   confirmWithdraw: string | null; // id (puzzle or chain) waiting for confirmation
   panel: AccountPanel | null; // open settings sheet
@@ -44,7 +46,7 @@ export type SyncViewModel = {
 };
 
 /** Settings that open in a sheet. */
-export type AccountPanel = "name" | "password" | "publications" | "chains";
+export type AccountPanel = "name" | "password" | "publications" | "chains" | "rooms";
 
 /** Device settings and numbers shown with or without an account. */
 export type ProfileExtras = {
@@ -78,6 +80,8 @@ export type AccountActions = {
   askWithdraw(id: string | null): void;
   withdraw(id: string): void;
   saveChain(id: string, title: string, description: string): Promise<boolean>;
+  saveRoom(id: string, title: string, description: string): Promise<boolean>;
+  withdrawRoom(id: string): void;
   withdrawChain(id: string): void;
   openPanel(panel: AccountPanel | null): void;
   syncNow(): void;
@@ -206,6 +210,7 @@ function profileSettings(model: AccountViewModel, actions: AccountActions) {
       <li>${row({ text: t("accountChangePassword"), onClick: () => actions.openPanel("password") })}</li>
       <li>${row({ text: t("myPublications"), value: publications?.length ?? "…", onClick: () => actions.openPanel("publications") })}</li>
       <li>${row({ text: t("myChains"), value: model.chains?.length ?? "…", onClick: () => actions.openPanel("chains") })}</li>
+      <li>${row({ text: t("myRooms"), value: model.rooms?.length ?? "…", onClick: () => actions.openPanel("rooms") })}</li>
       ${profile?.isModerator ? html`<li>${row({ text: t("moderationLink"), href: "#/moderation", icon: "shield" })}</li>` : nothing}
     </ul>`;
 }
@@ -308,6 +313,8 @@ function panelSheet(model: AccountViewModel, actions: AccountActions) {
         html`${head(t("myChains"))} ${message(model)} ${chainList(model, actions)}
           <a class="button secondary block" href="#/chain/new">${icon("plus", 18)}${t("chainNewButton")}</a>`,
       );
+    case "rooms":
+      return sheet("panel-title", close, html`${head(t("myRooms"))} ${message(model)} ${roomList(model, actions)}`);
     default:
       return nothing;
   }
@@ -450,6 +457,22 @@ function chainList(model: AccountViewModel, actions: AccountActions) {
     confirm: t("myChainsWithdrawConfirm", { title: c.title }),
   }));
   return ownList(model, entries, actions, { save: actions.saveChain, withdraw: actions.withdrawChain });
+}
+
+function roomList(model: AccountViewModel, actions: AccountActions) {
+  const { rooms } = model;
+  if (rooms === null) return html`<p>${t("loading")}</p>`;
+  if (rooms.length === 0) return html`<p>${t("myRoomsEmpty")}</p>`;
+  const entries = rooms.map((r) => ({
+    id: r.id,
+    href: `#/r/${r.id}`,
+    title: r.title,
+    description: r.description,
+    hidden: r.hidden,
+    sub: t("myChainsStats", { date: date(r.publishedAt), steps: tn("roomScenes", r.sceneCount), plays: tn("galleryPlays", r.playCount) }),
+    confirm: t("myRoomsWithdrawConfirm", { title: r.title }),
+  }));
+  return ownList(model, entries, actions, { save: actions.saveRoom, withdraw: actions.withdrawRoom });
 }
 
 const date = (iso: string) => new Date(iso).toLocaleDateString(locale());

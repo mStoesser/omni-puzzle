@@ -7,6 +7,8 @@ import type { CardPreview } from "../../core/preview.ts";
 import type { Resume } from "../../core/resume.ts";
 import type { AnyPuzzleType } from "../../core/types.ts";
 import { galleryTile, thumb } from "../components/gallery-card.ts";
+import { roomCard } from "../components/room-card.ts";
+import type { RoomCardModel } from "../components/room-card.ts";
 import { searchField } from "../components/search-field.ts";
 import { avatar } from "../components/nav.ts";
 import type { NavAccount } from "../components/nav.ts";
@@ -14,13 +16,12 @@ import { sheet, statusBadge, typeBadge, typeTile, typeVars } from "../components
 import { icon, logo } from "../icons.ts";
 import { t, tn } from "../../i18n/t.ts";
 import type { Example } from "../../puzzles/index.ts";
-import type { SVGTemplateResult } from "lit-html";
 
 /**
  * An escape room on the home page (M44): the examples in the app's language. `picture` is the drawing of its first
  * scene (from the escape room chunk, which is loaded on demand), to put into a 1600 × 900 viewBox.
  */
-export type HomeRoom = { href: string; title: string; picture: SVGTemplateResult | null; status: "new" | "started" | "won" };
+export type HomeRoom = RoomCardModel;
 
 /** The signed-in user's name for the greeting; null = signed out or no backend. */
 export type HomeAccount = NavAccount & { username: string | null };
@@ -105,21 +106,7 @@ function roomsSection(rooms: readonly HomeRoom[]) {
       <span class="section-note">${t("homeRoomsText")}</span>
     </div>
     <ul class="room-grid">
-      ${rooms.map(
-        (room) => html`<li>
-          <a class="room-card" href=${room.href}>
-            ${room.picture
-              ? html`<svg class="room-card-picture" viewBox="0 0 1600 900" aria-hidden="true">${room.picture}</svg>`
-              : html`<span class="room-card-picture"></span>`}
-            <span class="room-card-body">
-              <span class="room-card-title">${room.title}</span>
-              ${room.status === "new" ? nothing : room.status === "won"
-                  ? html`<span class="badge badge-solved">${icon("check", 14)}${t("homeRoomWon")}</span>`
-                  : html`<span class="badge badge-draft">${t("homeRoomStarted")}</span>`}
-            </span>
-          </a>
-        </li>`,
-      )}
+      ${rooms.map((room) => html`<li>${roomCard(room)}</li>`)}
     </ul>
   </section>`;
 }

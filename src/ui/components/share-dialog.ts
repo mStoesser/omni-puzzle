@@ -21,6 +21,9 @@ export type ShareDialogModel = {
   hasImages: boolean; // the link carries only the alt texts
   qr: boolean; // M38: the QR code is shown
   chain?: boolean; // M38: the link of a chain, shared while playing one of its steps
+  room?: boolean; // M46: an escape room
+  /** M46: why an escape room has no link: own pictures (they need the gallery) or too large for a link. */
+  linkProblem?: "images" | "too-large";
 };
 
 export type ShareDialogActions = {
@@ -37,6 +40,8 @@ export type SharePublish = {
   minMoves: number | null;
   /** M30: null = default colors; "low-contrast" blocks publishing (the server would refuse), a link only gets a hint. */
   theme: "ok" | "low-contrast" | null;
+  /** M46: an escape room; `steps` = fewest actions to win (null if unknown) instead of `minMoves`. */
+  room?: { steps: number | null };
   openPublish(): void;
 };
 
@@ -49,7 +54,7 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
     "share-title",
     actions.close,
     html`<div class="sheet-head">
-        <h2 id="share-title" class="sheet-title">${t(model.chain ? "shareChainTitle" : "shareTitle")}</h2>
+        <h2 id="share-title" class="sheet-title">${t(model.chain ? "shareChainTitle" : model.room ? "shareRoomTitle" : "shareTitle")}</h2>
         <button class="icon-button" aria-label=${t("close")} @click=${actions.close}>${icon("close", 20)}</button>
       </div>
 
@@ -61,7 +66,9 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
             <p>${t("shareLinkText")}</p>
           </div>
         </div>
-        ${url === null
+        ${model.linkProblem
+          ? html`<p class="hint">${t(model.linkProblem === "images" ? "shareRoomImages" : "shareRoomTooLarge")}</p>`
+          : url === null
           ? html`<p role="status">${t("shareCreating")}</p>`
           : html`
               <div class="share-link-row">
@@ -78,7 +85,7 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
                 </button>
               </div>
               ${canShare
-                ? html`<button class="secondary block" @click=${() => share(model.title, model.chain ? t("shareChainText") : t("shareText"), url, actions)}>${icon("share", 18)}${t("shareSend")}</button>`
+                ? html`<button class="secondary block" @click=${() => share(model.title, t(model.chain ? "shareChainText" : model.room ? "shareRoomText" : "shareText"), url, actions)}>${icon("share", 18)}${t("shareSend")}</button>`
                 : nothing}
               <p class="hint">${t("shareLength", { length: url.length })}</p>
               ${url.length > RECOMMENDED_LINK_LENGTH ? html`<p class="status-problem">${t("shareTooLong")}</p>` : nothing}
@@ -116,11 +123,13 @@ function publishWay(publish: SharePublish) {
       <span class="share-way-icon">${icon("globe", 20)}</span>
       <div>
         <h3 id="share-publish-title">${t("sharePublishTitle")}</h3>
-        <p>${t("sharePublishText")}</p>
+        <p>${t(publish.room ? "sharePublishRoomText" : "sharePublishText")}</p>
       </div>
     </div>
     <ul class="checklist">
-      ${item(true, publish.minMoves === null ? t("checkSolvableShort") : tn("checkSolvableMin", publish.minMoves))}
+      ${publish.room
+        ? item(true, publish.room.steps === null ? t("roomCheckWinnable") : tn("roomCheckWinnableSteps", publish.room.steps))
+        : item(true, publish.minMoves === null ? t("checkSolvableShort") : tn("checkSolvableMin", publish.minMoves))}
       ${item(true, t("checkTested"))}
       ${publish.theme ? item(publish.theme === "ok", t("checkThemeContrast")) : nothing}
       ${item(signedIn, signedIn && publish.username ? t("checkSignedInAs", { name: publish.username }) : t("checkSignedIn"))}

@@ -16,7 +16,7 @@ import { roomSaveKey } from "./save.ts";
 
 export const ROOM_PUBLISH = {
   maxImages: 20, // own pictures per room (scenes, views and embedded quizzes); the rest uses the built-in ones
-  perDay: 5, // enforced by publish_room() in supabase/migrations/0016_rooms.sql
+  perDay: 5, // enforced by publish_room() in supabase/migrations/0016_rooms.sql; ROOM_PER_DAY in published.ts
   // Edge Functions get 2 s CPU per request: the solvers of all embedded puzzles share this budget.
   solveNodes: 40_000,
   minSolveNodes: 2_000,

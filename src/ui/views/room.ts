@@ -7,8 +7,11 @@ import type { ImageSource } from "../../core/types.ts";
 import { activeSpots } from "../../rooms/logic.ts";
 import type { EscapeRoomData, ImageRef, Opening, Scene } from "../../rooms/logic.ts";
 import type { RoomSave } from "../../rooms/save.ts";
-import { t } from "../../i18n/t.ts";
+import { t, tn } from "../../i18n/t.ts";
 import { iconButton, sheet } from "../components/ui.ts";
+import { reportDialog } from "../components/report-dialog.ts";
+import type { ReportDialogActions, ReportDialogModel } from "../components/report-dialog.ts";
+import { timeAgo } from "../time.ts";
 import { guarded, markPress } from "../components/press-guard.ts";
 import { icon } from "../icons.ts";
 import { builtinPicture, ROOM_VIEWBOX } from "../room-images.ts";
@@ -36,6 +39,21 @@ export type RoomViewModel = {
   backHref: string;
   /** Test play from the editor (M45): "back to the editor" instead of leaving, nothing is saved. */
   test: boolean;
+  /** M46: about a published room (or one from a share link: no plays, no reports); null for own rooms and examples. */
+  info: RoomInfo | null;
+  infoOpen: boolean;
+  report: ReportDialogModel | null;
+};
+
+/** Whether the viewer may report a published room; null for shared rooms. */
+export type RoomAccess = "yes" | "loading" | "signed-out" | "own" | "hidden" | "reported";
+
+export type RoomInfo = {
+  author: string | null;
+  description: string;
+  playCount: number | null;
+  publishedAt: string | null;
+  access: RoomAccess | null;
 };
 
 export type RoomViewActions = {
@@ -58,6 +76,11 @@ export type RoomViewActions = {
   restartRoom(): void;
   hideBrowserBars(): void;
   backToEditor(): void;
+  openInfo(): void;
+  closeInfo(): void;
+  share(): void;
+  openReport(): void;
+  report: ReportDialogActions;
 };
 
 /**
@@ -100,7 +123,9 @@ export function roomView(model: RoomViewModel, actions: RoomViewActions) {
     ${model.open?.kind === "lock" ? lockSheet(model, model.open.lock, actions) : nothing}
     ${model.open?.kind === "view" ? viewSheet(model, model.open.view, actions) : nothing}
     ${model.hintsOpen ? hintsSheet(model, scene, actions) : nothing}
-    ${won && !model.open ? wonSheet(model, actions) : nothing}
+    ${won && !model.open && !model.infoOpen && !model.report ? wonSheet(model, actions) : nothing}
+    ${model.info && model.infoOpen ? infoSheet(model, model.info, actions) : nothing}
+    ${model.report ? reportDialog({ ...model.report, subject: "room" }, actions.report) : nothing}
   </div>`;
 }
 
@@ -116,7 +141,35 @@ function roomBar(model: RoomViewModel, scene: Scene, actions: RoomViewActions) {
     ${iconButton({ label: t("roomShowSpots"), icon: "eye", onClick: actions.showSpots })}
     ${iconButton({ label: t("roomHints"), icon: "bulb", onClick: actions.openHints })}
     ${iconButton({ label: t("roomRestart"), icon: "restart", onClick: actions.restartRoom })}
+    ${model.info ? iconButton({ label: t("roomInfo"), icon: "info", onClick: actions.openInfo }) : nothing}
   </nav>`;
+}
+
+/** M46: who made a published or shared room, sharing it and reporting it. */
+function infoSheet(model: RoomViewModel, info: RoomInfo, actions: RoomViewActions) {
+  // A shared room names its author only if the document does; a published one always had one.
+  const by = info.author !== null ? t("galleryBy", { author: info.author }) : info.access === null ? "" : t("galleryByUnknown");
+  const facts = [
+    by,
+    info.publishedAt ? timeAgo(info.publishedAt, Date.now()) : "",
+    tn("roomScenes", model.data.scenes.length),
+    info.playCount === null ? "" : tn("galleryPlays", info.playCount),
+  ].filter(Boolean);
+  return sheet(
+    "room-info-title",
+    actions.closeInfo,
+    html`<div class="room-dialog">
+      <h2 id="room-info-title" class="sheet-title">${model.title}</h2>
+      <p class="hint">${facts.join(" · ")}</p>
+      ${info.description ? html`<p class="room-story">${info.description}</p>` : nothing}
+      ${info.access === "hidden" ? html`<p class="notice">${t("roomHidden")}</p>` : nothing}
+      <button class="block" @click=${actions.share}>${icon("share", 18)}${t("roomShare")}</button>
+      ${info.access === "yes" ? html`<button class="secondary block" @click=${actions.openReport}>${icon("flag", 18)}${t("roomReport")}</button>` : nothing}
+      ${info.access === "reported" ? html`<p class="hint">${t("roomReportAlready")}</p>` : nothing}
+      ${info.access === "signed-out" ? html`<p class="hint">${t("roomReportSignIn")} <a href="#/account">${t("accountLink")}</a></p>` : nothing}
+      <button class="secondary block" @click=${actions.closeInfo}>${t("close")}</button>
+    </div>`,
+  );
 }
 
 /** A scene or view picture: built in (SVG) or own (image key). */

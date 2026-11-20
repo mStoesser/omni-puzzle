@@ -23,7 +23,7 @@ test("reportPuzzle sends one row with a trimmed, capped comment", async () => {
   assert.equal(body.comment.length, 500);
 });
 
-test("fetchModerationQueue asks for hidden or reported puzzles and chains with open reports", async () => {
+test("fetchModerationQueue asks for hidden or reported puzzles, chains and escape rooms with open reports", async () => {
   const calls: Call[] = [];
   const row = {
     id: "p",
@@ -46,14 +46,18 @@ test("fetchModerationQueue asks for hidden or reported puzzles and chains with o
     author: null,
     reports: [],
   };
-  const [first, item] = await fetchModerationQueue(fakeApi([[row], [chain]], calls));
+  const room = { id: "r", title: "E", hidden: true, report_count: 1, published_at: "2026-11-02T10:00:00+00:00", scene_count: 4, author: null, reports: [] };
+  const [first, second, item] = await fetchModerationQueue(fakeApi([[row], [chain], [room]], calls));
   const url = new URL(calls[0]!.url);
   assert.equal(url.searchParams.get("or"), "(hidden.is.true,report_count.gt.0)");
   assert.equal(url.searchParams.get("reports.resolved"), "is.false");
   assert.match(new URL(calls[1]!.url).pathname, /\/chains$/);
   assert.match(new URL(calls[1]!.url).searchParams.get("select")!, /chains_author_id_fkey/);
-  // Most open reports first, across both kinds.
+  assert.match(new URL(calls[2]!.url).pathname, /\/rooms$/);
+  assert.doesNotMatch(new URL(calls[2]!.url).searchParams.get("select")!, /\bdoc\b/); // rooms can be large
+  // Most open reports first, across all kinds.
   assert.deepEqual([first?.kind, first?.id, first?.stepCount, first?.type], ["chain", "c", 3, ""]);
+  assert.deepEqual([second?.kind, second?.stepCount, second?.doc], ["room", 4, null]);
   assert.equal(item?.kind, "puzzle");
   assert.equal(item?.author?.username, "autor");
   assert.equal(item?.reports[0]?.reporter, null);

@@ -6,8 +6,14 @@ import { t } from "../../i18n/t.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { showModal } from "./dialog.ts";
 
-/** `subject` "chain": texts for a chain, without the reason "not solvable". */
-export type ReportDialogModel = { state: "form" | "busy" | "done"; error: MessageKey | null; subject?: "chain" };
+/** `subject` "chain" or "room" (M46): texts for a chain or an escape room, without the reason "not solvable". */
+export type ReportDialogModel = { state: "form" | "busy" | "done"; error: MessageKey | null; subject?: "chain" | "room" };
+
+const SUBJECT_TEXT = {
+  puzzle: { title: "reportTitle", done: "reportDone", intro: "reportIntro" },
+  chain: { title: "chainReport", done: "chainReportDone", intro: "chainReportIntro" },
+  room: { title: "roomReport", done: "roomReportDone", intro: "roomReportIntro" },
+} as const satisfies Record<string, Record<string, MessageKey>>;
 
 export type ReportDialogActions = {
   send(reason: ReportReason, comment: string): void;
@@ -22,13 +28,13 @@ export const REASON_TEXT: Record<ReportReason, MessageKey> = {
 };
 
 export function reportDialog(model: ReportDialogModel, actions: ReportDialogActions) {
-  const chain = model.subject === "chain";
-  const reasons = chain ? REPORT_REASONS.filter((r) => r !== "unsolvable") : REPORT_REASONS;
+  const text = SUBJECT_TEXT[model.subject ?? "puzzle"];
+  const reasons = model.subject ? REPORT_REASONS.filter((r) => r !== "unsolvable") : REPORT_REASONS;
   return html`
     <dialog class="dialog" ${ref(showModal)} @close=${actions.close} aria-labelledby="report-title">
-      <h2 id="report-title">${t(chain ? "chainReport" : "reportTitle")}</h2>
+      <h2 id="report-title">${t(text.title)}</h2>
       ${model.state === "done"
-        ? html`<p class="status-ok" role="status">${t(chain ? "chainReportDone" : "reportDone")}</p>
+        ? html`<p class="status-ok" role="status">${t(text.done)}</p>
             <div class="dialog-actions"><button @click=${actions.close}>${t("close")}</button></div>`
         : html`<form
             @submit=${(e: SubmitEvent) => {
@@ -37,7 +43,7 @@ export function reportDialog(model: ReportDialogModel, actions: ReportDialogActi
               actions.send(String(form.get("reason")) as ReportReason, String(form.get("comment") ?? ""));
             }}
           >
-            <p>${t(chain ? "chainReportIntro" : "reportIntro")}</p>
+            <p>${t(text.intro)}</p>
             <fieldset class="report-reasons">
               <legend>${t("reportReason")}</legend>
               ${reasons.map(

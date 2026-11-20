@@ -1178,11 +1178,29 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   über localhost: Start lädt nur Englisch, Wechsel lädt Deutsch nach, offline neu geladen startet die App.)
 
 ### M46 – Escape-Raum: Teilen und Galerie
-- [ ] Veröffentlichen über eine Edge Function (prüft das Dokument, jedes eingebettete Rätsel mit `rules.ts`, die
+- [x] Veröffentlichen über eine Edge Function (prüft das Dokument, jedes eingebettete Rätsel mit `rules.ts`, die
   Erreichbarkeit und die Bilder), unveränderlich wie Rätsel und Ketten, zurückziehen, Melden und Moderation.
-- [ ] Galerie: Umschalter um „Escape-Räume“ erweitern; Karten mit Vorschaubild und eigenem Fortschritt.
-- [ ] Teilen per Link nur, wenn das Dokument klein genug ist und nur Standardbilder nutzt (eigene Bilder brauchen das
+  (Dieselbe Funktion `publish`, Prüfung in `rooms/publish.ts`; Tabelle `rooms` mit `0016_rooms.sql`. Eingebettete
+  Rätsel müssen vom Ersteller gelöst sein, genug Kontrast haben und dürfen nicht unlösbar sein; die Solver teilen sich
+  das CPU-Budget. Fehler nennen das Rätsel beim Namen. Höchstens 20 eigene Bilder, 5 Räume pro Tag. Zurückziehen und
+  Titel ändern unter „Meine Escape-Räume“ im Konto; Melden über das Info-Fenster im Raum; Räume in der
+  Moderationsliste. Das Aufräumen behält ihre Bilder.)
+- [x] Galerie: Umschalter um „Escape-Räume“ erweitern; Karten mit Vorschaubild und eigenem Fortschritt.
+  (Mit Sprache, Suche, „neu“ und „meistgespielt“; Karte mit dem Bild des Startraums, Autor, Räumen, Spielen und
+  „Angefangen“/„Entkommen“ aus dem Spielstand auf dem Gerät. Neu: `#/r/<id>`.)
+- [x] Teilen per Link nur, wenn das Dokument klein genug ist und nur Standardbilder nutzt (eigene Bilder brauchen das
   Veröffentlichen; QR-Codes fassen nur wenige Kilobyte). Teilen-Links und QR-Code öffnen im Vollbild.
+  (Knopf „Teilen“ im Prüf-Panel des Editors, sobald der Raum verifiziert ist: Link `#/e/<code>` mit QR-Code und
+  Veröffentlichen wie bei Rätseln. Das Beispiel ergibt gut 1 600 Zeichen.)
+- [x] Texte in `de.ts` und `en.ts`, Datenschutzerklärung ergänzt; im Browser geprüft.
+  (Headless Chrome mit simulierten Server-Antworten für `rooms`: Galerie mit zwei Karten, Raum öffnen, Info-Fenster,
+  Teilen mit QR-Code, Zurück zur Galerie, Raum aus einem Link, kaputter Link, Teilen im Editor mit Link und
+  Checkliste; Handy quer und hoch ohne waagrechten Überlauf. Nicht geprüft: Veröffentlichen und Melden gegen den echten
+  Server; dafür fehlt dort noch die Migration.)
+- [ ] Migration `0016_rooms.sql` auf dev und prod anwenden (vor dem Deployment der App, sonst meldet die Galerie bei
+  „Escape-Räume“ einen Fehler), Funktion deployen (läuft mit dem Push), dann echter Test: veröffentlichen mit eigenem
+  Bild, in der Galerie spielen, melden, zurückziehen.
+- [ ] Offen gelassen: „In der Galerie“ für eigene Escape-Räume in der Bibliothek (wie bei Rätseln, M35).
 
 ### M47 – Escape-Raum: Gruppenspiel
 - [ ] Spielrunde auf dem Server: Eine Person startet sie, die anderen treten per QR-Code oder kurzem Code bei, ohne

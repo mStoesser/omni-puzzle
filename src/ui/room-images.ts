@@ -134,3 +134,8 @@ const PICTURES: Record<BuiltinImage, () => SVGTemplateResult> = { study, hall, c
 export function builtinPicture(id: BuiltinImage): SVGTemplateResult {
   return PICTURES[id]();
 }
+
+/** A cover from the server (M46): the drawing if it names a built-in picture, otherwise null. */
+export function coverPicture(name: string): SVGTemplateResult | null {
+  return Object.hasOwn(PICTURES, name) ? PICTURES[name as BuiltinImage]() : null;
+}

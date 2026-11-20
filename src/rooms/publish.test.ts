@@ -7,7 +7,8 @@ import { rulesRegistry } from "../puzzles/rules.ts";
 import { escapeRoomExamples } from "./examples.ts";
 import { loadEscapeRoom } from "./logic.ts";
 import type { EscapeRoomDocument } from "./logic.ts";
-import { isRoomRequest, prepareRoomImages, prepareRoomPublication } from "./publish.ts";
+import { ROOM_PUBLISH, isRoomRequest, prepareRoomImages, prepareRoomPublication } from "./publish.ts";
+import { ROOM_PER_DAY } from "./published.ts";
 import { roomSaveKey } from "./save.ts";
 
 const room = (): EscapeRoomDocument => structuredClone(escapeRoomExamples[0]!.doc) as EscapeRoomDocument;
@@ -91,4 +92,8 @@ test("own pictures must come with the request and match their keys", () => {
   assert.throws(() => prepareRoomImages(pub, { images: {} }, rulesRegistry), (e) => e instanceof PublishError && e.code === "invalid-image");
   const other = toBase64(fakeWebp(101));
   assert.throws(() => prepareRoomImages(pub, { images: { [key]: other } }, rulesRegistry), (e) => e instanceof PublishError && e.code === "invalid-image");
+});
+
+test("the app shows the same daily limit the server enforces", () => {
+  assert.equal(ROOM_PER_DAY, ROOM_PUBLISH.perDay);
 });

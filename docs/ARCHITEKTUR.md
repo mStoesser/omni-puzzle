@@ -128,6 +128,8 @@ src/
     examples.ts           # Beispiel-Escape-Raum „Das Arbeitszimmer“ / „The Study“ (je Sprache)
     save.ts               # gespeichertes Spiel: Schlüssel, Prüfung beim Laden (M44)
     edit.ts               # Bearbeiten für den Editor, Entwurfs-Probleme, Bild-Schlüssel (M45)
+    publish.ts            # Prüfung vor dem Veröffentlichen, auch auf dem Server (M46)
+    published.ts          # veröffentlichte Räume: Laden, Galerie, eigene, Melden, Moderation (M46)
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # Mail-Vorlagen, Sprache nach user_metadata.lang (M28)
@@ -1338,6 +1340,38 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
 - **Spielen eigener Räume:** `#/room/<id>` lädt ein Beispiel oder einen eigenen Raum (streng); ein Entwurf führt mit
   Hinweis in den Editor.
 
+### Escape-Räume teilen und in der Galerie (M46)
+
+- **Datenbank** (`0016_rooms.sql`): Tabelle `rooms` wie `puzzles` (Dokument, `content_key` eindeutig, Titel,
+  Beschreibung, Sprache, ausgeblendet, Spiel- und Meldezähler, Autorname und Suchtext wie in M37) plus `cover` (das Bild
+  des Startraums, `{ builtin }` oder `{ key }`), `scene_count`, `puzzle_count` und `min_steps`. Die Galerie lädt nie
+  ganze Dokumente (bis 512 KB), nur diese Spalten. Einfügen nur über `publish_room` mit der Service-Rolle, höchstens 5
+  pro Tag; Autoren ändern Titel und Beschreibung oder löschen (zurückziehen). `reports.room_id` als dritte Art Ziel,
+  ab drei Meldungen ausgeblendet; `mod_release_room`, `mod_hide_room`, `register_room_play` wie bei Ketten.
+- **Veröffentlichen:** dieselbe Edge Function `publish`; ein Dokument mit `kind: "escape-room"` geht an
+  `prepareRoomPublication` (`rooms/publish.ts`): Titel und Beschreibung, `loadEscapeRoom` streng (kein Entwurf), vom
+  Ersteller gewonnen, jedes eingebettete Rätsel vom Ersteller gelöst, mit genug Kontrast und vom Solver nicht als
+  unlösbar erkannt (alle Solver teilen sich 40 000 Knoten, mindestens 2 000 je Rätsel, wegen der 2 s CPU), und
+  `checkEscapeRoom` muss „gewinnbar“ ergeben. Autor und Beschreibung wandern in Spalten. `content_key` ist der Hash aus
+  `roomSaveKey`, der Spielstand auf dem Gerät gilt also auch für den veröffentlichten Raum. Fehler zu einem
+  eingebetteten Rätsel nennen dessen ID (`{ error, message }`), die App zeigt den Namen. Eigene Bilder (höchstens 20,
+  `roomImageKeys`) kommen base64 mit und landen unter `quiz-images/<room id>/<key>`; scheitert ein Upload, wird der Raum
+  wieder gelöscht. `cleanup-images` behält Ordner, zu denen ein Rätsel *oder* ein Raum existiert. Die App prüft vor dem
+  Senden mit demselben Code.
+- **Teilen per Link:** `#/e/<code>`, derselbe Codec wie Rätsel-Links (`encodeValue`/`decodeValue` in `core/share.ts`).
+  Nur ohne eigene Bilder und nur bis `MAX_CODE_LENGTH`; sonst sagt das Teilen-Fenster, dass es über die Galerie geht.
+  Das Beispiel ergibt einen Link von gut 1 600 Zeichen, passt also noch in einen QR-Code. Escape-Räume haben keinen
+  `?mode=`, sie öffnen immer auf ihrer Vollbild-Bühne.
+- **Spielen:** `#/r/<id>` lädt den Raum (Titel aus der Spalte, er kann sich geändert haben), Bilder über die
+  öffentliche URL, zählt einen Spielstart pro Gerät. `RoomState.source` sagt, woher der Raum kommt (eigen/Beispiel,
+  Link, Galerie). Für Link und Galerie gibt es ein Info-Fenster (Knopf in der Leiste): Autor, Alter, Räume, Spiele,
+  Beschreibung, Teilen und Melden (`subject: "room"` im Melde-Dialog, ohne den Grund „nicht lösbar“).
+- **Galerie:** dritte Ansicht `view=rooms` mit Sprache, Suche und den Sortierungen „neu“ und „meistgespielt“. Karten
+  (`ui/components/room-card.ts`, auch auf der Startseite) zeigen das Titelbild; ob ein Raum auf diesem Gerät angefangen
+  oder gewonnen ist, liest die App aus dem gespeicherten Spiel `room:<content_key>`, ohne den Raum zu laden.
+- **Konto und Moderation:** „Meine Escape-Räume“ (Titel/Beschreibung ändern, zurückziehen); die Moderationsliste
+  enthält Räume (ohne Dokument, ein Klick öffnet den Raum).
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -1387,6 +1421,8 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/c/<id>/<n>` | Schritt n einer Kette spielen |
 | `#/room/<id>` | Escape-Raum spielen: Beispiel (M44) oder eigener (M45) |
 | `#/room-edit/<id>` | Escape-Raum-Editor (M45) |
+| `#/r/<id>` | veröffentlichter Escape-Raum (M46) |
+| `#/e/<code>` | Escape-Raum aus einem Link (M46) |
 | `#/chain/new` | Ketten-Editor (angemeldet) |
 | `#/daily` | das heutige Rätsel des Tages mit Tagesrangliste (M26) |
 | `…?mode=full` | an `#/p/…`, `#/g/…`, `#/c/…`, `#/play/…` und `#/daily`: im Vollbild (M41); neue Teilen-Links tragen es |

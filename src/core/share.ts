@@ -15,13 +15,23 @@ type ByteTransform = {
 };
 
 export async function encodeDocument(doc: PuzzleDocument): Promise<string> {
-  const json = new TextEncoder().encode(JSON.stringify(doc));
-  const compressed = await pipeBytes(json, new CompressionStream("deflate-raw"), Infinity);
-  return `${CODEC_VERSION}.${toBase64Url(compressed)}`;
+  return encodeValue(doc);
 }
 
 /** Decodes an untrusted share code. Throws DocumentError. Type-specific validation is up to the caller. */
 export async function decodeDocument(code: string): Promise<PuzzleDocument> {
+  return validateEnvelope(await decodeValue(code));
+}
+
+/** Any JSON value as a share code; escape rooms (M46) use it directly, their loader checks the result. */
+export async function encodeValue(value: unknown): Promise<string> {
+  const json = new TextEncoder().encode(JSON.stringify(value));
+  const compressed = await pipeBytes(json, new CompressionStream("deflate-raw"), Infinity);
+  return `${CODEC_VERSION}.${toBase64Url(compressed)}`;
+}
+
+/** The JSON value of an untrusted share code, unchecked. Throws DocumentError. */
+export async function decodeValue(code: string): Promise<unknown> {
   if (code.length > MAX_CODE_LENGTH) throw new DocumentError("too-large", "code");
   const dot = code.indexOf(".");
   if (dot < 0) throw new DocumentError("invalid", "missing codec version");
@@ -37,13 +47,11 @@ export async function decodeDocument(code: string): Promise<PuzzleDocument> {
     throw new DocumentError("invalid", "decompression failed");
   }
 
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(json);
+    return JSON.parse(json);
   } catch {
     throw new DocumentError("invalid", "json");
   }
-  return validateEnvelope(parsed);
 }
 
 async function pipeBytes(input: Uint8Array<ArrayBuffer>, transform: ByteTransform, maxBytes: number) {

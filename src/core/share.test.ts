@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DocumentError } from "./document.ts";
-import { MAX_CODE_LENGTH, decodeDocument, encodeDocument } from "./share.ts";
+import { MAX_CODE_LENGTH, decodeDocument, decodeValue, encodeDocument, encodeValue } from "./share.ts";
 import { counterDocument } from "./test-fixtures.ts";
 import type { PuzzleDocument } from "./types.ts";
 
@@ -59,4 +59,13 @@ test("rejects compression bombs", async () => {
   const code = await encodeDocument(bomb);
   assert.ok(code.length < MAX_CODE_LENGTH, "bomb code itself is small");
   await assertRejects(code, "too-large");
+});
+
+test("any JSON value round-trips (escape rooms, M46); the example room fits in a link", async () => {
+  const { escapeRoomExamples } = await import("../rooms/examples.ts");
+  const doc = escapeRoomExamples[0]!.doc;
+  const code = await encodeValue(doc);
+  assert.deepEqual(await decodeValue(code), doc);
+  assert.ok(code.length < MAX_CODE_LENGTH);
+  await assert.rejects(decodeValue("1.!!"), DocumentError);
 });

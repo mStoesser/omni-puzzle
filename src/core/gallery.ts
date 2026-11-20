@@ -11,8 +11,11 @@ import type { PuzzleTheme } from "./puzzle-theme.ts";
 export type GallerySort = "new" | "likes" | "plays" | "hardest";
 export const GALLERY_SORTS: readonly GallerySort[] = ["new", "likes", "plays", "hardest"];
 
-/** Puzzles or chains (M24). Chains have no type, level, likes or difficulty, so only "new" and "plays" apply. */
-export type GalleryView = "puzzles" | "chains";
+/**
+ * Puzzles, chains (M24) or escape rooms (M46). Chains and rooms have no type, level, likes or difficulty, so only "new"
+ * and "plays" apply; rooms keep the language filter.
+ */
+export type GalleryView = "puzzles" | "chains" | "rooms";
 export const CHAIN_SORTS: readonly GallerySort[] = ["new", "plays"];
 
 /**
@@ -175,7 +178,7 @@ export async function fetchGalleryPage(
 }
 
 /**
- * Parses the query part of a gallery route ("type=laser&level=2&sort=likes", "view=chains&sort=plays");
+ * Parses the query part of a gallery route ("type=laser&level=2&sort=likes", "view=chains&sort=plays", "view=rooms");
  * invalid values fall back to defaults.
  */
 export function parseGalleryFilter(search: string): GalleryFilter {
@@ -185,9 +188,12 @@ export function parseGalleryFilter(search: string): GalleryFilter {
   if (params.get("view") === "chains") {
     return { view: "chains", type: null, level: null, lang: null, sort: sort !== null && CHAIN_SORTS.includes(sort) ? sort : "new", q };
   }
+  const lang = params.get("lang");
+  if (params.get("view") === "rooms") {
+    return { view: "rooms", type: null, level: null, lang: isPuzzleLang(lang) ? lang : null, sort: sort !== null && CHAIN_SORTS.includes(sort) ? sort : "new", q };
+  }
   const type = params.get("type");
   const level = Number(params.get("level"));
-  const lang = params.get("lang");
   return {
     view: "puzzles",
     type: type !== null && /^[a-z0-9-]{1,32}$/.test(type) ? type : null,
@@ -201,7 +207,7 @@ export function parseGalleryFilter(search: string): GalleryFilter {
 /** The query part for a filter, without defaults ("" for the default filter). */
 export function formatGalleryFilter(filter: GalleryFilter): string {
   const params = new URLSearchParams();
-  if (filter.view === "chains") params.set("view", "chains");
+  if (filter.view !== "puzzles") params.set("view", filter.view);
   if (filter.type) params.set("type", filter.type);
   if (filter.level) params.set("level", String(filter.level));
   if (filter.lang) params.set("lang", filter.lang);

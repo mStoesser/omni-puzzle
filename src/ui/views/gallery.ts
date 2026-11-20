@@ -8,7 +8,10 @@ import { LANG_NAMES, t, tn } from "../../i18n/t.ts";
 import { isPuzzleLang, PUZZLE_LANGS } from "../../core/types.ts";
 import type { MessageKey } from "../../i18n/t.ts";
 import { chainCard, galleryCard } from "../components/gallery-card.ts";
+import { roomCard } from "../components/room-card.ts";
+import type { RoomCardModel } from "../components/room-card.ts";
 import { searchField } from "../components/search-field.ts";
+import type { RoomItem } from "../../rooms/published.ts";
 import { chip, segment } from "../components/ui.ts";
 import { icon } from "../icons.ts";
 
@@ -16,6 +19,7 @@ export type GalleryViewModel = {
   filter: GalleryFilter;
   items: GalleryItem[]; // puzzles loaded so far
   chains: ChainItem[]; // chains loaded so far (view "chains")
+  rooms: RoomItem[]; // escape rooms loaded so far (view "rooms", M46)
   status: "loading" | "idle" | "loading-more" | "error";
   error: MessageKey | null;
   hasMore: boolean;
@@ -46,25 +50,35 @@ function search(filter: GalleryFilter, value: string, actions: GalleryViewAction
   searchTimer = setTimeout(() => actions.setFilter({ ...filter, q }), delay);
 }
 
-/** `solved(contentKey)` tells whether the puzzle was solved on this device. */
+const VIEW_TEXT: Record<GalleryView, { intro: MessageKey; count: MessageKey; countMore: MessageKey; search: MessageKey; placeholder: MessageKey; empty: MessageKey }> = {
+  puzzles: { intro: "galleryIntro", count: "galleryCount", countMore: "galleryCountMore", search: "searchLabel", placeholder: "searchPlaceholder", empty: "galleryEmpty" },
+  chains: { intro: "galleryChainsIntro", count: "galleryChainCount", countMore: "galleryChainCountMore", search: "searchChainsLabel", placeholder: "searchChainsPlaceholder", empty: "galleryChainsEmpty" },
+  rooms: { intro: "galleryRoomsIntro", count: "galleryRoomCount", countMore: "galleryRoomCountMore", search: "searchRoomsLabel", placeholder: "searchRoomsPlaceholder", empty: "galleryRoomsEmpty" },
+};
+
+/**
+ * `solved(contentKey)` tells whether the puzzle was solved on this device. `roomCards`: the loaded escape rooms as
+ * cards, with their pictures and how far this device got (drawn by the room part of the app, M46).
+ */
 export function galleryView(
   model: GalleryViewModel,
   registry: Registry,
   solved: (contentKey: string) => boolean,
+  roomCards: readonly RoomCardModel[],
   actions: GalleryViewActions,
 ) {
   const { filter } = model;
   const chains = filter.view === "chains";
+  const rooms = filter.view === "rooms";
+  const text = VIEW_TEXT[filter.view];
   const filtered = filter.type !== null || filter.level !== null || filter.lang !== null;
   const loaded = model.status !== "loading";
-  const count = chains ? model.chains.length : model.items.length;
-  const countKey: MessageKey = chains
-    ? model.hasMore ? "galleryChainCountMore" : "galleryChainCount"
-    : model.hasMore ? "galleryCountMore" : "galleryCount";
+  const count = chains ? model.chains.length : rooms ? model.rooms.length : model.items.length;
+  const countKey: MessageKey = model.hasMore ? text.countMore : text.count;
   return html`
     <header class="page-head">
       <h1>${t("gallery")}</h1>
-      <p>${t(chains ? "galleryChainsIntro" : "galleryIntro")}</p>
+      <p>${t(text.intro)}</p>
     </header>
 
     <div class="gallery-switch">
@@ -73,6 +87,7 @@ export function galleryView(
         [
           { value: "puzzles", label: t("galleryViewPuzzles"), icon: "puzzle" },
           { value: "chains", label: t("galleryViewChains"), icon: "chain" },
+          { value: "rooms", label: t("galleryViewRooms"), icon: "door" },
         ],
         filter.view,
         (view) => actions.setFilter({ ...DEFAULT_FILTER, view, q: filter.q }),
@@ -82,15 +97,15 @@ export function galleryView(
 
     ${searchField({
       id: "gallery-search",
-      label: t(chains ? "searchChainsLabel" : "searchLabel"),
-      placeholder: t(chains ? "searchChainsPlaceholder" : "searchPlaceholder"),
+      label: t(text.search),
+      placeholder: t(text.placeholder),
       value: filter.q ?? "",
       onInput: (value) => search(filter, value, actions, SEARCH_DELAY_MS),
       onSubmit: (value) => search(filter, value, actions, 0),
       extraClass: "gallery-search",
     })}
 
-    ${chains
+    ${chains || rooms
       ? nothing
       : html`<div class="chips" role="group" aria-label=${t("galleryType")}>
           ${chip(t("galleryChipAll"), filter.type === null, () => actions.setFilter({ ...filter, type: null }))}
@@ -103,7 +118,7 @@ export function galleryView(
       <span class="list-count" role="status">
         ${loaded && model.status !== "error" ? tn(countKey, count) : nothing}
       </span>
-      ${chains
+      ${chains || rooms
         ? nothing
         : select(t("galleryLevel"), String(filter.level ?? ""), [["", t("galleryAllLevels")], ...LEVELS.map((l) => [String(l), t(`level${l}`)] as const)], (value) =>
             actions.setFilter({ ...filter, level: value ? (Number(value) as GalleryFilter["level"]) : null }),
@@ -113,7 +128,7 @@ export function galleryView(
         : select(t("galleryLanguage"), filter.lang ?? "", [["", t("galleryAllLanguages")], ...PUZZLE_LANGS.map((l) => [l, LANG_NAMES[l]] as const)], (value) =>
             actions.setFilter({ ...filter, lang: isPuzzleLang(value) ? value : null }),
           )}
-      ${select(t("gallerySort"), filter.sort, (chains ? CHAIN_SORTS : GALLERY_SORTS).map((s) => [s, t(SORT_TEXT[s])] as const), (value) =>
+      ${select(t("gallerySort"), filter.sort, (chains || rooms ? CHAIN_SORTS : GALLERY_SORTS).map((s) => [s, t(SORT_TEXT[s])] as const), (value) =>
         actions.setFilter({ ...filter, sort: value as GallerySort }),
       )}
     </div>
@@ -125,9 +140,13 @@ export function galleryView(
             ? html`<p class="empty">
                 ${filter.q
                   ? t("gallerySearchEmpty", { q: filter.q })
-                  : chains ? t("galleryChainsEmpty") : filtered ? t("galleryEmptyFiltered") : t("galleryEmpty")}
+                  : filtered ? t("galleryEmptyFiltered") : t(text.empty)}
               </p>`
-            : chains
+            : rooms
+              ? html`<ul class="room-grid">
+                  ${roomCards.map((card) => html`<li>${roomCard(card)}</li>`)}
+                </ul>`
+              : chains
               ? html`<ul class="card-list">
                   ${model.chains.map((item) => html`<li>${chainCard(item, item.stepKeys.filter(solved).length)}</li>`)}
                 </ul>`
