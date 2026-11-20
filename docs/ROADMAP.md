@@ -1213,6 +1213,22 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   WebSocket-Protokoll). Anzeige, wer dabei ist und was andere gerade gelöst haben.
 - [ ] Alte Runden räumt der vorhandene Aufräum-Job ab; Tageslimit gegen Missbrauch.
 
+### M48 – Escape-Raum: Synchronisieren
+Eigene Escape-Räume bleiben bisher auf dem Gerät (M45). Sie sollen wie Rätsel mit dem Konto synchronisiert werden
+(M27, `core/sync.ts`); zuerst nur die gebauten Räume, der Spielstand in einem Raum erst im letzten Schritt.
+- [ ] Migration: Räume als eigene Art in der Synchronisierung, mit eigener Größengrenze (bis 512 KB wie
+  `ROOM_LIMITS.maxDocBytes`, Rätsel 64 KB) und eigener Höchstzahl pro Konto; `sync_push()` prüft beides.
+- [ ] Zusammenführen wie bei Rätseln: die neuere Änderung gewinnt, Löschungen bleiben als Grabstein, bis der Server sie
+  hat. Rein und getestet in `core/sync.ts`, ohne die Raum-Logik zu laden (der Raum wird erst beim Öffnen geprüft).
+- [ ] Eigene Bilder der Räume in `user-images`: Die Grenze von 100 Bildern pro Konto reicht bei bis zu 20 Bildern pro
+  Raum nicht; anheben oder getrennt zählen. Aufräumen ungenutzter Bilder berücksichtigt synchronisierte Räume.
+- [ ] Übernehmen beim Anmelden (Konto oder Gerät behalten, wie bei Rätseln) und Abmelden schließen Räume mit ein; der
+  Hinweis „Escape-Räume werden nicht synchronisiert“ in der Bibliothek entfällt.
+- [ ] Spielstand im Raum (`room:<Schlüssel>`): eigene Regel zum Zusammenführen (Vereinigung der Flags, gelösten Rätsel
+  und geöffneten Schlösser wie im Gruppenspiel, gewonnen zählt, kürzeste Zeit). Kann auch entfallen, wenn er sich
+  als zu aufwendig erweist.
+- [ ] Datenschutzerklärung: synchronisierte Escape-Räume und ihre Bilder nennen.
+
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
   Stellung (Solver von einem Zustand aus, Core-Erweiterung), Typen ohne Solver (Nonogramm, Quiz), zählt eine Lösung
