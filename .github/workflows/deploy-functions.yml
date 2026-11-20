@@ -12,6 +12,7 @@ on:
       - "src/core/**"
       - "src/puzzles/**"
       - "src/server/**"
+      - "src/rooms/**"
       - ".github/workflows/deploy-functions.yml"
   workflow_dispatch:
 

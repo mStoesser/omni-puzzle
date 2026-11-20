@@ -4,6 +4,7 @@ import { examples } from "../puzzles/index.ts";
 import { imageKey, toBase64 } from "../core/images.ts";
 import { fakeWebp } from "../core/test-fixtures.ts";
 import { handlePublish } from "./publish-handler.ts";
+import { escapeRoomExamples } from "../rooms/examples.ts";
 
 const URL_ = "https://abc.supabase.co";
 const doc = examples.find((e) => e.id === "rushhour-1")!.doc;
@@ -147,4 +148,55 @@ test("rejects a quiz whose image is missing from the request", async () => {
   const response = await handlePublish(post({ doc: quiz, title: "Quiz" }), { url: URL_, serviceKey: "sb_secret_x", fetch: backend({ status: 200, body: "p" }) });
   assert.equal(response.status, 400);
   assert.equal(await errorOf(response), "invalid-image");
+});
+
+test("publishes an escape room via publish_room and uploads its own pictures to the room's folder (M46)", async () => {
+  const bytes = fakeWebp(9);
+  const doc = structuredClone(escapeRoomExamples[0]!.doc) as any;
+  doc.data.scenes[1].image = { key: imageKey(bytes) };
+  for (const uploadStatus of [200, 500]) {
+    const calls: Call[] = [];
+    const fetch = (async (url: string | URL, init: RequestInit = {}) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith("/auth/v1/user")) return Response.json({ id: "u1" });
+      if (String(url).includes("/storage/")) return new Response("{}", { status: uploadStatus });
+      return Response.json(String(url).includes("/rpc/") ? "r-1" : null);
+    }) as typeof globalThis.fetch;
+    const error = console.error;
+    console.error = () => {};
+    const body = { doc, title: "Arbeitszimmer", description: "", images: { [imageKey(bytes)]: toBase64(bytes) } };
+    const response = await handlePublish(post(body), { url: URL_, serviceKey: "sb_secret_x", fetch });
+    console.error = error;
+
+    const rpc = calls[1]!;
+    assert.equal(rpc.url, `${URL_}/rest/v1/rpc/publish_room`);
+    const args = JSON.parse(String(rpc.init.body));
+    assert.equal(args.author, "u1");
+    assert.equal(args.title, "Arbeitszimmer");
+    assert.deepEqual(args.cover, { builtin: "study" });
+    assert.equal(args.scene_count, 2);
+    assert.equal(args.lang, "de");
+    assert.match(args.content_key, /^[0-9a-f]{64}$/);
+    assert.equal(calls.find((c) => c.url.includes("/storage/"))!.url, `${URL_}/storage/v1/object/quiz-images/r-1/${imageKey(bytes)}`);
+    if (uploadStatus === 200) {
+      assert.deepEqual(await response.json(), { id: "r-1" });
+    } else {
+      assert.equal(await errorOf(response), "upload");
+      assert.equal(calls.at(-1)!.url, `${URL_}/rest/v1/rooms?id=eq.r-1`);
+    }
+  }
+});
+
+test("names the embedded puzzle an escape room error is about", async () => {
+  const doc = structuredClone(escapeRoomExamples[0]!.doc) as any;
+  doc.data.puzzles[1].doc.meta.verified = false;
+  const response = await handlePublish(post({ doc, title: "x" }), { url: URL_, serviceKey: "sb_secret_x", fetch: backend({ status: 200, body: "r" }) });
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "not-verified", message: doc.data.puzzles[1].id });
+
+  const daily = await handlePublish(
+    post({ doc: escapeRoomExamples[0]!.doc, title: "x" }),
+    { url: URL_, serviceKey: "sb_secret_x", fetch: backend({ status: 400, body: { code: "PT429" } }) },
+  );
+  assert.equal(await errorOf(daily), "daily-limit");
 });

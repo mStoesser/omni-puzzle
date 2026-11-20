@@ -1,7 +1,7 @@
 // Request handler of the Edge Function "cleanup-images" (supabase/functions/cleanup-images/index.ts).
 // Called once a day by .github/workflows/cleanup-images.yml with a shared secret.
-// - quiz-images: deletes the folders of puzzles that no longer exist (withdrawn, deleted by moderators,
-//   accounts deleted).
+// - quiz-images: deletes the folders of puzzles and escape rooms (M46) that no longer exist (withdrawn, deleted by
+//   moderators, accounts deleted).
 // - user-images (M27): deletes the folders of deleted accounts, and pictures that none of the account's synced
 //   puzzles uses any more (only if older than a day, so a picture uploaded just before its puzzle stays).
 import { loadDocument } from "../core/document.ts";
@@ -120,8 +120,10 @@ async function cleanup(env: CleanupEnv) {
   // Pictures of published puzzles.
   const folders = (await list(BUCKET, "")).map((e) => e.name).filter((name) => UUID.test(name));
   const puzzles = await existing("puzzles", folders);
+  // M46: escape rooms keep their pictures in the same bucket, in a folder named after the room.
+  const rooms = await existing("rooms", folders.filter((folder) => !puzzles.has(folder)));
   let files = 0;
-  const orphans = folders.filter((folder) => !puzzles.has(folder));
+  const orphans = folders.filter((folder) => !puzzles.has(folder) && !rooms.has(folder));
   for (const folder of orphans) {
     const paths = (await list(BUCKET, folder)).map((e) => `${folder}/${e.name}`);
     await remove(BUCKET, paths);

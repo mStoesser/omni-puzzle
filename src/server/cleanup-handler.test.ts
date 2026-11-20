@@ -8,6 +8,7 @@ const KEEP = "11111111-1111-4111-8111-111111111111";
 const GONE = "22222222-2222-4222-8222-222222222222";
 const USER = "33333333-3333-4333-8333-333333333333";
 const OLD_USER = "44444444-4444-4444-8444-444444444444";
+const ROOM = "55555555-5555-4555-8555-555555555555";
 const NOW = Date.parse("2026-11-07T12:00:00Z");
 const USED = "c".repeat(64);
 
@@ -25,7 +26,7 @@ function storage(calls: Call[]): typeof fetch {
     const u = String(url);
     if (u.endsWith("/object/list/quiz-images")) {
       const { prefix } = JSON.parse(String(init.body));
-      if (prefix === "") return Response.json([{ name: KEEP }, { name: GONE }, { name: ".emptyFolderPlaceholder" }]);
+      if (prefix === "") return Response.json([{ name: KEEP }, { name: GONE }, { name: ROOM }, { name: ".emptyFolderPlaceholder" }]);
       return Response.json([{ name: "a".repeat(64) }, { name: "b".repeat(64) }]);
     }
     if (u.endsWith("/object/list/user-images")) {
@@ -38,6 +39,7 @@ function storage(calls: Call[]): typeof fetch {
       ]);
     }
     if (u.includes("/rest/v1/puzzles")) return Response.json([{ id: KEEP }]);
+    if (u.includes("/rest/v1/rooms")) return Response.json(decodeURIComponent(u).includes(ROOM) ? [{ id: ROOM }] : []);
     if (u.includes("/rest/v1/profiles")) return Response.json([{ id: USER }]);
     if (u.includes("/rest/v1/sync_puzzles")) return Response.json(new URL(u).searchParams.get("offset") === "0" ? [{ doc: quizWith(USED) }] : []);
     return Response.json([]);
@@ -50,19 +52,21 @@ const run = (secret: string | null, calls: Call[], envSecret = "geheim") =>
     { url: URL_, serviceKey: "sb_secret_x", secret: envSecret, fetch: storage(calls), now: () => NOW },
   );
 
-test("deletes the folders of puzzles that no longer exist", async () => {
+test("deletes the folders of puzzles and escape rooms that no longer exist", async () => {
   const calls: Call[] = [];
   const response = await run("geheim", calls);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    folders: 2,
+    folders: 3,
     removedFolders: 1,
     removedFiles: 2,
     userFolders: 2,
     removedUserFolders: 1,
     removedUserFiles: 4,
   });
-  assert.match(decodeURIComponent(calls.find((c) => c.url.includes("/rest/"))!.url), new RegExp(`id=in\\.\\(${KEEP},${GONE}\\)`));
+  assert.match(decodeURIComponent(calls.find((c) => c.url.includes("/rest/"))!.url), new RegExp(`id=in\\.\\(${KEEP},${GONE},${ROOM}\\)`));
+  const roomQuery = decodeURIComponent(calls.find((c) => c.url.includes("/rest/v1/rooms"))!.url);
+  assert.match(roomQuery, new RegExp(`id=in\\.\\(${GONE},${ROOM}\\)`)); // only the folders without a puzzle
   const deletes = calls.filter((c) => c.init.method === "DELETE").map((c) => [c.url.split("/object/")[1], JSON.parse(String(c.init.body)).prefixes]);
   assert.deepEqual(deletes, [
     ["quiz-images", [`${GONE}/${"a".repeat(64)}`, `${GONE}/${"b".repeat(64)}`]],

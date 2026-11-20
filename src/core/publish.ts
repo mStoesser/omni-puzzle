@@ -30,7 +30,8 @@ export type PublishErrorCode =
   | "not-verified" // the creator has not solved it
   | "unsolvable" // the solver proved that there is no solution
   | "theme-contrast" // M29: parts of the puzzle are hard to tell apart in its theme
-  | "invalid-image"; // a referenced image is missing, too large, of the wrong type or does not match its key
+  | "invalid-image" // a referenced image is missing, too large, of the wrong type or does not match its key
+  | "unwinnable"; // M46: the escape room cannot be won (checkEscapeRoom)
 
 export class PublishError extends Error {
   readonly code: PublishErrorCode;
