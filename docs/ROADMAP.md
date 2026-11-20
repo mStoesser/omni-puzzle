@@ -1164,7 +1164,8 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   und verschieben, Schloss mit Code und Sieg, Bereich öffnet das Schloss, Hinweis mit dem Code, Rätsel aus der
   Bibliothek hinzufügen und wieder entfernen, eigenes Bild (800 × 600 → 800 × 450), Probespielen bis zum Sieg →
   verifiziert, Neuladen, Spielen aus der Bibliothek, Bild übersteht das Aufräumen; am Handy kein waagrechter Überlauf.)
-- [ ] Test am echten Desktop (Maus, Tastatur) und kurzer Blick am Tablet.
+- [x] Test am echten Desktop (Maus, Tastatur) und kurzer Blick am Tablet.
+  (Desktop-Test vom User erledigt: alles erfolgreich. Der Blick am Tablet steht noch aus.)
 - [x] Bundle-Größe: Mit M45 liegt das Haupt-Bundle wieder über 500 kB (512 kB, gzip 162 kB; der nachgeladene
   Escape-Raum-Teil 59 kB). Ursache sind vor allem die neuen Texte (rund 15 kB, beide Sprachen sind immer im Bundle; alle
   Texte zusammen 123 kB). Entscheiden: Warnschwelle anheben oder nur die Texte der aktiven Sprache laden (spart rund
