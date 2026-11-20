@@ -1197,9 +1197,9 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   Teilen mit QR-Code, Zurück zur Galerie, Raum aus einem Link, kaputter Link, Teilen im Editor mit Link und
   Checkliste; Handy quer und hoch ohne waagrechten Überlauf. Nicht geprüft: Veröffentlichen und Melden gegen den echten
   Server; dafür fehlt dort noch die Migration.)
-- [ ] Migration `0016_rooms.sql` auf dev und prod anwenden (vor dem Deployment der App, sonst meldet die Galerie bei
+- [x] Migration `0016_rooms.sql` auf dev und prod anwenden (vor dem Deployment der App, sonst meldet die Galerie bei
   „Escape-Räume“ einen Fehler), Funktion deployen (läuft mit dem Push), dann echter Test: veröffentlichen mit eigenem
-  Bild, in der Galerie spielen, melden, zurückziehen.
+  Bild, in der Galerie spielen, melden, zurückziehen. (Migration angewendet, gepusht und getestet: alles erfolgreich.)
 - [ ] Offen gelassen: „In der Galerie“ für eigene Escape-Räume in der Bibliothek (wie bei Rätseln, M35).
 
 ### M47 – Escape-Raum: Gruppenspiel
