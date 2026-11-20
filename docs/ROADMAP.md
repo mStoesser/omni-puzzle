@@ -1205,13 +1205,29 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
   „In der Galerie“.)
 
 ### M47 – Escape-Raum: Gruppenspiel
-- [ ] Spielrunde auf dem Server: Eine Person startet sie, die anderen treten per QR-Code oder kurzem Code bei, ohne
+- [x] Spielrunde auf dem Server: Eine Person startet sie, die anderen treten per QR-Code oder kurzem Code bei, ohne
   Konto; ein geheimes Runden-Token berechtigt. Nur veröffentlichte Escape-Räume, nur online.
-- [ ] Edge Function nimmt Ereignisse an und prüft sie gegen das Dokument; der gemeinsame Stand ist die Vereinigung
+  (Starten nur angemeldet, im Info-Fenster des Raums. Code aus sechs Zeichen ohne 0/O/1/I, Link `#/j/<Code>` mit
+  QR-Code im Einladen-Fenster, Eintippen in der Galerie bei „Escape-Räume“. Beim Beitreten ein Name, das Token pro
+  Spieler bleibt auf dem Gerät, Neuladen geht ohne neuen Beitritt weiter. Höchstens 8 Mitspieler, 24 Stunden.)
+- [x] Edge Function nimmt Ereignisse an und prüft sie gegen das Dokument; der gemeinsame Stand ist die Vereinigung
   (aus M43). Kein direkter Tabellenzugriff (RLS).
-- [ ] Abgleich per Abfrage alle paar Sekunden (kein neues Paket; Supabase Realtime bräuchte ohne Bibliothek ein eigenes
+  (Edge Function `round`, `0017_rounds.sql`. Gesendet werden nur Ereignisse, die den gemeinsamen Stand ändern, mit
+  der Szene des Spielers; der Server spielt sie mit `applyGroupEvents` auf dem Rundenstand nach. Die Tabellen sind für
+  Clients ganz gesperrt, nur Funktionen.)
+- [x] Abgleich per Abfrage alle paar Sekunden (kein neues Paket; Supabase Realtime bräuchte ohne Bibliothek ein eigenes
   WebSocket-Protokoll). Anzeige, wer dabei ist und was andere gerade gelöst haben.
-- [ ] Alte Runden räumt der vorhandene Aufräum-Job ab; Tageslimit gegen Missbrauch.
+  (Alle 3 s `round_state()` per PostgREST, nur bei sichtbarer Seite. Knopf mit Mitspielerzahl in der Leiste,
+  Mitspielerliste im Info-Fenster, Hinweis „Ben hat „Tresor“ geöffnet.“ über dem Bild. Die Uhr ist die der Runde,
+  kein „Neu starten“; gewinnt einer, sehen alle den Sieg. Ohne Verbindung werden Ereignisse nachgereicht.)
+- [x] Alte Runden räumt der vorhandene Aufräum-Job ab; Tageslimit gegen Missbrauch.
+  (`cleanup_rounds()` aus `cleanup-images`, nach zwei Tagen. 10 Runden pro Tag und Konto, 1 000 Ereignisse pro Runde.)
+- [x] Im Browser geprüft: zwei Spieler in getrennten Browser-Kontexten gegen einen simulierten Server, der die echte
+  Gruppenlogik nutzt (Runde starten, Einladen mit QR-Code, Code in der Galerie, Beitreten, Tresor bei B öffnet die Tür
+  bei A, Hinweis bei A, Sieg durch einen dritten Spieler bei allen mit gleicher Zeit, Neuladen, Verlassen).
+- [ ] Migration `0017_rounds.sql` auf dev und prod anwenden, Funktion `round` deployen (läuft mit dem Push), dann
+  echter Test mit zwei Handys: Runde starten, per QR-Code beitreten, gemeinsam entkommen.
+- [ ] Datenschutzerklärung prüfen: Sie nennt jetzt Runden, Namen der Mitspieler und die Löschfrist.
 
 ### M48 – Escape-Raum: Synchronisieren
 Eigene Escape-Räume bleiben bisher auf dem Gerät (M45). Sie sollen wie Rätsel mit dem Konto synchronisiert werden

@@ -22,7 +22,8 @@ export type Route =
   | { name: "room"; id: string } // an escape room (M44): built-in example or own (M45)
   | { name: "roomEdit"; id: string } // the escape room editor (M45)
   | { name: "publishedRoom"; id: string } // a published escape room (M46)
-  | { name: "sharedRoom"; code: string }; // an escape room in a share link (M46), like "shared" for puzzles
+  | { name: "sharedRoom"; code: string } // an escape room in a share link (M46), like "shared" for puzzles
+  | { name: "round"; code: string }; // joining or continuing a round of playing an escape room together (M47)
 
 const TYPE_ID = /^[a-z0-9-]{1,32}$/;
 const LOCAL_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -76,6 +77,11 @@ export function parseRoute(hash: string): Route {
       return PUBLISHED_ID.test(arg) ? { name: "publishedRoom", id: arg } : HOME;
     case "e":
       return SHARE_CODE.test(arg) ? { name: "sharedRoom", code: arg } : HOME;
+    case "j": {
+      // Typed codes may be lower case; isRoundCode in rooms/group.ts has the exact alphabet.
+      const code = arg.toUpperCase();
+      return /^[A-HJ-NP-Z2-9]{6}$/.test(code) ? { name: "round", code } : HOME;
+    }
     default:
       return HOME;
   }
@@ -125,6 +131,8 @@ export function formatRoute(route: Route): string {
       return `#/r/${route.id}`;
     case "sharedRoom":
       return `#/e/${route.code}`;
+    case "round":
+      return `#/j/${route.code}`;
   }
 }
 

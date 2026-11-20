@@ -5183,3 +5183,125 @@ input.mono {
 .room-editor select {
   max-width: 100%;
 }
+
+/* M47: playing an escape room together */
+.room-group-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  padding-inline: var(--kk-space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.room-group-status {
+  position: absolute;
+  top: var(--kk-space-2);
+  inset-inline: var(--kk-space-3);
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--kk-space-2) var(--kk-space-3);
+  border: 1px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+  background: var(--kk-surface);
+  text-align: center;
+}
+
+.room-toast {
+  position: absolute;
+  top: var(--kk-space-3);
+  inset-inline: var(--kk-space-3);
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--kk-space-2) var(--kk-space-3);
+  border-radius: var(--kk-radius-xl);
+  background: var(--kk-brand);
+  color: var(--kk-on-brand);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+.room-toast[hidden] {
+  display: none;
+}
+
+.room-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-2);
+  padding-top: var(--kk-space-3);
+  border-top: 1px solid var(--kk-line);
+}
+
+.room-group h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+  margin: 0;
+  font-size: 1rem;
+}
+
+.round-players {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.round-players li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--kk-space-2);
+  padding: var(--kk-space-1) 0;
+}
+
+.round-players li.away > span:first-child {
+  color: var(--kk-muted);
+}
+
+.round-code {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--kk-space-2);
+  margin: var(--kk-space-2) 0;
+}
+
+.round-code strong {
+  font-family: ui-monospace, monospace;
+  font-size: 2rem;
+  letter-spacing: 0.15em;
+}
+
+.round-join-title {
+  display: flex;
+  align-items: center;
+  gap: var(--kk-space-2);
+}
+
+.round-join-inline {
+  margin-bottom: var(--kk-space-3);
+}
+
+.round-join-inline .field > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kk-space-1);
+}
+
+.round-join-row {
+  display: flex;
+  gap: var(--kk-space-2);
+}
+
+.round-join-row input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.round-join-inline .status-problem:empty {
+  display: none;
+}

@@ -11,3 +11,17 @@ export { addPuzzle, draftProblems, newEscapeRoom, roomImageKeys } from "../rooms
 export { checkEscapeRoom } from "../rooms/check.ts";
 export { cropTo16x9 } from "./image-encode.ts";
 export { prepareRoomPublication } from "../rooms/publish.ts";
+export { GROUP, applyGroupEvents, cleanPlayerName, isRoundCode, mergeServerShared, normalizeRoundCode, sameShared, sharedFor } from "../rooms/group.ts";
+export { EMPTY_SHARED, mergeShared } from "../rooms/logic.ts";
+export {
+  ROUND_NAME_KEY,
+  createRound,
+  fetchRoundState,
+  joinRound,
+  leaveRound,
+  parseRoundSession,
+  roundErrorText,
+  roundSaveKey,
+  roundSessionKey,
+  sendRoundEvents,
+} from "../rooms/round-api.ts";

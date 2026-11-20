@@ -80,12 +80,15 @@ test("formatRoute and parseRoute round-trip", () => {
     { name: "roomEdit", id: "x3" },
     { name: "publishedRoom", id: "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f" },
     { name: "sharedRoom", code: "1.abc" },
+    { name: "round", code: "ABC234" },
   ];
   for (const route of routes) assert.deepEqual(parseRoute(formatRoute(route)), route);
   assert.deepEqual(parseRoute("#/room/a b"), { name: "home" });
   assert.equal(takesMode({ name: "room", id: "room-study" }), false); // always shown on its own full screen stage
   assert.deepEqual(parseRoute("#/r/room-study"), { name: "home" }); // published rooms have server ids
   assert.deepEqual(parseAddress("#/e/1.abc?mode=full"), { route: { name: "home" }, mode: null });
+  assert.deepEqual(parseRoute("#/j/abc234"), { name: "round", code: "ABC234" }); // M47: typed in lower case
+  assert.deepEqual(parseRoute("#/j/ABC230"), { name: "home" });
 });
 
 const GALLERY_ID = "8c0f4f0e-1d2b-4c3a-9e8f-0a1b2c3d4e5f";

@@ -30,6 +30,8 @@ export type GalleryViewActions = {
   setFilter(filter: GalleryFilter): void;
   loadMore(): void;
   retry(): void;
+  /** M47: joining a round of playing an escape room together by its code; false if it is no code. */
+  joinRound(code: string): boolean;
 };
 
 const SORT_TEXT: Record<GallerySort, MessageKey> = {
@@ -105,6 +107,8 @@ export function galleryView(
       extraClass: "gallery-search",
     })}
 
+    ${rooms ? roundJoin(actions) : nothing}
+
     ${chains || rooms
       ? nothing
       : html`<div class="chips" role="group" aria-label=${t("galleryType")}>
@@ -164,6 +168,32 @@ export function galleryView(
         `}
     <p class="visually-hidden" aria-live="polite">${model.announcement}</p>
   `;
+}
+
+/** M47: a round's code, for players without the link (read out or seen on another phone). */
+function roundJoin(actions: GalleryViewActions) {
+  return html`<form
+    class="round-join-inline"
+    aria-label=${t("groupJoinLabel")}
+    @submit=${(e: SubmitEvent) => {
+      e.preventDefault();
+      const input = (e.target as HTMLFormElement).elements.namedItem("round-code") as HTMLInputElement;
+      // Shown directly: the form keeps no state of its own, a valid code leaves the page.
+      const invalid = !actions.joinRound(input.value);
+      input.setAttribute("aria-invalid", String(invalid));
+      const problem = (e.target as HTMLFormElement).querySelector(".status-problem");
+      if (problem) problem.textContent = invalid ? t("groupJoinCodeInvalid") : "";
+    }}
+  >
+    <label class="field">
+      <span>${icon("users", 16)} ${t("groupJoinCode")}</span>
+      <span class="round-join-row">
+        <input name="round-code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder=${t("groupJoinPlaceholder")} />
+        <button type="submit" class="secondary">${t("groupJoinButton")}</button>
+      </span>
+    </label>
+    <p class="status-problem" role="alert"></p>
+  </form>`;
 }
 
 /** Native select that looks like a quiet text button with a chevron. */

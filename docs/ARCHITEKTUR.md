@@ -99,6 +99,7 @@ src/
     publish-handler.ts    # Request-Handler der Edge Function „publish“ (laufzeitneutral, mit node --test getestet)
     cleanup-handler.ts    # Request-Handler der Edge Function „cleanup-images“ (quiz-images und user-images)
     score-handler.ts      # Request-Handler der Edge Function „submit-score“ (M25)
+    round-handler.ts      # Request-Handler der Edge Function „round“: Runden starten, beitreten, Ereignisse (M47)
   ui/
     views/                # home.ts, library.ts, play.ts (Hüllen), play-stage.ts (Bühne), editor.ts, chain.ts …
     fullscreen.ts         # Browser-Vollbild und Wake Lock (M41)
@@ -130,12 +131,15 @@ src/
     edit.ts               # Bearbeiten für den Editor, Entwurfs-Probleme, Bild-Schlüssel (M45)
     publish.ts            # Prüfung vor dem Veröffentlichen, auch auf dem Server (M46)
     published.ts          # veröffentlichte Räume: Laden, Galerie, eigene, Melden, Moderation (M46)
+    group.ts              # gemeinsam spielen: Codes, Namen, Ereignisse prüfen und nachspielen, Rundenstand (M47)
+    round-api.ts          # Runden auf dem Server: starten, beitreten, Ereignisse, Stand abfragen, verlassen (M47)
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # Mail-Vorlagen, Sprache nach user_metadata.lang (M28)
   functions/publish/      # Edge Function (Deno), importiert src/server/publish-handler.ts
   functions/cleanup-images/  # Edge Function (Deno), importiert src/server/cleanup-handler.ts
   functions/submit-score/ # Edge Function (Deno), importiert src/server/score-handler.ts
+  functions/round/        # Edge Function (Deno), importiert src/server/round-handler.ts (M47)
   config.toml             # nur für das Deployment der Functions
 docs/
 ```
@@ -1377,6 +1381,37 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
 - **Konto und Moderation:** „Meine Escape-Räume“ (Titel/Beschreibung ändern, zurückziehen); die Moderationsliste
   enthält Räume (ohne Dokument, ein Klick öffnet den Raum).
 
+### Escape-Räume gemeinsam spielen (M47)
+
+- **Idee:** Jeder spielt am eigenen Handy. Geteilt wird nur `Shared` (Schalter, gelöste Rätsel, offene Schlösser,
+  Sieg); weil es nur wächst, ist der Stand der Runde die Vereinigung. Wo jemand steht und welche Hinweise er gesehen
+  hat, bleibt auf seinem Gerät (gespeichertes Spiel `round:<Code>`, getrennt vom Alleinspiel). Nur veröffentlichte
+  Räume, nur online.
+- **Runde** (`0017_rounds.sql`): Tabellen `room_rounds` (Raum, Gastgeber, Code, Schalter/Rätsel/Schlösser als Arrays,
+  `won_at`, Ereigniszähler), `room_round_players` (Name, SHA-256 des Spieler-Tokens, zuletzt gesehen) und
+  `room_round_news` (wer was gelöst hat). Kein Client darf die Tabellen lesen oder schreiben; alles geht über
+  Funktionen. Runden laufen 24 Stunden (danach keine Ereignisse und kein Beitritt mehr), `cleanup_rounds()` löscht sie
+  nach zwei Tagen (aufgerufen vom täglichen `cleanup-images`). Ein zurückgezogener Raum nimmt seine Runden mit.
+- **Starten** nur angemeldet (höchstens 10 Runden pro Tag und Konto), **beitreten** ohne Konto mit dem Code (sechs
+  Zeichen ohne 0/O/1/I, `#/j/<Code>` als Link und QR-Code, in der Galerie bei „Escape-Räume“ auch zum Eintippen),
+  höchstens 8 Mitspieler. Beim Beitreten vergibt der Server ein zufälliges Token (32 Byte) und speichert nur dessen
+  Hash; die App legt es unter `round-session:<Code>` ab, so geht es nach dem Neuladen ohne neuen Beitritt weiter.
+- **Ereignisse** (Edge Function `round`, `src/server/round-handler.ts`): Die App schickt nur Ereignisse, die `Shared`
+  verändert haben, jeweils mit der Szene, in der der Spieler stand (`GroupEvent`). Der Server lädt den Raum,
+  spielt sie mit `applyGroupEvents` (`rooms/group.ts`) auf dem Stand der Runde nach und vereinigt, was gilt
+  (`round_merge`, mit Zeilensperre); dazu Meldungen „gelöst“, „geöffnet“, „entkommen“. Die Szene prüft er nur auf
+  Existenz: Wer schummeln will, kann das Dokument ohnehin lesen (Codes stehen darin, siehe „Nicht geheim“).
+- **Abgleich:** alle 3 Sekunden `round_state(token, since)` per PostgREST (keine Edge Function, also billig), nur bei
+  sichtbarer Seite und sofort beim Zurückkehren. Er liefert Stand, Mitspieler und neue Meldungen; die App vereinigt den
+  Stand mit ihrem (nie kleiner) und zeigt Meldungen anderer kurz als Hinweis über dem Bild. Bestätigt der Server
+  Ereignisse, ist der lokale Stand der des Servers plus noch unbestätigte Ereignisse; was der Server ablehnte (ein
+  Bereich, den ein anderer gerade per Schalter ausgeblendet hat), verschwindet so wieder. Ohne Verbindung bleiben die
+  Ereignisse liegen und gehen mit dem nächsten Abgleich raus.
+- **Spieler:** Die Uhr ist die der Runde (ab dem Start, auf allen Handys gleich); kein „Neu starten“. Die Leiste zeigt
+  statt des Info-Knopfs einen Knopf mit der Zahl der Mitspieler; das Info-Fenster hat dann Code, Mitspieler (wer länger
+  als 30 Sekunden nicht abgefragt hat, gilt als „gerade nicht da“), Einladen (Teilen-Fenster mit Code und QR-Code) und
+  Verlassen (löscht den eigenen Eintrag, der gemeinsame Fortschritt bleibt). Gewinnt einer, sehen alle den Sieg.
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -1428,6 +1463,7 @@ Ab einer Meldungsschwelle setzt ein Trigger `hidden = true`.
 | `#/room-edit/<id>` | Escape-Raum-Editor (M45) |
 | `#/r/<id>` | veröffentlichter Escape-Raum (M46) |
 | `#/e/<code>` | Escape-Raum aus einem Link (M46) |
+| `#/j/<Code>` | einer Runde beitreten oder weiterspielen (M47) |
 | `#/chain/new` | Ketten-Editor (angemeldet) |
 | `#/daily` | das heutige Rätsel des Tages mit Tagesrangliste (M26) |
 | `…?mode=full` | an `#/p/…`, `#/g/…`, `#/c/…`, `#/play/…` und `#/daily`: im Vollbild (M41); neue Teilen-Links tragen es |

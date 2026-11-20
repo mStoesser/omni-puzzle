@@ -24,6 +24,8 @@ export type ShareDialogModel = {
   room?: boolean; // M46: an escape room
   /** M46: why an escape room has no link: own pictures (they need the gallery) or too large for a link. */
   linkProblem?: "images" | "too-large";
+  /** M47: inviting to a round of playing together; its code, shown large for reading out. */
+  round?: string;
 };
 
 export type ShareDialogActions = {
@@ -54,7 +56,7 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
     "share-title",
     actions.close,
     html`<div class="sheet-head">
-        <h2 id="share-title" class="sheet-title">${t(model.chain ? "shareChainTitle" : model.room ? "shareRoomTitle" : "shareTitle")}</h2>
+        <h2 id="share-title" class="sheet-title">${t(model.round ? "groupInvite" : model.chain ? "shareChainTitle" : model.room ? "shareRoomTitle" : "shareTitle")}</h2>
         <button class="icon-button" aria-label=${t("close")} @click=${actions.close}>${icon("close", 20)}</button>
       </div>
 
@@ -63,9 +65,12 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
           <span class="share-way-icon brand">${icon("link", 20)}</span>
           <div>
             <h3 id="share-link-title">${t("shareLinkTitle")}</h3>
-            <p>${t("shareLinkText")}</p>
+            <p>${t(model.round ? "groupInviteText" : "shareLinkText")}</p>
           </div>
         </div>
+        ${model.round
+          ? html`<p class="round-code"><span>${t("groupCode")}</span> <strong>${model.round}</strong></p>`
+          : nothing}
         ${model.linkProblem
           ? html`<p class="hint">${t(model.linkProblem === "images" ? "shareRoomImages" : "shareRoomTooLarge")}</p>`
           : url === null
@@ -85,7 +90,7 @@ export function shareDialog(model: ShareDialogModel, actions: ShareDialogActions
                 </button>
               </div>
               ${canShare
-                ? html`<button class="secondary block" @click=${() => share(model.title, t(model.chain ? "shareChainText" : model.room ? "shareRoomText" : "shareText"), url, actions)}>${icon("share", 18)}${t("shareSend")}</button>`
+                ? html`<button class="secondary block" @click=${() => share(model.title, model.round ? t("groupShareText", { title: model.title }) : t(model.chain ? "shareChainText" : model.room ? "shareRoomText" : "shareText"), url, actions)}>${icon("share", 18)}${t("shareSend")}</button>`
                 : nothing}
               <p class="hint">${t("shareLength", { length: url.length })}</p>
               ${url.length > RECOMMENDED_LINK_LENGTH ? html`<p class="status-problem">${t("shareTooLong")}</p>` : nothing}

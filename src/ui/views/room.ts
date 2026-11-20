@@ -43,6 +43,18 @@ export type RoomViewModel = {
   info: RoomInfo | null;
   infoOpen: boolean;
   report: ReportDialogModel | null;
+  /** M47: the round being played together; null when playing alone. */
+  group: RoomGroupView | null;
+  /** M47: starting a round (published rooms, not in a round); null = not offered here. */
+  groupStart: { access: "yes" | "signed-out"; busy: boolean; error: string | null } | null;
+};
+
+/** M47: a round as the player sees it. `news`: what another player just did, shown for a moment. */
+export type RoomGroupView = {
+  code: string;
+  players: readonly { name: string; me: boolean; away: boolean }[];
+  status: "ok" | "offline" | "expired" | "gone";
+  news: string | null;
 };
 
 /** Whether the viewer may report a published room; null for shared rooms. */
@@ -81,6 +93,9 @@ export type RoomViewActions = {
   share(): void;
   openReport(): void;
   report: ReportDialogActions;
+  startGroup(): void; // M47
+  invite(): void;
+  leaveGroup(): void;
 };
 
 /**
@@ -114,6 +129,7 @@ export function roomView(model: RoomViewModel, actions: RoomViewActions) {
             <button type="button" class="icon-button" aria-label=${t("close")} @click=${actions.dismissSceneText}>${icon("close", 18)}</button>
           </div>`
         : nothing}
+      ${model.group ? groupNotes(model.group) : nothing}
       <div class="room-rotate" aria-hidden="true">
         <span class="room-rotate-phone"></span>
         <p>${t("roomRotate")}</p>
@@ -140,9 +156,67 @@ function roomBar(model: RoomViewModel, scene: Scene, actions: RoomViewActions) {
     <span class="room-time" aria-label=${t("roomTime")}>${formatDuration(model.elapsedMs)}</span>
     ${iconButton({ label: t("roomShowSpots"), icon: "eye", onClick: actions.showSpots })}
     ${iconButton({ label: t("roomHints"), icon: "bulb", onClick: actions.openHints })}
-    ${iconButton({ label: t("roomRestart"), icon: "restart", onClick: actions.restartRoom })}
-    ${model.info ? iconButton({ label: t("roomInfo"), icon: "info", onClick: actions.openInfo }) : nothing}
+    ${model.group ? nothing : iconButton({ label: t("roomRestart"), icon: "restart", onClick: actions.restartRoom })}
+    ${model.group
+      ? html`<button
+          type="button"
+          class="icon-button room-group-button"
+          aria-label=${t("groupBar", { code: model.group.code, count: model.group.players.length })}
+          title=${t("groupRound", { code: model.group.code })}
+          @click=${actions.openInfo}
+        >
+          ${icon("users", 20)}<span aria-hidden="true">${model.group.players.length}</span>
+        </button>`
+      : model.info
+        ? iconButton({ label: t("roomInfo"), icon: "info", onClick: actions.openInfo })
+        : nothing}
   </nav>`;
+}
+
+const GROUP_STATUS: Record<Exclude<RoomGroupView["status"], "ok">, "groupOffline" | "groupExpired" | "groupGone"> = {
+  offline: "groupOffline",
+  expired: "groupExpired",
+  gone: "groupGone",
+};
+
+/** M47: the connection to the round when something is wrong, and what the others just did. */
+function groupNotes(group: RoomGroupView) {
+  return html`${group.status !== "ok" ? html`<p class="room-group-status" role="status">${t(GROUP_STATUS[group.status])}</p>` : nothing}
+    <p class="room-toast" role="status" ?hidden=${group.news === null}>${group.news ?? ""}</p>`;
+}
+
+/** M47: in a round its code, players, inviting and leaving; otherwise starting one. */
+function groupSection(model: RoomViewModel, actions: RoomViewActions) {
+  const { group, groupStart } = model;
+  if (group) {
+    return html`<section class="room-group" aria-labelledby="room-group-title">
+      <h3 id="room-group-title">${icon("users", 18)} ${t("groupRound", { code: group.code })}</h3>
+      ${group.status !== "ok" ? html`<p class="notice">${t(GROUP_STATUS[group.status])}</p>` : nothing}
+      <ul class="round-players" aria-label=${t("groupPlayers")}>
+        ${group.players.map(
+          (p) => html`<li class=${p.away ? "away" : ""}>
+            <span>${p.name}${p.me ? html` <span class="hint">(${t("groupYou")})</span>` : nothing}</span>
+            ${p.away ? html`<span class="hint">${t("groupAway")}</span>` : nothing}
+          </li>`,
+        )}
+      </ul>
+      ${group.status === "ok" || group.status === "offline"
+        ? html`<button class="block" @click=${actions.invite}>${icon("qr", 18)}${t("groupInvite")}</button>`
+        : nothing}
+      <button class="secondary block" @click=${actions.leaveGroup}>${icon("logOut", 18)}${t("groupLeave")}</button>
+    </section>`;
+  }
+  if (!groupStart) return nothing;
+  return html`<section class="room-group" aria-labelledby="room-group-title">
+    <h3 id="room-group-title">${icon("users", 18)} ${t("groupPlay")}</h3>
+    <p class="hint">${t("groupPlayIntro")}</p>
+    ${groupStart.access === "yes"
+      ? html`<button class="block" ?disabled=${groupStart.busy} @click=${actions.startGroup}>
+          ${groupStart.busy ? t("groupStarting") : html`${icon("users", 18)}${t("groupPlay")}`}
+        </button>`
+      : html`<p class="hint">${t("groupSignIn")} <a href="#/account">${t("accountLink")}</a></p>`}
+    ${groupStart.error ? html`<p class="status-problem" role="alert">${groupStart.error}</p>` : nothing}
+  </section>`;
 }
 
 /** M46: who made a published or shared room, sharing it and reporting it. */
@@ -163,6 +237,7 @@ function infoSheet(model: RoomViewModel, info: RoomInfo, actions: RoomViewAction
       <p class="hint">${facts.join(" · ")}</p>
       ${info.description ? html`<p class="room-story">${info.description}</p>` : nothing}
       ${info.access === "hidden" ? html`<p class="notice">${t("roomHidden")}</p>` : nothing}
+      ${groupSection(model, actions)}
       <button class="block" @click=${actions.share}>${icon("share", 18)}${t("roomShare")}</button>
       ${info.access === "yes" ? html`<button class="secondary block" @click=${actions.openReport}>${icon("flag", 18)}${t("roomReport")}</button>` : nothing}
       ${info.access === "reported" ? html`<p class="hint">${t("roomReportAlready")}</p>` : nothing}
@@ -278,12 +353,13 @@ function wonSheet(model: RoomViewModel, actions: RoomViewActions) {
       <span class="solved-icon">${icon("door", 32)}</span>
       <h2 id="room-won-title" class="solved-title">${t("roomWon")}</h2>
       ${model.data.victory ? html`<p class="room-story">${model.data.victory}</p>` : nothing}
+      ${model.group ? html`<p class="solved-sub">${t("groupWon")}</p>` : nothing}
       <p class="solved-sub">${t("roomWonTime", { time })}</p>
       ${model.test
         ? html`<p class="solved-sub">${t("roomWonTest")}</p>
             <button class="large block" @click=${actions.backToEditor}>${t("backToEditor")}</button>`
         : html`<a class="button large block" href=${model.backHref}>${t("toHome")}</a>`}
-      <button class="secondary block" @click=${actions.restartRoom}>${icon("restart", 18)}${t("roomAgain")}</button>
+      ${model.group ? nothing : html`<button class="secondary block" @click=${actions.restartRoom}>${icon("restart", 18)}${t("roomAgain")}</button>`}
     </div>`,
     "solved-sheet",
   );

@@ -48,7 +48,7 @@ import type { CardPreview } from "./core/preview.ts";
 import type { ChainDraft } from "./core/chains.ts";
 import type { ReportReason } from "./core/moderation.ts";
 import { applyRating, fetchMyReaction, setLike, setRating } from "./core/reactions.ts";
-import { formatAddress, formatRoute, linkMode, parseAddress, startRouter, takesMode } from "./core/router.ts";
+import { formatAddress, formatRoute, linkMode, parseAddress, parseRoute, startRouter, takesMode } from "./core/router.ts";
 import type { Address, Mode } from "./core/router.ts";
 import type { Route } from "./core/router.ts";
 import * as session from "./core/session.ts";
@@ -91,9 +91,13 @@ import { galleryView } from "./ui/views/gallery.ts";
 import { chainView } from "./ui/views/chain.ts";
 import type { ChainAccess, ChainViewModel } from "./ui/views/chain.ts";
 import { chainEditorView } from "./ui/views/chain-editor.ts";
-import type { RoomAccess, RoomPuzzle, RoomViewModel } from "./ui/views/room.ts";
+import type { RoomAccess, RoomGroupView, RoomPuzzle, RoomViewModel } from "./ui/views/room.ts";
 import type { ReportDialogModel } from "./ui/components/report-dialog.ts";
-import type { EscapeRoomData, EscapeRoomDocument, EscapeRoomMeta, RoomEvent, Step } from "./rooms/logic.ts";
+import type { EscapeRoomData, EscapeRoomDocument, EscapeRoomMeta, RoomEvent, Shared, Step } from "./rooms/logic.ts";
+import type { GroupEvent, RoundPlayer, RoundState } from "./rooms/group.ts";
+import type { RoundSession } from "./rooms/round-api.ts";
+import { roundJoinView } from "./ui/views/round-join.ts";
+import type { RoundJoinModel } from "./ui/views/round-join.ts";
 import type { RoomCheck } from "./rooms/check.ts";
 import type { DraftProblem } from "./rooms/edit.ts";
 import type { RoomEditorSection } from "./ui/views/room-editor.ts";
@@ -162,6 +166,24 @@ type RoomState = {
   source: RoomSource;
   infoOpen: boolean; // M46: the sheet about a published or shared room
   report: ReportDialogModel | null;
+  group: RoomGroup | null; // M47: playing together
+  groupStart: { busy: boolean; error: MessageKey | null };
+};
+
+/**
+ * M47: the round this room is played in. `server` is the union of everything the server sent; `pending` are this
+ * player's events it has not confirmed yet (only those that changed the shared progress).
+ */
+type RoomGroup = {
+  session: RoundSession;
+  me: string;
+  players: readonly RoundPlayer[];
+  since: number; // the newest news already seen
+  server: Shared;
+  pending: readonly GroupEvent[];
+  sending: boolean;
+  status: RoomGroupView["status"];
+  news: string | null;
 };
 
 /**
@@ -224,6 +246,7 @@ type AppState = {
   room: RoomState | null; // M44: the escape room of the route (or test play in the editor, M45)
   roomEditor: RoomEditorState | null; // M45
   libraryRooms: LibraryRoom[] | null; // M45: own escape rooms, loaded with the library
+  roundJoin: RoundJoinModel | null; // M47: the form for joining a round (#/j/<code> without a stored player token)
   roomStatus: ReadonlyMap<string, "started" | "won">; // M44: example escape rooms played on this device
   roomCardStatus: ReadonlyMap<string, "started" | "won">; // M46: gallery rooms played on this device, by content key
   libraryQuery: string; // M37: local title search in the library; cleared when leaving it
@@ -320,6 +343,7 @@ const store = createStore<AppState>({
   room: null,
   roomEditor: null,
   libraryRooms: null,
+  roundJoin: null,
   roomStatus: new Map(),
   roomCardStatus: new Map(),
   libraryQuery: "",
@@ -382,7 +406,7 @@ function enterRoute(route: Route, mode: Mode | null) {
   flushSave();
   flushResume();
   flushRoomSave();
-  patch({ route, mode, pending: false, error: null, notice: null, play: null, room: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
+  patch({ route, mode, pending: false, error: null, notice: null, play: null, room: null, roundJoin: null, share: null, publish: null, buildSheet: false, typeSheet: null, shortcuts: false });
   if (route.name !== "account") resetAccountForm();
   switch (route.name) {
     case "home":
@@ -401,6 +425,9 @@ function enterRoute(route: Route, mode: Mode | null) {
       break;
     case "sharedRoom":
       void openSharedRoom(route);
+      break;
+    case "round":
+      void openRound(route);
       break;
     case "daily":
       void openDaily(route);
@@ -503,12 +530,15 @@ async function openPublishedRoom(route: Route & { name: "publishedRoom" }) {
   }
   if (!isCurrent(route)) return;
   if (!room) return fail(route, { text: "roomPublishedNotFound" });
-  // The title may have been changed since publishing; the column is the current one.
-  const raw = typeof room.doc === "object" && room.doc !== null ? { ...room.doc, meta: { ...(room.doc as { meta?: object }).meta, title: room.title } } : room.doc;
-  if (await startRoom(route, route.id, raw, { kind: "published", room, reported: null }, { text: "puzzleBroken" })) {
+  if (await startRoom(route, route.id, publishedRoomDoc(room), { kind: "published", room, reported: null }, { text: "puzzleBroken" })) {
     countPlayOnce(room.id, roomsApi.registerRoomPlay);
     void loadRoomReport();
   }
+}
+
+/** The title may have been changed since publishing; the column is the current one. */
+function publishedRoomDoc(room: PublishedRoom): unknown {
+  return typeof room.doc === "object" && room.doc !== null ? { ...room.doc, meta: { ...(room.doc as { meta?: object }).meta, title: room.title } } : room.doc;
 }
 
 /** An escape room in a share link (M46). */
@@ -538,8 +568,15 @@ async function roomChunkFor(route: Route): Promise<RoomChunk | null> {
 }
 
 /** Checks the room, reads its saved game and opens it; false if it cannot be played. */
-async function startRoom(route: Route, id: string, raw: unknown, source: RoomSource, broken: ErrorInfo): Promise<boolean> {
-  const { loadEscapeRoom, roomSaveKey, parseRoomSave, newRoomSave } = rooms();
+async function startRoom(
+  route: Route,
+  id: string,
+  raw: unknown,
+  source: RoomSource,
+  broken: ErrorInfo,
+  round?: { group: Omit<RoomGroup, "server">; state: RoundState },
+): Promise<boolean> {
+  const { loadEscapeRoom, roomSaveKey, parseRoomSave, newRoomSave, roundSaveKey, sharedFor } = rooms();
   let doc: EscapeRoomDocument;
   try {
     doc = loadEscapeRoom(raw, registry);
@@ -548,10 +585,19 @@ async function startRoom(route: Route, id: string, raw: unknown, source: RoomSou
     fail(route, broken);
     return false;
   }
-  const key = roomSaveKey(doc);
+  // M47: a round keeps its own saved game (where this player stands, their hints); the shared part is the server's.
+  const key = round ? roundSaveKey(round.group.session.code) : roomSaveKey(doc);
   const saved = await storage.then((s) => s.getMeta(key)).catch(() => null);
   if (!isCurrent(route)) return false;
-  const save = parseRoomSave(saved, doc.data) ?? newRoomSave(doc.data, Date.now());
+  let save = parseRoomSave(saved, doc.data) ?? newRoomSave(doc.data, Date.now());
+  let group: RoomGroup | null = null;
+  if (round) {
+    const server = sharedFor(doc.data, round.state.shared);
+    const startedAt = Date.parse(round.state.startedAt); // the round's clock, the same on every phone
+    const wonAfterMs = round.state.wonAt ? Date.parse(round.state.wonAt) - startedAt : null;
+    save = { ...save, progress: { ...save.progress, shared: server }, startedAt, wonAfterMs };
+    group = { ...round.group, server };
+  }
   const room: RoomState = {
     id,
     doc,
@@ -568,6 +614,8 @@ async function startRoom(route: Route, id: string, raw: unknown, source: RoomSou
     source,
     infoOpen: false,
     report: null,
+    group,
+    groupStart: { busy: false, error: null },
   };
   patch({ pending: false, room });
   tickRoom();
@@ -690,7 +738,10 @@ function roomEvent(event: RoomEvent): boolean {
   const room = store.get().room;
   if (!room) return false;
   const step = rooms().applyEvent(room.doc.data, room.save.progress, event);
-  if (step.accepted) roomStep(step, room);
+  if (step.accepted) {
+    roomStep(step, room);
+    recordRoundEvent(room, step, event);
+  }
   return step.accepted;
 }
 
@@ -712,6 +763,7 @@ function updateRoomPuzzle(change: (s: AnyPlaySession) => AnyPlaySession) {
   updateRoomSave((s) => ({ ...s, progress: step.progress, wonAfterMs: won ? Date.now() - s.startedAt : s.wonAfterMs }));
   const open = step.open?.kind === "view" ? step.open : null; // onSolve opens at most a view
   setRoom((r) => ({ ...r, pendingOpen: open, sceneText: r.sceneText || step.progress.scene !== room.save.progress.scene }));
+  recordRoundEvent(room, step, { kind: "solved", puzzle: puzzle.id });
 }
 
 let roomTicker: ReturnType<typeof setInterval> | undefined;
@@ -763,14 +815,16 @@ const roomActions = {
     spotsTimer = setTimeout(() => setRoom((r) => ({ ...r, spotsVisible: false })), 1800);
   },
   dismissIntro: () => {
-    // The clock starts when the player starts, not when the page opened.
-    updateRoomSave((s) => (s.introSeen ? s : { ...s, introSeen: true, startedAt: Date.now() }));
+    // The clock starts when the player starts, not when the page opened; in a round it is the round's (M47).
+    const group = store.get().room?.group;
+    updateRoomSave((s) => (s.introSeen ? s : { ...s, introSeen: true, startedAt: group ? s.startedAt : Date.now() }));
     setRoom((r) => ({ ...r, sceneText: true }));
   },
   dismissSceneText: () => setRoom((r) => ({ ...r, sceneText: false })),
   restartRoom: () => {
     const room = store.get().room;
-    if (!room) return;
+    if (!room || room.group) return; // a round's progress belongs to everyone
+
     if (!room.save.progress.shared.won && !confirm(t("roomRestartConfirm"))) return;
     updateRoomSave(() => rooms().newRoomSave(room.doc.data, Date.now()));
     setRoom((r) => ({ ...r, open: null, puzzle: null, pendingOpen: null, hintsOpen: false, sceneText: r.save.introSeen, lock: { input: "", wrong: false } }));
@@ -792,6 +846,12 @@ const roomActions = {
     send: (reason: ReportReason, comment: string) => void sendRoomReport(reason, comment),
     close: () => setRoom((r) => ({ ...r, report: null })),
   },
+  startGroup: () => void startRound(),
+  invite: () => {
+    setRoom((r) => ({ ...r, infoOpen: false }));
+    openRoundInvite();
+  },
+  leaveGroup: () => void leaveRoundNow(),
 };
 
 function roomModel(state: AppState, room: RoomState): RoomViewModel {
@@ -835,11 +895,306 @@ function roomModel(state: AppState, room: RoomState): RoomViewModel {
     info,
     infoOpen: room.infoOpen,
     report: room.report,
+    group: room.group && groupView(room.group),
+    groupStart:
+      source.kind === "published" && !room.group && !source.room.hidden && api
+        ? { access: state.account.profile ? "yes" : "signed-out", busy: room.groupStart.busy, error: room.groupStart.error && t(room.groupStart.error) }
+        : null,
+  };
+}
+
+function groupView(group: RoomGroup): RoomGroupView {
+  const now = Date.now();
+  const activeMs = rooms().GROUP.activeMs;
+  return {
+    code: group.session.code,
+    players: group.players.map((p) => ({ name: p.name, me: p.id === group.me, away: p.id !== group.me && now - Date.parse(p.seenAt) > activeMs })),
+    status: group.status,
+    news: group.news,
   };
 }
 
 function escapeRoomIsExample(id: string): boolean {
   return roomChunk?.escapeRoomExample(id) !== undefined;
+}
+
+// --- Playing an escape room together (M47) ---
+
+/** A round just started here: its invitation opens once the room is there. */
+let inviteNext: string | null = null;
+
+/** #/j/<code>: continue with the player token stored on this device, or join under a name. */
+async function openRound(route: Route & { name: "round" }) {
+  if (!api) return fail(route, { text: "publishedUnavailable" });
+  patch({ pending: true });
+  const chunk = await roomChunkFor(route);
+  if (!chunk) return;
+  const raw = await storage.then((s) => s.getMeta(chunk.roundSessionKey(route.code))).catch(() => null);
+  if (!isCurrent(route)) return;
+  const roundSession = chunk.parseRoundSession(raw, route.code);
+  if (roundSession) await resumeRound(route, roundSession);
+  else await showRoundJoin(route, null);
+}
+
+async function showRoundJoin(route: Route & { name: "round" }, error: MessageKey | null) {
+  const saved = await storage.then((s) => s.getMeta(rooms().ROUND_NAME_KEY)).catch(() => null);
+  if (!isCurrent(route)) return;
+  const name = typeof saved === "string" ? saved : (store.get().account.profile?.username ?? "");
+  patch({ pending: false, roundJoin: { code: route.code, name, busy: false, error } });
+}
+
+const roundJoinActions = {
+  setName: (name: string) => store.set((state) => (state.roundJoin ? { ...state, roundJoin: { ...state.roundJoin, name, error: null } } : state)),
+  join: () => void joinRoundNow(),
+};
+
+async function joinRoundNow() {
+  const { roundJoin, route } = store.get();
+  if (!api || !roundJoin || roundJoin.busy || route.name !== "round") return;
+  const chunk = rooms();
+  const name = chunk.cleanPlayerName(roundJoin.name);
+  const setJoin = (change: Partial<RoundJoinModel>) => store.set((state) => (state.route === route && state.roundJoin ? { ...state, roundJoin: { ...state.roundJoin, ...change } } : state));
+  if (!name) return setJoin({ error: "groupNameInvalid" });
+  setJoin({ busy: true, error: null });
+  try {
+    const joined = await chunk.joinRound(api, route.code, name);
+    const roundSession: RoundSession = { code: route.code, token: joined.token, round: joined.round, room: joined.room };
+    await storage.then(async (s) => {
+      await s.putMeta(chunk.roundSessionKey(route.code), roundSession);
+      await s.putMeta(chunk.ROUND_NAME_KEY, name);
+    });
+    if (!isCurrent(route)) return;
+    patch({ roundJoin: null });
+    await resumeRound(route, roundSession);
+  } catch (error) {
+    console.warn("round join", error);
+    setJoin({ busy: false, error: chunk.roundErrorText(error) });
+  }
+}
+
+/** Opens the round's room with the server's state; a token the server no longer knows is forgotten. */
+async function resumeRound(route: Route & { name: "round" }, roundSession: RoundSession) {
+  if (!api) return;
+  patch({ pending: true });
+  const chunk = rooms();
+  let state: RoundState | null;
+  let room: PublishedRoom | null = null;
+  try {
+    state = await chunk.fetchRoundState(api, roundSession.token, 0);
+    if (state) room = await roomsApi.fetchPublishedRoom(api, state.room);
+  } catch (error) {
+    console.warn("round", error);
+    return fail(route, { text: apiErrorText(error) });
+  }
+  if (!isCurrent(route)) return;
+  if (!state) {
+    await forgetRound(roundSession.code);
+    return showRoundJoin(route, "groupGone");
+  }
+  if (!room) return fail(route, { text: "roomPublishedNotFound" });
+  const group: Omit<RoomGroup, "server"> = {
+    session: roundSession,
+    me: state.me,
+    players: state.players,
+    since: state.lastNews, // what happened before is not news
+    pending: [],
+    sending: false,
+    status: state.expired ? "expired" : "ok",
+    news: null,
+  };
+  if (!(await startRoom(route, room.id, publishedRoomDoc(room), { kind: "published", room, reported: null }, { text: "puzzleBroken" }, { group, state }))) return;
+  countPlayOnce(room.id, roomsApi.registerRoomPlay);
+  void loadRoomReport();
+  startRoundPolling();
+  if (inviteNext === roundSession.code) {
+    inviteNext = null;
+    openRoundInvite();
+  }
+}
+
+async function forgetRound(code: string) {
+  const chunk = rooms();
+  await storage
+    .then(async (s) => {
+      // The meta store has no delete; a null reads back as "no round" and "no saved game".
+      await s.putMeta(chunk.roundSessionKey(code), null);
+      await s.putMeta(chunk.roundSaveKey(code), null);
+    })
+    .catch((error: unknown) => console.warn("round", error));
+}
+
+/** The host starts a round of the open published room and goes there; the invitation opens on arrival. */
+async function startRound() {
+  const { room, account } = store.get();
+  if (!api || room?.source.kind !== "published" || room.group || !account.profile || room.groupStart.busy) return;
+  const roomId = room.source.room.id;
+  const chunk = rooms();
+  setRoom((r) => ({ ...r, groupStart: { busy: true, error: null } }));
+  try {
+    const name = chunk.cleanPlayerName(account.profile.username) ?? account.profile.username;
+    const created = await chunk.createRound(api, roomId, name);
+    const roundSession: RoundSession = { code: created.code, token: created.token, round: created.round, room: roomId };
+    await storage.then((s) => s.putMeta(chunk.roundSessionKey(created.code), roundSession));
+    inviteNext = created.code;
+    location.hash = formatRoute({ name: "round", code: created.code });
+  } catch (error) {
+    console.warn("round create", error);
+    setRoom((r) => ({ ...r, groupStart: { busy: false, error: chunk.roundErrorText(error) } }));
+  }
+}
+
+function openRoundInvite() {
+  const room = store.get().room;
+  if (!room?.group) return;
+  const { code } = room.group.session;
+  patch({
+    share: { title: room.doc.meta.title, url: appUrl({ name: "round", code }, false), copy: "idle", contentKey: null, hasImages: false, qr: true, room: true, round: code },
+  });
+}
+
+async function leaveRoundNow() {
+  const room = store.get().room;
+  const group = room?.group;
+  if (!room || !group || !confirm(t("groupLeaveConfirm"))) return;
+  if (api && group.status !== "gone") await rooms().leaveRound(api, group.session.token).catch((error: unknown) => console.warn("round leave", error));
+  await forgetRound(group.session.code);
+  location.hash = formatRoute({ name: "publishedRoom", id: group.session.room });
+}
+
+function setGroup(change: (group: RoomGroup) => RoomGroup) {
+  setRoom((r) => (r.group ? { ...r, group: change(r.group) } : r));
+}
+
+/** Sets the shared progress of the room (it may shrink when the server refused an event); the clock stops at a victory. */
+function adoptShared(shared: Shared, wonAt: string | null) {
+  const room = store.get().room;
+  if (!room?.group || rooms().sameShared(shared, room.save.progress.shared)) return;
+  updateRoomSave((s) => {
+    let wonAfterMs = s.wonAfterMs;
+    if (!shared.won) wonAfterMs = null;
+    else if (wonAfterMs === null) wonAfterMs = (wonAt ? Date.parse(wonAt) : Date.now()) - s.startedAt;
+    return { ...s, progress: { ...s.progress, shared }, wonAfterMs };
+  });
+}
+
+/** An accepted event that changed the shared progress goes to the round. */
+function recordRoundEvent(before: RoomState, step: Step, event: RoomEvent) {
+  if (!before.group || rooms().sameShared(step.progress.shared, before.save.progress.shared)) return;
+  const entry: GroupEvent = { scene: before.save.progress.scene, event };
+  setGroup((g) => ({ ...g, pending: [...g.pending, entry] }));
+  void flushRound();
+}
+
+async function flushRound() {
+  const room = store.get().room;
+  const group = room?.group;
+  if (!api || !room || !group || group.sending || group.pending.length === 0 || group.status === "expired" || group.status === "gone") return;
+  const chunk = rooms();
+  const batch = group.pending.slice(0, chunk.GROUP.maxEvents);
+  const key = room.key;
+  setGroup((g) => ({ ...g, sending: true }));
+  let status: RoomGroupView["status"] = "ok";
+  let sent = true;
+  let shared: RoundState["shared"] | null = null;
+  try {
+    shared = (await chunk.sendRoundEvents(api, group.session.token, batch)).shared;
+  } catch (error) {
+    console.warn("round events", error);
+    const code = error instanceof ApiError ? error.code : undefined;
+    if (code === "expired") status = "expired";
+    else if (code === "not-found") status = "gone";
+    else if (error instanceof ApiError && (error.kind === "invalid" || error.kind === "rate-limited")) status = "ok"; // will not get better: dropped
+    else {
+      status = "offline"; // sent again with the next poll
+      sent = false;
+    }
+  }
+  const current = store.get().room;
+  if (!current?.group || current.key !== key) return;
+  const { data } = current.doc;
+  const server = shared ? chunk.mergeShared(current.group.server, chunk.sharedFor(data, shared)) : current.group.server;
+  const rest = sent ? current.group.pending.slice(batch.length) : current.group.pending;
+  setGroup((g) => ({ ...g, sending: false, server, pending: rest, status }));
+  // What the server did not accept is undone here; events it has not seen yet stay.
+  if (sent) adoptShared(chunk.applyGroupEvents(data, server, rest).shared, null);
+  if (sent && rest.length > 0) void flushRound();
+}
+
+let roundTimer: ReturnType<typeof setInterval> | undefined;
+let roundPolling = false;
+let newsTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Asks for the round's state every few seconds while its room is open and the page is visible. */
+function startRoundPolling() {
+  if (roundTimer !== undefined) return;
+  roundTimer = setInterval(() => {
+    if (!store.get().room?.group) {
+      clearInterval(roundTimer);
+      roundTimer = undefined;
+      return;
+    }
+    if (document.visibilityState === "visible") void pollRound();
+  }, rooms().GROUP.pollMs);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && store.get().room?.group) void pollRound();
+});
+
+async function pollRound() {
+  const room = store.get().room;
+  const group = room?.group;
+  if (!api || !room || !group || roundPolling || group.status === "gone") return;
+  roundPolling = true;
+  const chunk = rooms();
+  try {
+    const state = await chunk.fetchRoundState(api, group.session.token, group.since);
+    applyRoundState(room.key, state);
+  } catch (error) {
+    console.warn("round poll", error);
+    setGroup((g) => (g.status === "ok" ? { ...g, status: "offline" } : g));
+  } finally {
+    roundPolling = false;
+  }
+  void flushRound();
+}
+
+function applyRoundState(key: string, state: RoundState | null) {
+  const room = store.get().room;
+  const group = room?.group;
+  if (!room || !group || room.key !== key) return;
+  if (!state) return setGroup((g) => ({ ...g, status: "gone" }));
+  const chunk = rooms();
+  const { data } = room.doc;
+  const server = chunk.mergeShared(group.server, chunk.sharedFor(data, state.shared));
+  const news = newsText(data, state, group.since);
+  setGroup((g) => ({
+    ...g,
+    me: state.me,
+    players: state.players,
+    since: Math.max(g.since, state.lastNews),
+    server,
+    status: state.expired ? "expired" : g.status === "offline" && g.pending.length > 0 ? "offline" : "ok",
+    news: news ?? g.news,
+  }));
+  adoptShared(chunk.mergeShared(room.save.progress.shared, server), state.wonAt);
+  if (news) {
+    clearTimeout(newsTimer);
+    newsTimer = setTimeout(() => setGroup((g) => ({ ...g, news: null })), 5000);
+  }
+}
+
+/** What the others did since `since`, the newest two at most. */
+function newsText(data: EscapeRoomData, state: RoundState, since: number): string | null {
+  const name = (id: string | null) => state.players.find((p) => p.id === id)?.name ?? t("groupSomeone");
+  const texts = state.news
+    .filter((n) => n.id > since && n.player !== state.me)
+    .map((n) => {
+      if (n.kind === "won") return t("groupNewsWon", { name: name(n.player) });
+      const what = n.kind === "solved" ? data.puzzles.find((p) => p.id === n.target)?.name : data.locks.find((l) => l.id === n.target)?.name;
+      return t(n.kind === "solved" ? "groupNewsSolved" : "groupNewsOpened", { name: name(n.player), what: what ?? "" });
+    });
+  return texts.length > 0 ? texts.slice(-2).join(" ") : null;
 }
 
 // --- Escape room editor (M45) ---
@@ -1096,6 +1451,8 @@ const roomEditorActions = {
       source: { kind: "local" },
       infoOpen: false,
       report: null,
+      group: null,
+      groupStart: { busy: false, error: null },
     };
     patch({ room });
     tickRoom();
@@ -2019,6 +2376,12 @@ const galleryActions = {
   retry: () => {
     const route = currentGalleryRoute();
     if (route) void loadGalleryPage(route);
+  },
+  joinRound: (value: string) => {
+    const route = parseRoute(`#/j/${value.replace(/[\s-]+/g, "")}`);
+    if (route.name !== "round") return false;
+    location.hash = formatRoute(route);
+    return true;
   },
 };
 
@@ -3446,6 +3809,9 @@ function view(state: AppState) {
     }
     case "room":
       return state.room && roomChunk ? roomChunk.roomView(roomModel(state, state.room), roomActions) : nothing;
+    case "round":
+      if (state.roundJoin) return roundJoinView(state.roundJoin, roundJoinActions);
+    // falls through: in the round, the room is played like a published one
     case "publishedRoom":
     case "sharedRoom":
       if (!state.room || !roomChunk) return nothing;
@@ -3515,6 +3881,7 @@ function navSection(route: Route): NavSection | "focus" {
     case "roomEdit":
     case "publishedRoom":
     case "sharedRoom":
+    case "round":
       return "focus";
     case "imprint":
     case "privacy":
