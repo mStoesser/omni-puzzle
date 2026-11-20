@@ -1096,6 +1096,11 @@ Solver und Daten bleiben unberührt.
   auf jedem Gerät des Kontos, ohne einen Status zu synchronisieren; abgemeldet gibt es ihn nicht.
 - **„Per Link geteilt“:** Kopieren oder Senden des Links (nicht schon das Öffnen des Teilen-Sheets) legt den Schlüssel
   in die Liste `shared-keys` im IndexedDB-Store `meta` (neueste zuerst, höchstens 500). Nur auf diesem Gerät.
+- **Escape-Räume (M46):** dieselben Markierungen. Schlüssel ist `roomContentKey` (Hash aus `roomSaveKey`, wie die
+  Spalte `content_key`) des streng geladenen Raums; dafür lädt die Bibliothek den Raum-Chunk, ohne ihn (offline, nicht
+  im Cache) zeigen Räume nur „verifiziert“ oder „Entwurf“. `ownPublishedRoomKeys` kommt in dieselbe Menge wie die
+  Rätsel-Schlüssel; schlägt eine der beiden Abfragen fehl, zählt die andere trotzdem. Den Link markiert das
+  Teilen-Sheet des Editors. Räume stehen weiter in einem eigenen Abschnitt, der Bibliotheksfilter gilt nur für Rätsel.
 - **Reihenfolge:** Galerie vor Link vor „verifiziert“ vor „Entwurf“. Der Filter „Entwürfe“ umfasst alles, was weder in
   der Galerie noch geteilt ist. Er steht in der Route (`#/library?filter=…`), Wechsel ersetzen den Verlaufseintrag.
 

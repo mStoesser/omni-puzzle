@@ -5,7 +5,7 @@ export { roomView } from "./views/room.ts";
 export { builtinPicture, coverPicture, ROOM_VIEWBOX } from "./room-images.ts";
 export { applyEvent, loadEscapeRoom } from "../rooms/logic.ts";
 export { escapeRoomExample, escapeRoomExamples } from "../rooms/examples.ts";
-export { newRoomSave, parseRoomSave, roomSaveKey, roomStarted } from "../rooms/save.ts";
+export { newRoomSave, parseRoomSave, roomContentKey, roomSaveKey, roomStarted } from "../rooms/save.ts";
 export { roomEditorView } from "./views/room-editor.ts";
 export { addPuzzle, draftProblems, newEscapeRoom, roomImageKeys } from "../rooms/edit.ts";
 export { checkEscapeRoom } from "../rooms/check.ts";

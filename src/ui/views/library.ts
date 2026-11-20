@@ -20,8 +20,8 @@ export type LibraryItem = {
   contentKey: string | null;
 };
 
-/** An own escape room (M45); `verified` = won by its creator, so it can be played. */
-export type LibraryRoomItem = { id: string; title: string; updatedAt: string; verified: boolean };
+/** An own escape room (M45); `verified` = won by its creator, so it can be played. `status` as for puzzles (M46). */
+export type LibraryRoomItem = { id: string; title: string; updatedAt: string; verified: boolean; status: LibraryStatus };
 
 export type LibraryViewActions = {
   newRoom(): void; // M45
@@ -107,7 +107,7 @@ function roomsSection(rooms: readonly LibraryRoomItem[] | null, actions: Library
                   <div class="library-card-body">
                     <a class="library-card-link" href="#/room-edit/${room.id}">${title}</a>
                     <span class="library-card-sub">${t("roomEdKicker")}${updated ? html` · ${t("libraryEdited", { when: updated })}` : nothing}</span>
-                    <span>${statusBadge(room.verified ? "ready" : "draft")}</span>
+                    <span>${statusBadge(room.status)}</span>
                   </div>
                   ${popoverMenu(`room-menu-${room.id}`, t("libraryMenu", { title }), menu, "icon-button quiet-icon")}
                 </li>`;

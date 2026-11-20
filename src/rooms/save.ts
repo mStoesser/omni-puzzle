@@ -17,6 +17,11 @@ export function roomSaveKey(doc: EscapeRoomDocument): string {
   return `room:${sha256Hex(JSON.stringify([doc.version, doc.data]))}`;
 }
 
+/** The room's content key without prefix: stored with a published room and kept for "shared by link" (M46). */
+export function roomContentKey(doc: EscapeRoomDocument): string {
+  return roomSaveKey(doc).slice("room:".length);
+}
+
 export function newRoomSave(data: EscapeRoomData, now: number): RoomSave {
   return { progress: startProgress(data), hints: {}, introSeen: data.intro === undefined, startedAt: now, wonAfterMs: null };
 }

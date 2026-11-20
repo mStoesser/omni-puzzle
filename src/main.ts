@@ -183,7 +183,7 @@ type RoomEditorState = {
 };
 
 /** An own escape room in the library (M45). */
-type LibraryRoom = { id: string; title: string; updatedAt: string; verified: boolean };
+type LibraryRoom = { id: string; title: string; updatedAt: string; verified: boolean; contentKey: string | null }; // contentKey: M46, null for drafts
 
 type AppState = {
   route: Route;
@@ -951,7 +951,8 @@ async function openRoomEditorShare() {
     console.warn(error); // verified, so it loads; just in case
     return;
   }
-  const base: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", contentKey: null, hasImages: false, qr: false, room: true };
+  // contentKey: copying or sending the link marks the room "Per Link geteilt" in the library.
+  const base: ShareDialogModel = { title: doc.meta.title, url: null, copy: "idle", contentKey: rooms().roomContentKey(doc), hasImages: false, qr: false, room: true };
   if (rooms().roomImageKeys(doc.data, registry).length > 0) return patch({ share: { ...base, linkProblem: "images" } });
   patch({ share: base });
   const code = await encodeValue(doc);
@@ -1005,6 +1006,7 @@ async function publishRoom(description: string) {
     const images = await imagesForUpload(rooms().roomImageKeys(doc.data, registry));
     const id = await roomsApi.publishRoom(api, { doc, title: doc.meta.title, description, images });
     setPublish({ state: "done", publishedId: id });
+    addPublishedKey(contentKey); // the server computes the same key
     setAccount({ rooms: null }); // reload on the account page
   } catch (error) {
     console.warn(error);
@@ -2939,26 +2941,41 @@ async function loadLibrary() {
     }
   });
   const rooms = await (await storage).listRooms().catch(() => []);
+  // The content key (M46) needs the room logic; without the chunk (offline, not cached) the rooms show ready or draft.
+  const chunk = rooms.length > 0 ? await loadRoomChunk().catch(() => null) : null;
+  const roomKey = (doc: unknown): string | null => {
+    try {
+      return chunk ? chunk.roomContentKey(chunk.loadEscapeRoom(doc, registry)) : null;
+    } catch {
+      return null; // a draft: neither shared nor published in this form
+    }
+  };
   patch({
     library: items,
     libraryRooms: rooms.map((r) => {
       const meta = (typeof r.doc.meta === "object" && r.doc.meta !== null ? r.doc.meta : {}) as Record<string, unknown>;
-      return { id: r.id, title: typeof meta.title === "string" ? meta.title : "", updatedAt: r.updatedAt, verified: meta.verified === true };
+      const verified = meta.verified === true;
+      return { id: r.id, title: typeof meta.title === "string" ? meta.title : "", updatedAt: r.updatedAt, verified, contentKey: verified ? roomKey(r.doc) : null };
     }),
   });
   void removeUnusedImages(items, rooms);
 }
 
-/** "In der Galerie" (M35): loaded with the library, kept until the user changes. Best effort. */
+/**
+ * "In der Galerie" (M35): loaded with the library, kept until the user changes. Best effort. Puzzles and escape rooms
+ * (M46) share one set: their content keys are hashes of different things and never meet.
+ */
 async function loadPublishedKeys() {
   const user = store.get().account.user;
   if (!api || !user) return;
-  try {
-    const keys = await ownPublishedKeys(api, user.id);
-    if (store.get().account.user?.id === user.id) patch({ publishedKeys: { userId: user.id, keys } });
-  } catch (error) {
-    console.warn("published keys", error); // the library shows link and draft badges only
+  const results = await Promise.allSettled([ownPublishedKeys(api, user.id), roomsApi.ownPublishedRoomKeys(api, user.id)]);
+  const keys = new Set<string>();
+  for (const result of results) {
+    if (result.status === "fulfilled") for (const key of result.value) keys.add(key);
+    else console.warn("published keys", result.reason); // the library shows link and draft badges only
   }
+  if (results.every((r) => r.status === "rejected")) return;
+  if (store.get().account.user?.id === user.id) patch({ publishedKeys: { userId: user.id, keys } });
 }
 
 function addPublishedKey(key: string) {
@@ -2995,6 +3012,17 @@ function libraryWithStatus(state: AppState) {
     shared: new Set(state.sharedKeys),
   };
   return state.library.map((item) => ({ ...item, status: libraryStatus(item.contentKey, item.record.doc.meta.verified === true, known) }));
+}
+
+/** The own escape rooms with the same status as puzzles (M46). */
+function libraryRoomsWithStatus(state: AppState) {
+  if (!state.libraryRooms) return null;
+  const user = state.account.user;
+  const known = {
+    published: user && state.publishedKeys?.userId === user.id ? state.publishedKeys.keys : null,
+    shared: new Set(state.sharedKeys),
+  };
+  return state.libraryRooms.map((room) => ({ ...room, status: libraryStatus(room.contentKey, room.verified, known) }));
 }
 
 const libraryActions = {
@@ -3372,7 +3400,7 @@ function view(state: AppState) {
       }
       return state.moderation ? moderationView(state.moderation, registry, moderationActions) : nothing;
     case "library":
-      return html`${libraryView(libraryWithStatus(state), state.route.filter, state.libraryQuery, libraryActions, syncApi !== null && state.account.user !== null, state.libraryRooms)} ${siteFooter()}`;
+      return html`${libraryView(libraryWithStatus(state), state.route.filter, state.libraryQuery, libraryActions, syncApi !== null && state.account.user !== null, libraryRoomsWithStatus(state))} ${siteFooter()}`;
     case "imprint":
       return imprintView();
     case "privacy":

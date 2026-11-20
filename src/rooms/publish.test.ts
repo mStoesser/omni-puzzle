@@ -9,7 +9,7 @@ import { loadEscapeRoom } from "./logic.ts";
 import type { EscapeRoomDocument } from "./logic.ts";
 import { ROOM_PUBLISH, isRoomRequest, prepareRoomImages, prepareRoomPublication } from "./publish.ts";
 import { ROOM_PER_DAY } from "./published.ts";
-import { roomSaveKey } from "./save.ts";
+import { roomContentKey, roomSaveKey } from "./save.ts";
 
 const room = (): EscapeRoomDocument => structuredClone(escapeRoomExamples[0]!.doc) as EscapeRoomDocument;
 const rejects = (input: unknown, code: string, message?: string) =>
@@ -42,6 +42,7 @@ test("a verified, winnable room is published with its counts, cover and fewest s
   assert.equal(`room:${pub.contentKey}`, roomSaveKey(loadEscapeRoom(doc, rulesRegistry)));
   assert.equal(roomSaveKey(loadEscapeRoom(pub.doc, rulesRegistry)), roomSaveKey(pub.doc));
   assert.match(pub.contentKey, /^[0-9a-f]{64}$/);
+  assert.equal(roomContentKey(loadEscapeRoom(doc, rulesRegistry)), pub.contentKey); // what the library compares
 });
 
 test("rejects unverified rooms and embedded puzzles, naming the puzzle", () => {

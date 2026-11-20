@@ -12,7 +12,7 @@ import { checkEscapeRoom } from "./check.ts";
 import { roomImageKeys } from "./edit.ts";
 import { ROOM_LIMITS, loadEscapeRoom } from "./logic.ts";
 import type { EscapeRoomDocument, EscapeRoomMeta, ImageRef } from "./logic.ts";
-import { roomSaveKey } from "./save.ts";
+import { roomContentKey } from "./save.ts";
 
 export const ROOM_PUBLISH = {
   maxImages: 20, // own pictures per room (scenes, views and embedded quizzes); the rest uses the built-in ones
@@ -95,7 +95,7 @@ export function prepareRoomPublication<T extends AnyPuzzleRules>(input: unknown,
   const start = doc.data.scenes.find((s) => s.id === doc.data.start)!;
   return {
     doc: published,
-    contentKey: roomSaveKey(published).slice("room:".length),
+    contentKey: roomContentKey(published),
     title: cleanTitle,
     description: description.trim(),
     lang: doc.meta.lang ?? null,
