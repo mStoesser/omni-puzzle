@@ -1225,9 +1225,9 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
 - [x] Im Browser geprüft: zwei Spieler in getrennten Browser-Kontexten gegen einen simulierten Server, der die echte
   Gruppenlogik nutzt (Runde starten, Einladen mit QR-Code, Code in der Galerie, Beitreten, Tresor bei B öffnet die Tür
   bei A, Hinweis bei A, Sieg durch einen dritten Spieler bei allen mit gleicher Zeit, Neuladen, Verlassen).
-- [ ] Migration `0017_rounds.sql` auf dev und prod anwenden, Funktion `round` deployen (läuft mit dem Push), dann
+- [x] Migration `0017_rounds.sql` auf dev und prod anwenden, Funktion `round` deployen (läuft mit dem Push), dann
   echter Test mit zwei Handys: Runde starten, per QR-Code beitreten, gemeinsam entkommen.
-- [ ] Datenschutzerklärung prüfen: Sie nennt jetzt Runden, Namen der Mitspieler und die Löschfrist.
+- [x] Datenschutzerklärung prüfen: Sie nennt jetzt Runden, Namen der Mitspieler und die Löschfrist.
 
 ### M48 – Escape-Raum: Synchronisieren
 Eigene Escape-Räume bleiben bisher auf dem Gerät (M45). Sie sollen wie Rätsel mit dem Konto synchronisiert werden
