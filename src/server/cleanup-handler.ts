@@ -4,6 +4,7 @@
 //   moderators, accounts deleted).
 // - user-images (M27): deletes the folders of deleted accounts, and pictures that none of the account's synced
 //   puzzles uses any more (only if older than a day, so a picture uploaded just before its puzzle stays).
+// - Rounds of playing together (M47) older than two days, via cleanup_rounds() (supabase/migrations/0017_rounds.sql).
 import { loadDocument } from "../core/document.ts";
 import { rulesRegistry } from "../puzzles/rules.ts";
 
@@ -150,6 +151,11 @@ async function cleanup(env: CleanupEnv) {
     userFiles += unused.length;
   }
 
+  // Rounds of playing together (M47); a database function, as the round tables are closed to everyone else.
+  const roundsResponse = await doFetch(`${env.url}/rest/v1/rpc/cleanup_rounds`, { method: "POST", headers, body: "{}" });
+  if (!roundsResponse.ok) throw new Error(`cleanup_rounds: ${roundsResponse.status}`);
+  const removedRounds = (await roundsResponse.json()) as number;
+
   return {
     folders: folders.length,
     removedFolders: orphans.length,
@@ -157,5 +163,6 @@ async function cleanup(env: CleanupEnv) {
     userFolders: users.length,
     removedUserFolders: userFolders,
     removedUserFiles: userFiles,
+    removedRounds,
   };
 }

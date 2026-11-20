@@ -13,3 +13,8 @@ verify_jwt = false
 [functions.submit-score]
 # The function checks the user's token itself (src/server/score-handler.ts).
 verify_jwt = false
+
+[functions.round]
+# Joining needs no account; the function checks the user's token (starting) or the player token (events) itself
+# (src/server/round-handler.ts).
+verify_jwt = false

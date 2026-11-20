@@ -41,6 +41,7 @@ function storage(calls: Call[]): typeof fetch {
     if (u.includes("/rest/v1/puzzles")) return Response.json([{ id: KEEP }]);
     if (u.includes("/rest/v1/rooms")) return Response.json(decodeURIComponent(u).includes(ROOM) ? [{ id: ROOM }] : []);
     if (u.includes("/rest/v1/profiles")) return Response.json([{ id: USER }]);
+    if (u.endsWith("/rest/v1/rpc/cleanup_rounds")) return Response.json(2);
     if (u.includes("/rest/v1/sync_puzzles")) return Response.json(new URL(u).searchParams.get("offset") === "0" ? [{ doc: quizWith(USED) }] : []);
     return Response.json([]);
   }) as typeof fetch;
@@ -52,7 +53,7 @@ const run = (secret: string | null, calls: Call[], envSecret = "geheim") =>
     { url: URL_, serviceKey: "sb_secret_x", secret: envSecret, fetch: storage(calls), now: () => NOW },
   );
 
-test("deletes the folders of puzzles and escape rooms that no longer exist", async () => {
+test("deletes the folders of puzzles and escape rooms that no longer exist, and old rounds", async () => {
   const calls: Call[] = [];
   const response = await run("geheim", calls);
   assert.equal(response.status, 200);
@@ -63,6 +64,7 @@ test("deletes the folders of puzzles and escape rooms that no longer exist", asy
     userFolders: 2,
     removedUserFolders: 1,
     removedUserFiles: 4,
+    removedRounds: 2,
   });
   assert.match(decodeURIComponent(calls.find((c) => c.url.includes("/rest/"))!.url), new RegExp(`id=in\\.\\(${KEEP},${GONE},${ROOM}\\)`));
   const roomQuery = decodeURIComponent(calls.find((c) => c.url.includes("/rest/v1/rooms"))!.url);
