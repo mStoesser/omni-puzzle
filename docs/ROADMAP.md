@@ -1253,6 +1253,33 @@ Eigene Escape-Räume bleiben bisher auf dem Gerät (M45). Sie sollen wie Rätsel
   Bild bauen, auf dem anderen Gerät öffnen; einen Raum anfangen und auf dem anderen weiterspielen.
 - [ ] Datenschutzerklärung prüfen.
 
+### M49 – Escape-Raum: Raumbaukasten
+Die vier Standardbilder sind alle gleich aufgebaut (Wand, Boden, Möbel davor). Statt fertiger Bilder soll man ein Raumbild
+aus Bauteilen zusammenstellen: Rückwand, Boden und Decke (Pflicht), Seitenwände links und rechts (optional, darüber
+gelegt) und Gegenstände wie Schreibtisch oder Vitrine. Gespeichert werden nur IDs, wie bei den Icons. Die Teile sind
+vorerst Platzhalter im heutigen Stil (SVG im Code, `ui/room-images.ts`); bessere Zeichnungen kommen später und ändern
+nur die Zeichnung hinter einer ID.
+- [ ] Feste Perspektive („Guckkasten“) festlegen und in `ARCHITEKTUR.md` beschreiben: Rückwand als Rechteck, Boden,
+  Decke und Seitenwände als Trapeze mit festen Ecken, eine Bodenlinie an der Rückwand für alle Gegenstände. Alle Maße im
+  Prozent-Raster der Tippflächen, damit später „Tippfläche auf Gegenstand legen“ einfach wird.
+- [ ] Datenformat: dritte Variante von `ImageRef`, `{ compose: { wall, floor, ceiling, left?, right?, items } }` mit
+  Farbe je Fläche aus einer festen Palette und Gegenständen `{ id, x, flip? }` (stehen an der Bodenlinie, nur seitlich
+  verschiebbar; Reihenfolge der Liste = was vorn liegt). Platz für spätere Zustände lassen (siehe „Irgendwann“).
+  `ROOM_VERSION` 2, damit ältere Apps „neuere Version“ melden statt eines kaputten Raums; Prüfung und Grenzen
+  (Anzahl Gegenstände) in `rooms/logic.ts`, rein und getestet. IDs werden nie entfernt oder umgedeutet.
+- [ ] Platzhalter-Teile: etwa 3 Rückwände, 3 Böden, 2 Decken, 2 Seitenwand-Typen, 10–12 Gegenstände (Schreibtisch,
+  Vitrine, Regal, Tresor, Tür, Truhe, Bild, Lampe, Pflanze, Uhr …), jeweils einfärbbar über die Palette.
+- [ ] Zeichnen: aus Teilen gebaute Bilder in Spiel, Editor, Nahansichten und Galerie; die vier bisherigen Bilder
+  bleiben als fertige Bilder (der Beispielraum hängt daran).
+- [ ] Editor: „Raumbild bauen“ neben Standardbild und eigenem Bild; Teile wählen mit Vorschaubildern, Farben wählen,
+  Gegenstände hinzufügen, per Ziehen seitlich verschieben (Pointer Events, ≥ 44 px), spiegeln, nach vorn/hinten,
+  entfernen. Tippflächen bleiben frei gezogene Rechtecke.
+- [ ] Galerie: Titelbild aus Teilen (Migration für die Grenze der Spalte `cover`, `parseCover` erweitern, Prüfung
+  in `publish`).
+- [ ] Datenschutz und Speicher unverändert prüfen (keine Uploads nötig); Bundle-Größe des Raum-Teils festhalten.
+- [ ] Im Browser prüfen: Raum mit gebautem Bild anlegen, spielen, teilen, veröffentlichen, auf einem zweiten Gerät
+  synchronisieren; auf dem Handy quer bedienen.
+
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen
   Stellung (Solver von einem Zustand aus, Core-Erweiterung), Typen ohne Solver (Nonogramm, Quiz), zählt eine Lösung
@@ -1265,6 +1292,10 @@ Eigene Escape-Räume bleiben bisher auf dem Gerät (M45). Sie sollen wie Rätsel
   Inventar (Gegenstände sammeln und benutzen; Schalter wie „Schlüssel gefunden“ ersetzen es vorerst), Ketten im
   Escape-Modus, weitere Schlösser (Richtungen, Farben), Verlassen auf einem Kiosk-Tablet erschweren (z. B. lange
   drücken; ganz verhindern kann ein Browser es nicht).
+- [ ] Raumbaukasten, nach M49: Gegenstände mit Zuständen (Tresor offen/zu, Tür auf, Vitrine leer), die an einem
+  Schalter hängen; „Tippfläche auf Gegenstand legen“; Lichtstimmung als Überlagerung (dunkel, Kerzenschein,
+  Notlicht); Vorlagen zum Start (die Standardbilder aus Teilen nachgebaut); Gegenstände frei in die Tiefe stellen
+  (größer/kleiner); bessere Zeichnungen der Teile.
 - [ ] Geheime Codes und Ergebnisse (Weg 1): Sie liegen in einer Tabelle ohne Leserecht, nicht im Dokument. Nach dem
   Lösen schickt die App die Zugfolge an eine Edge Function, die sie mit `rules.ts` nachspielt wie `submit-score`, und
   gibt das Ergebnis nur bei „gelöst“ heraus (mit Limit gegen Durchprobieren). Preis: nur veröffentlicht und online.
