@@ -1257,28 +1257,31 @@ Eigene Escape-Räume bleiben bisher auf dem Gerät (M45). Sie sollen wie Rätsel
 Die vier Standardbilder sind alle gleich aufgebaut (Wand, Boden, Möbel davor). Statt fertiger Bilder soll man ein Raumbild
 aus Bauteilen zusammenstellen: Rückwand, Boden und Decke (Pflicht), Seitenwände links und rechts (optional, darüber
 gelegt) und Gegenstände wie Schreibtisch oder Vitrine. Gespeichert werden nur IDs, wie bei den Icons. Die Teile sind
-vorerst Platzhalter im heutigen Stil (SVG im Code, `ui/room-images.ts`); bessere Zeichnungen kommen später und ändern
+vorerst Platzhalter im heutigen Stil (SVG im Code, `ui/room-parts.ts`); bessere Zeichnungen kommen später und ändern
 nur die Zeichnung hinter einer ID.
-- [ ] Feste Perspektive („Guckkasten“) festlegen und in `ARCHITEKTUR.md` beschreiben: Rückwand als Rechteck, Boden,
-  Decke und Seitenwände als Trapeze mit festen Ecken, eine Bodenlinie an der Rückwand für alle Gegenstände. Alle Maße im
-  Prozent-Raster der Tippflächen, damit später „Tippfläche auf Gegenstand legen“ einfach wird.
-- [ ] Datenformat: dritte Variante von `ImageRef`, `{ compose: { wall, floor, ceiling, left?, right?, items } }` mit
-  Farbe je Fläche aus einer festen Palette und Gegenständen `{ id, x, flip? }` (stehen an der Bodenlinie, nur seitlich
-  verschiebbar; Reihenfolge der Liste = was vorn liegt). Platz für spätere Zustände lassen (siehe „Irgendwann“).
-  `ROOM_VERSION` 2, damit ältere Apps „neuere Version“ melden statt eines kaputten Raums; Prüfung und Grenzen
-  (Anzahl Gegenstände) in `rooms/logic.ts`, rein und getestet. IDs werden nie entfernt oder umgedeutet.
-- [ ] Platzhalter-Teile: etwa 3 Rückwände, 3 Böden, 2 Decken, 2 Seitenwand-Typen, 10–12 Gegenstände (Schreibtisch,
-  Vitrine, Regal, Tresor, Tür, Truhe, Bild, Lampe, Pflanze, Uhr …), jeweils einfärbbar über die Palette.
-- [ ] Zeichnen: aus Teilen gebaute Bilder in Spiel, Editor, Nahansichten und Galerie; die vier bisherigen Bilder
-  bleiben als fertige Bilder (der Beispielraum hängt daran).
-- [ ] Editor: „Raumbild bauen“ neben Standardbild und eigenem Bild; Teile wählen mit Vorschaubildern, Farben wählen,
-  Gegenstände hinzufügen, per Ziehen seitlich verschieben (Pointer Events, ≥ 44 px), spiegeln, nach vorn/hinten,
-  entfernen. Tippflächen bleiben frei gezogene Rechtecke.
-- [ ] Galerie: Titelbild aus Teilen (Migration für die Grenze der Spalte `cover`, `parseCover` erweitern, Prüfung
-  in `publish`).
-- [ ] Datenschutz und Speicher unverändert prüfen (keine Uploads nötig); Bundle-Größe des Raum-Teils festhalten.
-- [ ] Im Browser prüfen: Raum mit gebautem Bild anlegen, spielen, teilen, veröffentlichen, auf einem zweiten Gerät
-  synchronisieren; auf dem Handy quer bedienen.
+- [x] Feste Perspektive („Guckkasten“) in `rooms/compose.ts` und `ARCHITEKTUR.md`: Fluchtpunkt (800, 270), Rückwand auf
+  0,7 verkleinert (in Prozent x 15–85, y 9–79), Boden, Decke und Seitenwände laufen darauf zu.
+- [x] Datenformat: `{ compose: { wall, floor, ceiling, left?, right?, items } }` mit `{ part, color }` und Gegenständen
+  `{ part, x, color, flip? }` (höchstens 16, Reihenfolge = was vorn liegt). `ROOM_VERSION` 2, aber nur Räume mit
+  gebautem Bild bekommen 2 (`roomVersion`): Der Spielstand-Schlüssel enthält die Version, ein pauschales 2 hätte alle
+  Spielstände und Inhaltsschlüssel veröffentlichter Räume geändert. Laden tolerant gegenüber unbekannten IDs (neuere
+  Apps), Veröffentlichen nur mit bekannten. Ein Bild hat jetzt genau eine Art (vorher wurde ein zweites Feld still
+  übergangen).
+- [x] Platzhalter-Teile: 4 Rückwände, 3 Böden, 2 Decken, 2 Seitenwände, 13 Gegenstände (Schreibtisch, Vitrine, Regal,
+  Tresor, Tür, Truhe, Gemälde, Lampe, Pflanze, Standuhr, Fenster, Fass, Teppich), Palette mit 14 Farben.
+- [x] Zeichnen: gebaute Bilder in Spiel, Editor, Nahansichten, Karten und Galerie (`drawnPicture`); die vier bisherigen
+  Bilder bleiben.
+- [x] Editor: „Raumbild bauen“ in der Bildauswahl; Teile mit Vorschaubildern, Farben, Gegenstände hinzufügen, seitlich
+  ziehen (Ebene „Gegenstände“ über dem Bild, Pfeiltasten, Regler), spiegeln, nach vorn/hinten, entfernen.
+- [x] Galerie: Migration `0019_room_cover.sql` (Titelbild bis 4 KB), `parseCover` liest gebaute Bilder.
+- [x] Datenschutz unverändert (keine Uploads); Raum-Chunk 68,7 → 87,5 kB (gzip 26,7 kB), Haupt-Bundle unverändert.
+- [x] Im Browser geprüft (Headless Chrome): Bild bauen mit allen Plätzen und 8 Gegenständen, Ziehen verschiebt,
+  gespeichert als Version 2 (550 Byte Bild), nach Neuladen wieder da, Tippflächen zeichnen geht weiter, gebautes Bild
+  in einer Ansicht.
+- [ ] Migration `0019_room_cover.sql` auf dev und prod anwenden (vor dem Push; die Edge Functions deployen beim Push
+  neu und brauchen die neue Raum-Logik für Version 2).
+- [ ] Dein Test: Raum mit gebautem Bild bauen, spielen, per Link teilen, veröffentlichen (Titelbild in der Galerie),
+  auf einem zweiten Gerät synchronisieren; auf dem Handy quer spielen.
 
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen

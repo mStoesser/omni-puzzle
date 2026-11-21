@@ -8,12 +8,19 @@ import { DocumentError, loadDocument } from "../core/document.ts";
 import type { Registry } from "../core/registry.ts";
 import { IMAGE_KEY } from "../core/images.ts";
 import { isPuzzleLang } from "../core/types.ts";
+import { parseComposition } from "./compose.ts";
+import type { Composition } from "./compose.ts";
 import type { AnyPuzzleRules, PuzzleDocument, PuzzleLang } from "../core/types.ts";
 
 // --- Format ---
 
 export const ROOM_FORMAT = 1;
-export const ROOM_VERSION = 1;
+/**
+ * The newest version this app reads. A room is stored with the lowest version that holds its data (`roomVersion`):
+ * version 2 (M49) only for rooms with a picture built from parts. So older apps still open all other rooms, and their
+ * save keys (which include the version) stay the same.
+ */
+export const ROOM_VERSION = 2;
 
 export type EscapeRoomMeta = {
   title: string;
@@ -56,8 +63,8 @@ export type Scene = {
   spots: readonly Spot[];
 };
 
-/** A built-in picture (shipped with the app) or an own one (image key, like in puzzles). */
-export type ImageRef = { builtin: BuiltinImage } | { key: string };
+/** A built-in picture (shipped with the app), an own one (image key, like in puzzles) or one built from parts (M49). */
+export type ImageRef = { builtin: BuiltinImage } | { key: string } | { compose: Composition };
 
 /** The pictures that come with the app (M44, simple SVG illustrations in 16:9; `ui/room-images.ts`). */
 export const BUILTIN_IMAGES = ["study", "hall", "cellar", "lab"] as const;
@@ -180,9 +187,19 @@ function uniqueIds<T extends { id: string }>(items: readonly T[], path: string):
 
 function imageRef(value: unknown, path: string): ImageRef {
   if (!isRecord(value)) fail(path);
-  if (isBuiltinImage(value.builtin) && value.key === undefined) return { builtin: value.builtin };
-  if (typeof value.key === "string" && value.builtin === undefined && IMAGE_KEY.test(value.key)) return { key: value.key };
+  // Exactly one of the three.
+  if ([value.builtin, value.key, value.compose].filter((v) => v !== undefined).length !== 1) fail(path);
+  if (isBuiltinImage(value.builtin)) return { builtin: value.builtin };
+  if (typeof value.key === "string" && IMAGE_KEY.test(value.key)) return { key: value.key };
+  const compose = parseComposition(value.compose);
+  if (compose) return { compose };
   fail(path);
+}
+
+/** The lowest version that holds this data: 2 if some picture is built from parts (M49), else 1. */
+export function roomVersion(data: EscapeRoomData): number {
+  const composed = (image: ImageRef | undefined) => image !== undefined && "compose" in image;
+  return data.scenes.some((s) => composed(s.image)) || data.views.some((v) => composed(v.image)) ? 2 : 1;
 }
 
 function rect(value: unknown, path: string): Rect {
@@ -271,8 +288,8 @@ export function loadEscapeRoom<T extends AnyPuzzleRules>(raw: unknown, registry:
   if (!Number.isInteger(raw.version) || (raw.version as number) < 1) fail("version");
   if ((raw.version as number) > ROOM_VERSION) throw new DocumentError("unsupported", "version");
   if (new TextEncoder().encode(JSON.stringify(raw)).length > ROOM_LIMITS.maxDocBytes) throw new DocumentError("too-large");
-  const data = migrateRoom(raw.data, raw.version as number);
-  return { format: 1, kind: "escape-room", version: ROOM_VERSION, meta: meta(raw.meta), data: roomData(data, registry, options.draft === true) };
+  const data = roomData(migrateRoom(raw.data, raw.version as number), registry, options.draft === true);
+  return { format: 1, kind: "escape-room", version: roomVersion(data), meta: meta(raw.meta), data };
 }
 
 /** Older versions of the data become the current one here (none yet). */

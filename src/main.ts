@@ -100,7 +100,7 @@ import { roundJoinView } from "./ui/views/round-join.ts";
 import type { RoundJoinModel } from "./ui/views/round-join.ts";
 import type { RoomCheck } from "./rooms/check.ts";
 import type { DraftProblem } from "./rooms/edit.ts";
-import type { RoomEditorSection } from "./ui/views/room-editor.ts";
+import type { RoomEditorSection, SelectedItem, StageLayer } from "./ui/views/room-editor.ts";
 import type { RoomSave } from "./rooms/save.ts";
 import type { ChainEditorModel } from "./ui/views/chain-editor.ts";
 import { moderationView } from "./ui/views/moderation.ts";
@@ -201,6 +201,8 @@ type RoomEditorState = {
   section: RoomEditorSection;
   scene: string;
   spot: string | null;
+  layer: StageLayer; // M49: tap areas or items of a built picture
+  item: SelectedItem | null;
   picker: boolean;
 };
 
@@ -1232,6 +1234,8 @@ async function openRoomEditor(route: Route & { name: "roomEdit" }) {
     section: "scenes",
     scene: doc.data.start,
     spot: null,
+    layer: "spots",
+    item: null,
     picker: false,
   };
   patch({ pending: false, roomEditor: editor });
@@ -1399,11 +1403,14 @@ const roomEditorActions = {
     if (!editor) return;
     const data = update(editor.doc.data);
     if (data === editor.doc.data) return;
-    setRoomEditor((e) => ({ ...e, doc: { ...e.doc, data } }));
+    // M49: the version follows the data (built pictures need 2), as loadEscapeRoom gives it.
+    setRoomEditor((e) => ({ ...e, doc: { ...e.doc, version: rooms().roomVersion(data), data } }));
     roomEditorChanged();
   },
   setSection: (section: RoomEditorSection) => setRoomEditor((e) => ({ ...e, section })),
-  select: (scene: string, spot: string | null) => setRoomEditor((e) => ({ ...e, scene, spot })),
+  select: (scene: string, spot: string | null) => setRoomEditor((e) => ({ ...e, scene, spot, item: scene === e.scene ? e.item : null })),
+  setLayer: (layer: StageLayer) => setRoomEditor((e) => ({ ...e, layer })),
+  selectItem: (owner: string, index: number | null) => setRoomEditor((e) => ({ ...e, item: index === null ? null : { owner, index } })),
   uploadImage: async (file: File, crop: boolean) => editorImages.add(crop ? await rooms().cropTo16x9(file).catch((error: unknown) => {
     patch({ notice: typeof error === "string" && error in ENCODE_TEXT ? ENCODE_TEXT[error as EncodeError] : "imageStoreFailed" });
     throw error;
@@ -1476,6 +1483,8 @@ function roomEditorModel(state: AppState, editor: RoomEditorState) {
     section: editor.section,
     scene: editor.doc.data.scenes.some((s) => s.id === editor.scene) ? editor.scene : editor.doc.data.start,
     spot: editor.spot,
+    layer: editor.layer,
+    item: editor.item,
     problems,
     check,
     picker,
@@ -2408,7 +2417,7 @@ function roomCardOf(item: RoomItem, state: AppState): RoomCardModel {
   const { cover } = item;
   let picture: RoomCardModel["picture"] = null;
   if (cover && "key" in cover) picture = backend ? { url: publishedImageUrl(backend.url, item.id, cover.key) } : null;
-  else if (cover && roomChunk) picture = roomChunk.coverPicture(cover.builtin);
+  else if (cover && roomChunk) picture = roomChunk.coverPicture(cover);
   const by = item.author === null ? t("galleryByUnknown") : t("galleryBy", { author: item.author });
   return {
     href: formatRoute({ name: "publishedRoom", id: item.id }),
@@ -3791,7 +3800,7 @@ function view(state: AppState) {
             return {
               href: formatRoute({ name: "room", id: e.id }),
               title: e.doc.meta.title,
-              picture: first && "builtin" in first && roomChunk ? roomChunk.builtinPicture(first.builtin) : null,
+              picture: first && roomChunk ? roomChunk.drawnPicture(first) : null,
               status: state.roomStatus.get(e.id) ?? ("new" as const),
             };
           }),

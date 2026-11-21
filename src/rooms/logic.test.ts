@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { DocumentError } from "../core/document.ts";
 import { rulesRegistry } from "../puzzles/rules.ts";
 import { escapeRoomExamples } from "./examples.ts";
-import { activeSpots, applyEvent, codeMatches, EMPTY_SHARED, loadEscapeRoom, mergeShared, normalizeCode, startProgress } from "./logic.ts";
+import { activeSpots, applyEvent, codeMatches, EMPTY_SHARED, loadEscapeRoom, mergeShared, normalizeCode, roomVersion, startProgress } from "./logic.ts";
+import { newComposition } from "./compose.ts";
+import { roomSaveKey } from "./save.ts";
 import type { EscapeRoomData, Progress, Shared } from "./logic.ts";
 
 const example = () => structuredClone(escapeRoomExamples[0]!.doc) as any;
@@ -35,7 +37,7 @@ test("format, kind and version", () => {
   invalid((d) => (d.format = "1"));
   invalid((d) => (d.kind = "puzzle"));
   invalid((d) => (d.version = 0));
-  invalid((d) => (d.version = 2), "unsupported");
+  invalid((d) => (d.version = 3), "unsupported");
   invalid((d) => (d.data.intro = "x".repeat(600_000)), "too-large");
 });
 
@@ -87,6 +89,33 @@ test("texts, pictures, views and codes", () => {
   doc.data.views[0] = { id: "painting", name: " Bild ", image: { builtin: "hall" }, text: "  " };
   const loaded = load(doc);
   assert.deepEqual(loaded.data.views[0], { id: "painting", name: "Bild", image: { builtin: "hall" } });
+});
+
+test("M49: pictures built from parts; the version follows the data, so other rooms keep version 1 and their save key", () => {
+  const plain = load(example());
+  assert.equal(plain.version, 1);
+  const keyBefore = roomSaveKey(plain);
+  const asTwo = example();
+  asTwo.version = 2; // a newer app may store a plain room as 2: it loads as 1 with the same key
+  assert.equal(load(asTwo).version, 1);
+  assert.equal(roomSaveKey(load(asTwo)), keyBefore);
+
+  const built = example();
+  built.data.scenes[1].image = { compose: { ...newComposition(), items: [{ part: "desk", x: 40, color: "wood", extra: 1 }] } };
+  const doc = load(built); // read as version 1 too: the data decides
+  assert.equal(doc.version, 2);
+  assert.equal(roomVersion(doc.data), 2);
+  assert.deepEqual(doc.data.scenes[1]!.image, { compose: { ...newComposition(), items: [{ part: "desk", x: 40, color: "wood" }] } });
+  assert.notEqual(roomSaveKey(doc), keyBefore);
+  assert.equal(roomSaveKey({ ...doc, version: 1 }), roomSaveKey(doc)); // the key does not trust a stale version field
+
+  const inView = example();
+  inView.data.views[0].image = { compose: newComposition() };
+  assert.equal(load(inView).version, 2);
+
+  invalid((d) => (d.data.scenes[0].image = { compose: { wall: { part: "plaster", color: "slate" } } }));
+  invalid((d) => (d.data.scenes[0].image = { compose: newComposition(), builtin: "study" }));
+  invalid((d) => (d.data.scenes[0].image = { compose: { ...newComposition(), items: [{ part: "desk", x: 120, color: "wood" }] } }));
 });
 
 test("an embedded puzzle is checked like a puzzle document, with its path in the error", () => {

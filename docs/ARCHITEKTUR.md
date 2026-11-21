@@ -104,6 +104,7 @@ src/
     views/                # home.ts, library.ts, play.ts (Hüllen), play-stage.ts (Bühne), editor.ts, chain.ts …
     fullscreen.ts         # Browser-Vollbild und Wake Lock (M41)
     room-images.ts        # Standardbilder für Escape-Räume als SVG (M44)
+    room-parts.ts         # Bauteile des Raumbaukastens als SVG (M49)
     room-chunk.ts         # alles für Escape-Räume, per import() nachgeladen (M44)
     components/press-guard.ts  # Klick nur, wenn der Druck auf dem Knopf begann (Knöpfe, die beim Lösen erscheinen)
     components/           # dialog, share-dialog, grid-editor, tap, swipe …
@@ -133,6 +134,7 @@ src/
     published.ts          # veröffentlichte Räume: Laden, Galerie, eigene, Melden, Moderation (M46)
     group.ts              # gemeinsam spielen: Codes, Namen, Ereignisse prüfen und nachspielen, Rundenstand (M47)
     round-api.ts          # Runden auf dem Server: starten, beitreten, Ereignisse, Stand abfragen, verlassen (M47)
+    compose.ts            # Raumbaukasten: Perspektive, Teile, Farben, Format, Bearbeiten (M49)
 supabase/
   migrations/             # SQL, von Hand im Dashboard angewendet
   templates/              # Mail-Vorlagen, Sprache nach user_metadata.lang (M28)
@@ -1257,7 +1259,7 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
   (Titel, Datum, Autor, Beschreibung, Sprache, `verified` = vom Ersteller gewonnen). `data`:
   - `start` (Szene), optional `intro` und `victory` (Texte vor dem Start und beim Sieg);
   - `flags`: Schalter mit Namen; sie gehen nur an, nie aus;
-  - `scenes`: Name, Bild (`{ builtin }` oder `{ key }` wie bei Rätsel-Bildern), Text beim Betreten, Hinweise und
+  - `scenes`: Name, Bild (`{ builtin }`, `{ key }` wie bei Rätsel-Bildern oder ab M49 `{ compose }`), Text beim Betreten, Hinweise und
     `spots` (Klickbereiche: Rechteck in Prozent des 16:9-Bildes, mindestens `MIN_SPOT` = 5 × 9 %, Name für
     Screenreader, Bedingungen `{ flag, on }`, die alle gelten müssen, und eine Aktion);
   - `puzzles`: eingebettete Rätsel-Dokumente (mit `meta.result` aus M42) und Effekte beim Lösen (`onSolve`);
@@ -1451,6 +1453,50 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
   überholt, verwirft sein Ergebnis; nach einem Sync wird sie auch neu geladen, wenn sie noch lädt (sonst zeigte sie den
   Stand von vor dem Sync, im Browser-Test aufgefallen: ein auf einem Gerät gelöschter Raum blieb auf dem anderen
   sichtbar).
+
+### Raumbaukasten (M49)
+
+- **Idee:** Ein Szenen- oder Ansichtsbild kann aus Bauteilen bestehen, `{ compose: { wall, floor, ceiling, left?,
+  right?, items } }` (`rooms/compose.ts`). Gespeichert werden nur IDs und Farben (`{ part, color }`), ein volles Bild
+  hat unter 1,5 KB, braucht keinen Upload und funktioniert auch in Links.
+- **Perspektive** (`PERSPECTIVE`, „Guckkasten“): ein Fluchtpunkt bei (800, 270) im 1600 × 900-Bild, die Rückwand ist
+  das Bild um ihn auf 0,7 verkleinert (x 240–1360, y 81–711; in Prozent x 15–85, y 9–79). Boden, Decke und
+  Seitenwände laufen auf den Fluchtpunkt zu (`room-parts.ts` rechnet mit einer Tiefe von 1 = Bildebene bis 1/0,7 =
+  Rückwand). Ohne Seitenwände füllt die Rückwand die ganze Breite; Seitenwände liegen darüber, die rechte ist die
+  gespiegelte linke.
+- **Teile:** 4 Rückwände (Putz, Vertäfelung, Mauerwerk, Fliesen), 3 Böden (Dielen, Schachbrett, Steinplatten), 2 Decken
+  (glatt, Balken), 2 Seitenwände (glatt, mit Fenster) und 13 Gegenstände. Jedes Teil hat eine Standardfarbe aus der
+  Palette `COLORS` (14 Farben); die Zeichnung leitet hellere und dunklere Töne daraus ab (`shade`). Ein neu gewähltes
+  Teil bringt seine Standardfarbe mit, außer man hat die Farbe vorher selbst geändert.
+- **Gegenstände** `{ part, x, color, flip? }`: `ITEM_BOX` legt Breite, Höhe und Unterkante fest (meist an der
+  Bodenlinie, Bild und Fenster höher, die Lampe hängt von der Decke). Man verschiebt sie nur seitlich; `x` ist die Mitte
+  in Prozent und bleibt so, dass der Gegenstand ganz im Bild ist (`clampItemX`, auf 0,1 % gerundet). Die Reihenfolge der
+  Liste bestimmt, was vorn liegt; ein Teppich kommt beim Hinzufügen nach hinten. Höchstens 16 je Bild. `itemRect` gibt
+  den Kasten in Prozent wie eine Tippfläche (für später: „Tippfläche auf Gegenstand legen“). Zustände (offen/zu) sind
+  noch nicht drin; Gegenstände sind Objekte, ein Feld dafür kann dazukommen.
+- **IDs für immer:** Eine ID bekommt nie eine andere Bedeutung, nur eine bessere Zeichnung. Laden ist tolerant: IDs in
+  der richtigen Form, die diese Version nicht kennt (von einer neueren App), bleiben erhalten; gezeichnet wird dann das
+  erste Teil des Platzes bzw. die Standardfarbe, ein unbekannter Gegenstand fehlt. So braucht ein neues Teil keine neue
+  Formatversion. Veröffentlichen nimmt nur bekannte Teile (`unknownParts`, sonst `invalid-document`), weil der Server
+  immer die neueste Version hat.
+- **Version:** `ROOM_VERSION` ist 2, aber ein Raum wird mit der niedrigsten Version gespeichert, die seine Daten fasst
+  (`roomVersion`): 2 nur mit gebautem Bild. Der Spielstand-Schlüssel enthält die Version; ein pauschaler Wechsel auf 2
+  hätte alle Spielstände und die Verbindung zu veröffentlichten Räumen (Inhaltsschlüssel) gekappt. Ältere Apps öffnen
+  weiter alle Räume ohne gebautes Bild und melden bei den anderen „neuere Version“. `roomSaveKey` rechnet die Version
+  aus den Daten, nicht aus dem Feld, und der Editor setzt sie bei jeder Änderung.
+- **Ein Bild, genau eine Art:** `{ builtin }`, `{ key }` und `{ compose }` schließen sich aus; ein Bild mit zwei davon ist
+  ungültig (vorher wurde ein zusätzliches Feld still übergangen).
+- **Galerie:** Das Titelbild ist das Bild der Startszene, also auch ein gebautes. `0019_room_cover.sql` hebt die Grenze
+  der Spalte `cover` von 200 Byte auf 4 KB; `parseCover` liest es tolerant wie oben.
+- **Editor:** „Raumbild bauen“ steht in der Bildauswahl neben den Standardbildern. Darunter der Bereich „Raumbild“: je
+  Platz die Teile als kleine Vorschau (der Raum ohne Gegenstände mit diesem Teil) und die Farben, dann die Gegenstände
+  als Vorschaubilder zum Hinzufügen, die vorhandenen als Chips und für den gewählten Position (Regler), Farbe,
+  Spiegeln, nach vorn/hinten und Entfernen. Über dem Bild schaltet „Ziehen ändert: Bereiche | Gegenstände“ um; in
+  „Gegenstände“ zieht man sie seitlich (oder Pfeiltasten), die Tippflächen sind dann nur blass zu sehen. Beim
+  Hinzufügen schaltet der Editor auf „Gegenstände“. Ansichten haben denselben Bereich, nur ohne Ziehen im Bild.
+- **Zeichnen:** `drawnPicture` (`room-images.ts`) zeichnet Standard- und gebaute Bilder für Spiel, Editor, Karten und
+  Galerie. Die Teile sind Platzhalter im Stil der Standardbilder; der Raum-Chunk wuchs von 68,7 auf 87,5 kB (gzip 26,7
+  kB), das Haupt-Bundle blieb bei 325 kB.
 
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link

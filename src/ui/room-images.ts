@@ -1,6 +1,7 @@
 import { svg } from "lit-html";
 import type { SVGTemplateResult } from "lit-html";
-import type { BuiltinImage } from "../rooms/logic.ts";
+import type { BuiltinImage, ImageRef } from "../rooms/logic.ts";
+import { composedPicture } from "./room-parts.ts";
 
 // The pictures that come with the app for escape rooms (M44): simple flat illustrations in 16:9 (1600 × 900), drawn
 // here so they need no files and no license. Placeholders, to be replaced by better pictures later; the tap areas of
@@ -135,7 +136,14 @@ export function builtinPicture(id: BuiltinImage): SVGTemplateResult {
   return PICTURES[id]();
 }
 
-/** A cover from the server (M46): the drawing if it names a built-in picture, otherwise null. */
-export function coverPicture(name: string): SVGTemplateResult | null {
-  return Object.hasOwn(PICTURES, name) ? PICTURES[name as BuiltinImage]() : null;
+/** The drawing of a built-in or built (M49) picture, to put into an `<svg viewBox=ROOM_VIEWBOX>`; null for own ones. */
+export function drawnPicture(ref: ImageRef): SVGTemplateResult | null {
+  if ("builtin" in ref) return Object.hasOwn(PICTURES, ref.builtin) ? PICTURES[ref.builtin]() : null;
+  if ("compose" in ref) return composedPicture(ref.compose);
+  return null;
+}
+
+/** A cover from the server (M46): the drawing if it is a built-in or built picture (unknown names: null). */
+export function coverPicture(ref: ImageRef): SVGTemplateResult | null {
+  return drawnPicture(ref);
 }

@@ -45,6 +45,11 @@ test("covers are a built-in name or an image key; anything else is dropped", () 
   assert.equal(parseCover({ builtin: "<svg>" }), null);
   assert.equal(parseCover({ key: "nope" }), null);
   assert.equal(parseCover("study"), null);
+  // M49: a built picture, checked like in a room; unknown parts are kept (whoever draws them falls back)
+  const compose = { wall: { part: "tiles", color: "white" }, floor: { part: "future", color: "cream" }, ceiling: { part: "plain", color: "cream" }, items: [] };
+  assert.deepEqual(parseCover({ compose }), { compose });
+  assert.equal(parseCover({ compose: { ...compose, items: "none" } }), null);
+  assert.equal(parseCover({ compose, key: "b".repeat(64) }), null);
 });
 
 test("the gallery query selects only what a card needs, never the document", () => {

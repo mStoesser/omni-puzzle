@@ -1,7 +1,7 @@
 // Escape rooms (M44): the saved game on this device (IndexedDB, meta store). Pure: building, checking and keying.
 
 import { sha256Hex } from "../core/hash.ts";
-import { startProgress } from "./logic.ts";
+import { roomVersion, startProgress } from "./logic.ts";
 import type { EscapeRoomData, EscapeRoomDocument, Progress, Shared } from "./logic.ts";
 
 export type RoomSave = {
@@ -16,7 +16,7 @@ export type RoomSave = {
 
 /** The meta-store key of a room's saved game: the same room (by content) continues, a changed one starts anew. */
 export function roomSaveKey(doc: EscapeRoomDocument): string {
-  return `room:${sha256Hex(JSON.stringify([doc.version, doc.data]))}`;
+  return `room:${sha256Hex(JSON.stringify([roomVersion(doc.data), doc.data]))}`;
 }
 
 /** The room's content key without prefix: stored with a published room and kept for "shared by link" (M46). */

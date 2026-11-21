@@ -5015,6 +5015,140 @@ img.room-card-picture {
   cursor: nwse-resize;
 }
 
+/* M49: built pictures. Over the picture: the items (dragged sideways); the tap areas are only shown meanwhile. */
+.room-ed-layer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kk-space-2) var(--kk-space-3);
+}
+
+.room-ed-layer .hint {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+.room-ed-stage.items {
+  cursor: default;
+}
+
+.room-ed-spot.passive {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.room-ed-item {
+  position: absolute;
+  min-width: 44px;
+  min-height: 44px;
+  border: 2px dashed rgb(255 255 255 / 0.75);
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.45);
+  cursor: ew-resize;
+}
+
+.room-ed-item.selected {
+  z-index: 1;
+  border: 2px solid var(--kk-brand);
+  background: rgb(255 211 77 / 0.15);
+}
+
+.room-ed-item:focus-visible {
+  outline: 3px solid var(--kk-brand);
+  outline-offset: 2px;
+}
+
+.room-ed-composer {
+  margin-top: var(--kk-space-3);
+}
+
+.room-ed-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--kk-space-3) var(--kk-space-4);
+}
+
+.room-ed-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.room-ed-slot legend {
+  margin-bottom: var(--kk-space-1);
+  padding: 0;
+  font-weight: 600;
+}
+
+.room-ed-parts,
+.room-ed-item-choice,
+.room-ed-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kk-space-1);
+}
+
+button.room-ed-part {
+  width: 5.5rem;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid var(--kk-line);
+  border-radius: var(--kk-radius-md);
+  background: var(--kk-surface-2);
+  color: var(--kk-text);
+  font-size: 0.8rem;
+}
+
+button.room-ed-part svg {
+  width: 100%;
+  height: 100%;
+}
+
+button.room-ed-part.item {
+  width: 3.5rem;
+  height: 3.5rem;
+  aspect-ratio: auto;
+  padding: 4px;
+}
+
+button.room-ed-part[aria-pressed="true"] {
+  border-color: var(--kk-brand);
+  box-shadow: 0 0 0 2px var(--kk-brand);
+}
+
+button.room-ed-swatch {
+  width: 30px;
+  min-width: 0;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid var(--kk-surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--kk-line);
+}
+
+button.room-ed-swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px var(--kk-brand);
+}
+
+.room-ed-item-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kk-space-2);
+}
+
+.room-ed-item-panel input[type="range"] {
+  width: 100%;
+}
+
 .room-ed-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

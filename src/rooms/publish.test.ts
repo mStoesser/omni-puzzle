@@ -45,6 +45,24 @@ test("a verified, winnable room is published with its counts, cover and fewest s
   assert.equal(roomContentKey(loadEscapeRoom(doc, rulesRegistry)), pub.contentKey); // what the library compares
 });
 
+test("M49: a built start picture becomes the cover; parts this version does not know are refused", () => {
+  const doc = room() as any;
+  const compose = { wall: { part: "bricks", color: "stone" }, floor: { part: "boards", color: "wood" }, ceiling: { part: "plain", color: "cream" }, items: [{ part: "safe", x: 70, color: "stone" }] };
+  doc.data.scenes[0].image = { compose };
+  const pub = prepareRoomPublication({ doc, title: "Gebaut" }, rulesRegistry);
+  assert.deepEqual(pub.cover, { compose });
+  assert.equal(pub.doc.version, 2);
+  assert.equal(`room:${pub.contentKey}`, roomSaveKey(loadEscapeRoom(doc, rulesRegistry)));
+
+  doc.data.scenes[0].image = { compose: { ...compose, items: [{ part: "robot", x: 50, color: "stone" }] } };
+  rejects({ doc, title: "x" }, "invalid-document", "unknown parts");
+  doc.data.scenes[0].image = { compose: { ...compose, wall: { part: "bricks", color: "pink" } } };
+  rejects({ doc, title: "x" }, "invalid-document", "unknown parts");
+  doc.data.scenes[0].image = { builtin: "study" };
+  doc.data.views[0].image = { compose: { ...compose, floor: { part: "lava", color: "red" } } };
+  rejects({ doc, title: "x" }, "invalid-document", "unknown parts");
+});
+
 test("rejects unverified rooms and embedded puzzles, naming the puzzle", () => {
   const unverified = room();
   (unverified.meta as { verified?: boolean }).verified = false;

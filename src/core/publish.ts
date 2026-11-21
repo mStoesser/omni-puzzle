@@ -26,7 +26,7 @@ export type PublishErrorCode =
   | "invalid-title"
   | "invalid-description"
   | "too-large"
-  | "invalid-document" // fails loadDocument (format, type, validation)
+  | "invalid-document" // fails loadDocument (format, type, validation); M49: parts this version does not know
   | "not-verified" // the creator has not solved it
   | "unsolvable" // the solver proved that there is no solution
   | "theme-contrast" // M29: parts of the puzzle are hard to tell apart in its theme

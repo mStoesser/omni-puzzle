@@ -14,7 +14,7 @@ import type { ReportDialogActions, ReportDialogModel } from "../components/repor
 import { timeAgo } from "../time.ts";
 import { guarded, markPress } from "../components/press-guard.ts";
 import { icon } from "../icons.ts";
-import { builtinPicture, ROOM_VIEWBOX } from "../room-images.ts";
+import { drawnPicture, ROOM_VIEWBOX } from "../room-images.ts";
 import { playStage } from "./play-stage.ts";
 import { resultView } from "./play.ts";
 import type { PlayViewModel } from "./play.ts";
@@ -249,8 +249,8 @@ function infoSheet(model: RoomViewModel, info: RoomInfo, actions: RoomViewAction
 
 /** A scene or view picture: built in (SVG) or own (image key). */
 function picture(ref: ImageRef, images: ImageSource, label: string) {
-  if ("builtin" in ref) {
-    return html`<svg class="room-picture" viewBox=${ROOM_VIEWBOX} role="img" aria-label=${label}>${builtinPicture(ref.builtin)}</svg>`;
+  if (!("key" in ref)) {
+    return html`<svg class="room-picture" viewBox=${ROOM_VIEWBOX} role="img" aria-label=${label}>${drawnPicture(ref)}</svg>`;
   }
   const url = images.url(ref.key);
   return url && url !== "loading"

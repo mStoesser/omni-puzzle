@@ -9,6 +9,7 @@ import { contrastProblems } from "../core/puzzle-theme.ts";
 import type { Registry } from "../core/registry.ts";
 import type { AnyPuzzleRules, PuzzleLang } from "../core/types.ts";
 import { checkEscapeRoom } from "./check.ts";
+import { unknownParts } from "./compose.ts";
 import { roomImageKeys } from "./edit.ts";
 import { ROOM_LIMITS, loadEscapeRoom } from "./logic.ts";
 import type { EscapeRoomDocument, EscapeRoomMeta, ImageRef } from "./logic.ts";
@@ -68,6 +69,11 @@ export function prepareRoomPublication<T extends AnyPuzzleRules>(input: unknown,
       throw new PublishError(error.code === "too-large" ? "too-large" : "invalid-document", error.message);
     }
     throw error;
+  }
+  // Tolerant loading keeps parts from newer apps; the gallery only gets parts every current app can draw (M49).
+  const pictures = [...doc.data.scenes.map((s) => s.image), ...doc.data.views.map((v) => v.image)];
+  for (const image of pictures) {
+    if (image && "compose" in image && unknownParts(image.compose).length > 0) throw new PublishError("invalid-document", "unknown parts");
   }
   if (doc.meta.verified !== true) throw new PublishError("not-verified");
 

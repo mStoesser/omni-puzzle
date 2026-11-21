@@ -11,6 +11,7 @@ import type { ReportReason } from "../core/moderation.ts";
 import { isPuzzleLang } from "../core/types.ts";
 import type { PuzzleLang } from "../core/types.ts";
 import type { MessageKey } from "../i18n/t.ts";
+import { parseComposition } from "./compose.ts";
 import type { ImageRef } from "./logic.ts";
 
 /** Rooms one account may publish per day; enforced by publish_room() in supabase/migrations/0016_rooms.sql. */
@@ -65,13 +66,15 @@ type Row = {
 
 const AUTHOR = "author:profiles!rooms_author_id_fkey(username)";
 
-/** The cover as stored; the name of a built-in picture is checked by whoever draws it. */
+/** The cover as stored; the name of a built-in picture (and the parts of a built one) are checked by whoever draws it. */
 export function parseCover(raw: unknown): ImageRef | null {
   if (typeof raw !== "object" || raw === null) return null;
-  const { builtin, key } = raw as Record<string, unknown>;
-  if (typeof builtin === "string" && /^[a-z]{1,20}$/.test(builtin) && key === undefined) return { builtin } as ImageRef;
-  if (typeof key === "string" && IMAGE_KEY.test(key) && builtin === undefined) return { key };
-  return null;
+  const { builtin, key, compose } = raw as Record<string, unknown>;
+  if ([builtin, key, compose].filter((v) => v !== undefined).length !== 1) return null;
+  if (typeof builtin === "string" && /^[a-z]{1,20}$/.test(builtin)) return { builtin } as ImageRef;
+  if (typeof key === "string" && IMAGE_KEY.test(key)) return { key };
+  const parsed = parseComposition(compose);
+  return parsed ? { compose: parsed } : null;
 }
 
 export async function fetchPublishedRoom(api: Api, id: string): Promise<PublishedRoom | null> {

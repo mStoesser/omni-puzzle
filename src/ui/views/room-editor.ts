@@ -15,9 +15,18 @@ import type { PublishDialogActions, PublishDialogModel } from "../components/pub
 import { shareDialog } from "../components/share-dialog.ts";
 import type { ShareDialogActions, ShareDialogModel, SharePublish } from "../components/share-dialog.ts";
 import { icon } from "../icons.ts";
-import { builtinPicture, ROOM_VIEWBOX } from "../room-images.ts";
+import { drawnPicture, ROOM_VIEWBOX } from "../room-images.ts";
+import * as compose from "../../rooms/compose.ts";
+import type { ColorId, Composition, ItemPart, SurfaceSlot } from "../../rooms/compose.ts";
+import { composedPicture, itemPreview } from "../room-parts.ts";
 
 export type RoomEditorSection = "scenes" | "puzzles" | "locks" | "views" | "flags" | "story";
+
+/** M49: what dragging on a built picture changes, its tap areas or its items. */
+export type StageLayer = "spots" | "items";
+
+/** The selected item of a built picture; `owner` is "scene:<id>" or "view:<id>". */
+export type SelectedItem = { owner: string; index: number };
 
 /** A library puzzle that can be copied into the room. */
 export type PickablePuzzle = { id: string; title: string; typeName: MessageKey };
@@ -28,6 +37,8 @@ export type RoomEditorModel = {
   section: RoomEditorSection;
   scene: string; // selected scene
   spot: string | null; // selected tap area in that scene
+  layer: StageLayer;
+  item: SelectedItem | null;
   problems: readonly DraftProblem[]; // what the draft still lacks
   check: RoomCheck | null; // null while there are draft problems
   picker: readonly PickablePuzzle[] | null; // the puzzle picker is open
@@ -45,6 +56,8 @@ export type RoomEditorActions = {
   change(update: (data: EscapeRoomData) => EscapeRoomData): void;
   setSection(section: RoomEditorSection): void;
   select(scene: string, spot: string | null): void;
+  setLayer(layer: StageLayer): void;
+  selectItem(owner: string, index: number | null): void;
   /** Stores an own picture and returns its key; `crop` = cut to 16:9 (scenes). Rejects (with a notice) on failure. */
   uploadImage(file: File, crop: boolean): Promise<string>;
   openPicker(): void;
@@ -70,6 +83,61 @@ const IMAGE_NAMES: Record<(typeof BUILTIN_IMAGES)[number], MessageKey> = {
   hall: "roomImageHall",
   cellar: "roomImageCellar",
   lab: "roomImageLab",
+};
+
+const SLOT_NAMES: Record<SurfaceSlot, MessageKey> = {
+  wall: "roomSlotWall",
+  floor: "roomSlotFloor",
+  ceiling: "roomSlotCeiling",
+  left: "roomSlotLeft",
+  right: "roomSlotRight",
+};
+
+const PART_NAMES: Record<string, MessageKey> = {
+  "wall:plaster": "roomPartPlaster",
+  "wall:panels": "roomPartPanels",
+  "wall:bricks": "roomPartBricks",
+  "wall:tiles": "roomPartTiles",
+  "floor:boards": "roomPartBoards",
+  "floor:checker": "roomPartChecker",
+  "floor:flagstones": "roomPartFlagstones",
+  "ceiling:plain": "roomPartCeilingPlain",
+  "ceiling:beams": "roomPartBeams",
+  "side:plain": "roomPartSidePlain",
+  "side:window": "roomPartSideWindow",
+};
+
+const ITEM_NAMES: Record<ItemPart, MessageKey> = {
+  desk: "roomItemDesk",
+  showcase: "roomItemShowcase",
+  bookshelf: "roomItemBookshelf",
+  safe: "roomItemSafe",
+  door: "roomItemDoor",
+  chest: "roomItemChest",
+  painting: "roomItemPainting",
+  lamp: "roomItemLamp",
+  plant: "roomItemPlant",
+  clock: "roomItemClock",
+  window: "roomItemWindow",
+  barrel: "roomItemBarrel",
+  rug: "roomItemRug",
+};
+
+const COLOR_NAMES: Record<ColorId, MessageKey> = {
+  slate: "roomColorSlate",
+  stone: "roomColorStone",
+  sand: "roomColorSand",
+  cream: "roomColorCream",
+  white: "roomColorWhite",
+  brick: "roomColorBrick",
+  wood: "roomColorWood",
+  walnut: "roomColorWalnut",
+  green: "roomColorGreen",
+  teal: "roomColorTeal",
+  blue: "roomColorBlue",
+  red: "roomColorRed",
+  gold: "roomColorGold",
+  black: "roomColorBlack",
 };
 
 const EFFECT_NAMES: Record<Effect["do"], MessageKey> = {
@@ -189,7 +257,7 @@ function confirmRemove(name: string, run: () => void) {
 /** A picture: built in, own (uploaded) or – where allowed – none. */
 function imagePicker(label: string, value: ImageRef | undefined, allowNone: boolean, actions: RoomEditorActions, set: (image: ImageRef | undefined) => void) {
   const crop = !allowNone; // scene pictures (no "none") are 16:9; pictures in views keep their shape
-  const current = value === undefined ? "" : "builtin" in value ? `builtin:${value.builtin}` : `key:${value.key}`;
+  const current = value === undefined ? "" : "builtin" in value ? `builtin:${value.builtin}` : "compose" in value ? "compose" : `key:${value.key}`;
   return html`<div class="field room-ed-image">
     <label>
       <span>${label}</span>
@@ -198,10 +266,12 @@ function imagePicker(label: string, value: ImageRef | undefined, allowNone: bool
           const v = (e.target as HTMLSelectElement).value;
           if (v === "") set(undefined);
           else if (v.startsWith("builtin:")) set({ builtin: v.slice(8) as (typeof BUILTIN_IMAGES)[number] });
+          else if (v === "compose" && !(value && "compose" in value)) set({ compose: compose.newComposition() });
         }}
       >
         ${allowNone ? html`<option value="" ?selected=${current === ""}>${t("roomEdNoImage")}</option>` : nothing}
         ${BUILTIN_IMAGES.map((id) => html`<option value="builtin:${id}" ?selected=${current === `builtin:${id}`}>${t(IMAGE_NAMES[id])}</option>`)}
+        <option value="compose" ?selected=${current === "compose"}>${t("roomEdComposeImage")}</option>
         ${value && "key" in value ? html`<option value=${current} selected>${t("roomEdOwnImage")}</option>` : nothing}
       </select>
     </label>
@@ -228,9 +298,131 @@ function imagePicker(label: string, value: ImageRef | undefined, allowNone: bool
 }
 
 function picture(ref: ImageRef, images: ImageSource) {
-  if ("builtin" in ref) return html`<svg class="room-picture" viewBox=${ROOM_VIEWBOX} aria-hidden="true">${builtinPicture(ref.builtin)}</svg>`;
+  if (!("key" in ref)) return html`<svg class="room-picture" viewBox=${ROOM_VIEWBOX} aria-hidden="true">${drawnPicture(ref)}</svg>`;
   const url = images.url(ref.key);
   return url && url !== "loading" ? html`<img class="room-picture" src=${url} alt="" />` : html`<span class="room-picture room-picture-missing"></span>`;
+}
+
+// --- Built pictures (M49) ---
+
+const SLOTS: readonly SurfaceSlot[] = ["wall", "floor", "ceiling", "left", "right"];
+
+function partName(slot: SurfaceSlot, part: string): string {
+  const key = `${slot === "left" || slot === "right" ? "side" : slot}:${part}`;
+  return Object.hasOwn(PART_NAMES, key) ? t(PART_NAMES[key]!) : part;
+}
+
+function swatches(label: string, value: string, pick: (color: ColorId) => void) {
+  return html`<div class="room-ed-swatches" role="group" aria-label=${label}>
+    ${compose.COLOR_IDS.map(
+      (id) => html`<button
+        type="button"
+        class="room-ed-swatch"
+        style="background:${compose.COLORS[id]}"
+        aria-label=${t(COLOR_NAMES[id])}
+        title=${t(COLOR_NAMES[id])}
+        aria-pressed=${id === value ? "true" : "false"}
+        @click=${() => pick(id)}
+      ></button>`,
+    )}
+  </div>`;
+}
+
+/** One surface: its parts as small pictures (the room without items), and its color. */
+function slotField(slot: SurfaceSlot, c: Composition, set: (f: (c: Composition) => Composition) => void) {
+  const current = c[slot];
+  const optional = slot === "left" || slot === "right";
+  const bare: Composition = { ...c, items: [] };
+  return html`<fieldset class="room-ed-slot">
+    <legend>${t(SLOT_NAMES[slot])}</legend>
+    <div class="room-ed-parts">
+      ${optional
+        ? html`<button type="button" class="room-ed-part none" aria-pressed=${current ? "false" : "true"} @click=${() => set((x) => compose.setPart(x, slot, null))}>
+            ${t("roomEdNoSide")}
+          </button>`
+        : nothing}
+      ${compose.slotParts(slot).map(
+        (part) => html`<button
+          type="button"
+          class="room-ed-part"
+          aria-pressed=${current?.part === part ? "true" : "false"}
+          aria-label=${partName(slot, part)}
+          title=${partName(slot, part)}
+          @click=${() => set((x) => compose.setPart(x, slot, part))}
+        >
+          <svg viewBox=${ROOM_VIEWBOX} aria-hidden="true">${composedPicture(compose.setPart(bare, slot, part))}</svg>
+        </button>`,
+      )}
+    </div>
+    ${current ? swatches(t("roomEdColorOf", { name: t(SLOT_NAMES[slot]) }), current.color, (color) => set((x) => compose.setColor(x, slot, color))) : nothing}
+  </fieldset>`;
+}
+
+/** The parts of a built picture and its items: add, select, color, position, mirror, order, remove. */
+function composer(owner: string, c: Composition, model: RoomEditorModel, actions: RoomEditorActions, set: (f: (c: Composition) => Composition) => void) {
+  const id = `room-ed-compose-${owner.replace(":", "-")}`;
+  const index = model.item?.owner === owner ? model.item.index : null;
+  const item = index === null ? undefined : c.items[index];
+  const itemName = (part: string) => (Object.hasOwn(ITEM_NAMES, part) ? t(ITEM_NAMES[part as ItemPart]) : part);
+  const full = c.items.length >= compose.COMPOSE_LIMITS.items;
+  const add = (part: ItemPart) => {
+    const added = compose.addItem(c, part);
+    if (added.index < 0) return;
+    set(() => added.composition);
+    actions.selectItem(owner, added.index);
+    if (owner.startsWith("scene:")) actions.setLayer("items");
+  };
+  const reorder = (step: 1 | -1) => {
+    const moved = compose.reorderItem(c, index!, step);
+    set(() => moved.composition);
+    actions.selectItem(owner, moved.index);
+  };
+  return html`<section class="box room-ed-panel room-ed-composer" aria-labelledby=${id}>
+    <h2 id=${id}>${t("roomEdCompose")}</h2>
+    <div class="room-ed-slots">${SLOTS.map((slot) => slotField(slot, c, set))}</div>
+    <fieldset class="room-ed-slot">
+      <legend>${t("roomEdItems")}</legend>
+      <div class="room-ed-item-choice" role="group" aria-label=${t("roomEdAddItem")}>
+        ${compose.ITEMS.map((part) => {
+          const preview = itemPreview(part);
+          return html`<button type="button" class="room-ed-part item" ?disabled=${full} aria-label=${t("roomEdAddNamed", { name: itemName(part) })} title=${itemName(part)} @click=${() => add(part)}>
+            <svg viewBox=${preview.viewBox} aria-hidden="true">${preview.drawing}</svg>
+          </button>`;
+        })}
+      </div>
+      ${full ? html`<p class="hint">${t("roomEdItemsFull", { n: compose.COMPOSE_LIMITS.items })}</p>` : nothing}
+      ${c.items.length === 0
+        ? html`<p class="hint">${t("roomEdNoItems")}</p>`
+        : html`<div class="chips" role="group" aria-label=${t("roomEdItems")}>
+            ${c.items.map(
+              (it, i) => html`<button type="button" class="chip ${i === index ? "active" : ""}" aria-pressed=${i === index ? "true" : "false"} @click=${() => actions.selectItem(owner, i === index ? null : i)}>
+                ${itemName(it.part)}
+              </button>`,
+            )}
+          </div>`}
+      ${item
+        ? html`<div class="room-ed-item-panel">
+            <label class="field">
+              <span>${t("roomEdItemPosition", { name: itemName(item.part) })}</span>
+              <input type="range" min="0" max="100" step="0.5" .value=${String(item.x)}
+                @input=${(e: Event) => set((x) => compose.updateItem(x, index!, { x: Number((e.target as HTMLInputElement).value) }))} />
+            </label>
+            ${swatches(t("roomEdColorOf", { name: itemName(item.part) }), item.color, (color) => set((x) => compose.updateItem(x, index!, { color })))}
+            <div class="room-ed-actions">
+              <button type="button" class="secondary compact" aria-pressed=${item.flip ? "true" : "false"} @click=${() => set((x) => compose.updateItem(x, index!, { flip: !item.flip }))}>
+                ${icon("rotate", 16)}${t("roomEdFlip")}
+              </button>
+              <button type="button" class="secondary compact" ?disabled=${index === 0} @click=${() => reorder(-1)}>${t("roomEdToBack")}</button>
+              <button type="button" class="secondary compact" ?disabled=${index === c.items.length - 1} @click=${() => reorder(1)}>${t("roomEdToFront")}</button>
+              ${removeButton(t("roomEdRemoveItem"), () => {
+                set((x) => compose.removeItem(x, index!));
+                actions.selectItem(owner, null);
+              })}
+            </div>
+          </div>`
+        : nothing}
+    </fieldset>
+  </section>`;
 }
 
 // --- Effects and conditions ---
@@ -381,7 +573,20 @@ function scenesSection(model: RoomEditorModel, actions: RoomEditorActions) {
           </button>`
         : nothing}
     </div>
-    <p class="hint">${t("roomEdDrawHint")}</p>
+    ${"compose" in scene.image
+      ? html`<div class="room-ed-layer">
+          ${segment(
+            t("roomEdLayer"),
+            [
+              { value: "spots" as const, label: t("roomEdLayerSpots") },
+              { value: "items" as const, label: t("roomEdLayerItems") },
+            ],
+            model.layer,
+            actions.setLayer,
+          )}
+          <p class="hint">${t(model.layer === "items" ? "roomEdItemsHint" : "roomEdDrawHint")}</p>
+        </div>`
+      : html`<p class="hint">${t("roomEdDrawHint")}</p>`}
     ${stage(model, scene, actions)}
     <div class="room-ed-spots chips" role="group" aria-label=${t("roomEdSpots")}>
       ${scene.spots.map(
@@ -394,11 +599,31 @@ function scenesSection(model: RoomEditorModel, actions: RoomEditorActions) {
       ${spot ? spotPanel(model, scene, spot, actions) : html`<section class="box room-ed-panel"><p class="hint">${t("roomEdNoSpot")}</p></section>`}
       ${scenePanel(model, scene, actions)}
     </div>
+    ${"compose" in scene.image
+      ? composer(`scene:${scene.id}`, scene.image.compose, model, actions, (f) => actions.change((d) => composeScene(d, scene.id, f)))
+      : nothing}
   `;
+}
+
+/** Changes the built picture of a scene, from the current data (dragging sends many changes in a row). */
+function composeScene(d: EscapeRoomData, sceneId: string, f: (c: Composition) => Composition): EscapeRoomData {
+  const scene = d.scenes.find((s) => s.id === sceneId);
+  if (!scene || !("compose" in scene.image)) return d;
+  const next = f(scene.image.compose);
+  return next === scene.image.compose ? d : edit.updateScene(d, sceneId, { image: { compose: next } });
+}
+
+function composeView(d: EscapeRoomData, viewId: string, f: (c: Composition) => Composition): EscapeRoomData {
+  const view = d.views.find((v) => v.id === viewId);
+  if (!view?.image || !("compose" in view.image)) return d;
+  const next = f(view.image.compose);
+  return next === view.image.compose ? d : edit.updateView(d, viewId, { image: { compose: next } });
 }
 
 type Drag = { mode: "draw" | "move" | "resize"; sceneId: string; spotId: string | null; startX: number; startY: number; rect: Rect; pointer: number };
 let drag: Drag | null = null;
+/** M49: dragging an item of a built picture sideways. */
+let itemDrag: { sceneId: string; index: number; startX: number; x: number; pointer: number } | null = null;
 let preview: Rect | null = null;
 
 function percent(e: PointerEvent, stageEl: Element) {
@@ -409,8 +634,32 @@ function percent(e: PointerEvent, stageEl: Element) {
 /** The picture with all tap areas: drag on empty space to draw one, drag an area to move it, its corner to resize. */
 function stage(model: RoomEditorModel, scene: Scene, actions: RoomEditorActions) {
   const stageOf = (e: Event) => (e.currentTarget as Element).closest(".room-ed-stage")!;
+  const built = "compose" in scene.image ? scene.image.compose : null;
+  const items = built !== null && model.layer === "items";
+  const owner = `scene:${scene.id}`;
+  const selectedItem = model.item?.owner === owner ? model.item.index : null;
+  const itemDown = (e: PointerEvent, index: number, x: number) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const el = stageOf(e);
+    itemDrag = { sceneId: scene.id, index, startX: percent(e, el).x, x, pointer: e.pointerId };
+    (el as HTMLElement).setPointerCapture(e.pointerId);
+    if (index !== selectedItem) actions.selectItem(owner, index);
+  };
+  const itemKey = (e: KeyboardEvent, index: number, x: number) => {
+    const step = e.altKey ? 0.2 : 1;
+    const d = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+    if (!d) return;
+    e.preventDefault();
+    actions.change((data) => composeScene(data, scene.id, (c) => compose.updateItem(c, index, { x: x + d })));
+  };
   const down = (e: PointerEvent, mode: Drag["mode"], spot: Spot | null) => {
     if (e.button !== 0) return;
+    if (items) {
+      if (selectedItem !== null) actions.selectItem(owner, null); // a tap on empty space deselects
+      return;
+    }
     e.stopPropagation();
     e.preventDefault();
     const el = stageOf(e);
@@ -420,6 +669,12 @@ function stage(model: RoomEditorModel, scene: Scene, actions: RoomEditorActions)
     if (spot) actions.select(scene.id, spot.id);
   };
   const move = (e: PointerEvent) => {
+    if (itemDrag && e.pointerId === itemDrag.pointer) {
+      const { sceneId, index, startX, x } = itemDrag;
+      const to = x + percent(e, e.currentTarget as Element).x - startX;
+      actions.change((d) => composeScene(d, sceneId, (c) => compose.updateItem(c, index, { x: to })));
+      return;
+    }
     if (!drag || e.pointerId !== drag.pointer) return;
     const p = percent(e, e.currentTarget as Element);
     const dx = p.x - drag.startX;
@@ -435,6 +690,7 @@ function stage(model: RoomEditorModel, scene: Scene, actions: RoomEditorActions)
     actions.change((d) => edit.updateSpot(d, sceneId, spotId!, { rect }));
   };
   const up = (e: PointerEvent) => {
+    if (itemDrag && e.pointerId === itemDrag.pointer) itemDrag = null;
     if (!drag || e.pointerId !== drag.pointer) return;
     const done = drag;
     drag = null;
@@ -463,14 +719,34 @@ function stage(model: RoomEditorModel, scene: Scene, actions: RoomEditorActions)
   };
   return html`<div class="room-ed-stage-wrap">
     <div
-      class="room-ed-stage"
+      class="room-ed-stage ${items ? "items" : ""}"
       @pointerdown=${(e: PointerEvent) => down(e, "draw", null)}
       @pointermove=${move}
       @pointerup=${up}
-      @pointercancel=${() => ((drag = null), (preview = null))}
+      @pointercancel=${() => ((drag = null), (preview = null), (itemDrag = null))}
     >
       ${picture(scene.image, model.images)}
-      ${scene.spots.map(
+      ${items
+        ? html`${scene.spots.map(
+            (s) => html`<div class="room-ed-spot passive" style="left:${s.rect.x}%;top:${s.rect.y}%;width:${s.rect.w}%;height:${s.rect.h}%"></div>`,
+          )}
+          ${built!.items.map((it, i) => {
+            const r = compose.itemRect(it);
+            if (!r) return nothing;
+            const name = Object.hasOwn(ITEM_NAMES, it.part) ? t(ITEM_NAMES[it.part as ItemPart]) : it.part;
+            return html`<div
+              class="room-ed-item ${i === selectedItem ? "selected" : ""}"
+              style="left:${r.x}%;top:${r.y}%;width:${r.w}%;height:${r.h}%"
+              tabindex="0"
+              role="button"
+              aria-label=${t("roomEdItemMove", { name })}
+              aria-pressed=${i === selectedItem ? "true" : "false"}
+              @pointerdown=${(e: PointerEvent) => itemDown(e, i, it.x)}
+              @keydown=${(e: KeyboardEvent) => itemKey(e, i, it.x)}
+              @focus=${() => i !== selectedItem && actions.selectItem(owner, i)}
+            ></div>`;
+          })}`
+        : scene.spots.map(
         (s) => html`<div
           class="room-ed-spot ${s.id === model.spot ? "selected" : ""} ${s.when.length > 0 ? "conditional" : ""}"
           style="left:${s.rect.x}%;top:${s.rect.y}%;width:${s.rect.w}%;height:${s.rect.h}%"
@@ -485,7 +761,7 @@ function stage(model: RoomEditorModel, scene: Scene, actions: RoomEditorActions)
           <span class="room-ed-spot-label">${s.label || t("untitled")}</span>
           ${s.id === model.spot ? html`<span class="room-ed-handle" aria-hidden="true" @pointerdown=${(e: PointerEvent) => down(e, "resize", s)}></span>` : nothing}
         </div>`,
-      )}
+          )}
       ${preview ? html`<div class="room-ed-spot preview" style="left:${preview.x}%;top:${preview.y}%;width:${preview.w}%;height:${preview.h}%"></div>` : nothing}
     </div>
   </div>`;
@@ -597,6 +873,9 @@ function viewsSection(model: RoomEditorModel, actions: RoomEditorActions) {
       ${textField(t("roomEdName"), v.name, ROOM_LIMITS.name, (name) => actions.change((d) => edit.updateView(d, v.id, { name })))}
       ${imagePicker(t("roomEdImage"), v.image, true, actions, (image) => actions.change((d) => edit.updateView(d, v.id, { image })))}
       ${v.image ? html`<div class="room-ed-view-picture">${picture(v.image, model.images)}</div>` : nothing}
+      ${v.image && "compose" in v.image
+        ? composer(`view:${v.id}`, v.image.compose, model, actions, (f) => actions.change((d) => composeView(d, v.id, f)))
+        : nothing}
       ${textField(t("roomEdText"), v.text ?? "", ROOM_LIMITS.text, (text) => actions.change((d) => edit.updateView(d, v.id, { text: text || undefined })), { rows: 3 })}
       ${removeButton(t("roomEdRemoveView"), () => confirmRemove(v.name, () => actions.change((d) => edit.removeView(d, v.id))))}
     `)}
