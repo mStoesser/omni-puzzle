@@ -36,13 +36,14 @@ export type AccountViewModel = {
 
 /**
  * Sync with the account (M27). "choice": another account's data is on this device, nothing syncs until the user
- * decides. `rejected`: puzzles the server did not take (limits) in the last run.
+ * decides. `rejected`, `rejectedRooms`: puzzles and escape rooms (M48) the server did not take (limits) in the last run.
  */
 export type SyncViewModel = {
   status: "off" | "idle" | "running" | "error" | "choice";
   lastSync: string | null;
   error: MessageKey | null;
   rejected: number;
+  rejectedRooms: number;
 };
 
 /** Settings that open in a sheet. */
@@ -239,6 +240,7 @@ function syncSection(model: AccountViewModel, actions: AccountActions) {
       </p>
       ${sync.status === "error" && sync.error ? html`<p class="notice" role="alert">${t("syncFailed", { reason: t(sync.error) })}</p>` : nothing}
       ${sync.rejected > 0 ? html`<p class="notice">${tn("syncRejected", sync.rejected)}</p>` : nothing}
+      ${sync.rejectedRooms > 0 ? html`<p class="notice">${tn("syncRejectedRooms", sync.rejectedRooms)}</p>` : nothing}
       <button type="button" class="secondary" ?disabled=${running} @click=${actions.syncNow}>${t("syncNow")}</button>
     </section>`;
 }

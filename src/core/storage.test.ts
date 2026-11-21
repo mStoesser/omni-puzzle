@@ -56,17 +56,21 @@ test("memory storage keeps images by key", async () => {
 test("escape rooms (M45) live in the meta store: listed newest first, apart from other meta entries", async () => {
   const storage = memoryStorage();
   const room = (id: string, updatedAt: string) => ({ id, updatedAt, doc: { kind: "escape-room" as const, title: id } });
-  await storage.putMeta("room:abc", { progress: {} }); // a saved game, not a room
+  const saveKey = `room:${"a".repeat(64)}`;
+  await storage.putMeta(saveKey, { progress: {} }); // a saved game, not a room
   await storage.putMeta("resume", { route: "#/play/x" });
   await storage.putRoom(room("a", "2026-11-20T10:00:00.000Z"));
   await storage.putRoom(room("b", "2026-11-20T11:00:00.000Z"));
   assert.deepEqual((await storage.listRooms()).map((r) => r.id), ["b", "a"]);
   assert.deepEqual(await storage.getRoom("a"), room("a", "2026-11-20T10:00:00.000Z"));
   assert.equal(await storage.getRoom("nope"), null);
-  await storage.deleteRoom("a");
+  await storage.deleteRoom("a", "2026-11-20T12:00:00.000Z");
   assert.deepEqual((await storage.listRooms()).map((r) => r.id), ["b"]);
-  await storage.clearLocal(); // rooms are not synced, so they stay with the device
-  assert.deepEqual((await storage.listRooms()).map((r) => r.id), ["b"]);
+  // M48: removing the device's data takes the rooms and their saved games along, other meta entries stay.
+  await storage.clearLocal();
+  assert.deepEqual(await storage.listRooms(), []);
+  assert.equal(await storage.getMeta(saveKey), undefined);
+  assert.deepEqual(await storage.getMeta("resume"), { route: "#/play/x" });
 });
 
 test("newPuzzleId is unique and a valid route id", () => {

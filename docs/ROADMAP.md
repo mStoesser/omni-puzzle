@@ -1232,18 +1232,26 @@ Rein und DOM-frei, vollständig mit `node --test` getestet; noch keine Oberfläc
 ### M48 – Escape-Raum: Synchronisieren
 Eigene Escape-Räume bleiben bisher auf dem Gerät (M45). Sie sollen wie Rätsel mit dem Konto synchronisiert werden
 (M27, `core/sync.ts`); zuerst nur die gebauten Räume, der Spielstand in einem Raum erst im letzten Schritt.
-- [ ] Migration: Räume als eigene Art in der Synchronisierung, mit eigener Größengrenze (bis 512 KB wie
-  `ROOM_LIMITS.maxDocBytes`, Rätsel 64 KB) und eigener Höchstzahl pro Konto; `sync_push()` prüft beides.
-- [ ] Zusammenführen wie bei Rätseln: die neuere Änderung gewinnt, Löschungen bleiben als Grabstein, bis der Server sie
-  hat. Rein und getestet in `core/sync.ts`, ohne die Raum-Logik zu laden (der Raum wird erst beim Öffnen geprüft).
-- [ ] Eigene Bilder der Räume in `user-images`: Die Grenze von 100 Bildern pro Konto reicht bei bis zu 20 Bildern pro
-  Raum nicht; anheben oder getrennt zählen. Aufräumen ungenutzter Bilder berücksichtigt synchronisierte Räume.
-- [ ] Übernehmen beim Anmelden (Konto oder Gerät behalten, wie bei Rätseln) und Abmelden schließen Räume mit ein; der
-  Hinweis „Escape-Räume werden nicht synchronisiert“ in der Bibliothek entfällt.
-- [ ] Spielstand im Raum (`room:<Schlüssel>`): eigene Regel zum Zusammenführen (Vereinigung der Flags, gelösten Rätsel
-  und geöffneten Schlösser wie im Gruppenspiel, gewonnen zählt, kürzeste Zeit). Kann auch entfallen, wenn er sich
-  als zu aufwendig erweist.
-- [ ] Datenschutzerklärung: synchronisierte Escape-Räume und ihre Bilder nennen.
+- [x] Migration `0018_sync_rooms.sql`: Tabellen `sync_rooms` (bis 512 KB je Dokument, 20 Räume und 100 Zeilen mit
+  Grabsteinen pro Konto) und `sync_room_saves` (16 KB, 500 pro Konto); `sync_push` prüft beides (je Aufruf 4 Räume, 100
+  Spielstände), `sync_pull` liefert höchstens 4 Räume je Seite, ohne Zeilen zu überspringen. Lokal gegen Postgres 16
+  geprüft (mit Platzhaltern für `auth` und `storage`): alte Aufrufe mit drei Argumenten, Grenzen, Größe, Seiten, RLS.
+- [x] Zusammenführen wie bei Rätseln (`resolveRoom`, Grabstein `r:<id>`), rein und getestet in `core/sync.ts`, ohne die
+  Raum-Logik (die braucht nur `roomImageKeysOf` in `main.ts` für die Bilder). Ältere Sync-Stände holen einmal alles neu.
+- [x] Eigene Bilder der Räume in `user-images`: Grenze von 100 auf 400 angehoben; `cleanup-images` zählt die Bilder
+  synchronisierter Räume mit.
+- [x] Übernehmen beim Anmelden und „Vom Gerät entfernen“ schließen Räume und Spielstände ein; der Hinweis „Escape-Räume
+  werden nicht synchronisiert“ in der Bibliothek entfällt; abgelehnte Räume zeigt das Profil eigens.
+- [x] Spielstand im Raum (`room:<Schlüssel>`): `mergeRoomSave` (Vereinigung wie im Gruppenspiel, meiste Hinweise,
+  frühester Start und Sieg, die Szene bleibt auf dem Gerät); „Neu starten“ setzt `resetAt`, ein späterer Neustart
+  gewinnt. Gesendet wird nur, wenn sich mehr als die Szene geändert hat.
+- [x] Datenschutzerklärung: synchronisierte Escape-Räume, ihre Bilder und Spielstände genannt (auch Löschen des Kontos).
+- [x] Im Browser geprüft: zwei Geräte desselben Kontos gegen einen simulierten Server (Raum bauen → erscheint auf dem
+  anderen, Beispielraum anfangen → das andere Gerät spielt ohne Einleitung weiter, Raum löschen → verschwindet auf dem
+  anderen). Dabei behoben: Die Bibliothek zeigte nach einem Sync während des Ladens den alten Stand.
+- [ ] Migration `0018_sync_rooms.sql` auf dev und prod anwenden, dann echter Test mit zwei Geräten: Raum mit eigenem
+  Bild bauen, auf dem anderen Gerät öffnen; einen Raum anfangen und auf dem anderen weiterspielen.
+- [ ] Datenschutzerklärung prüfen.
 
 ## Irgendwann
 - [ ] Hinweis-Knopf in der Steuerleiste des Spiels (vierte Schaltfläche). Offene Fragen: Hinweis ab der aktuellen

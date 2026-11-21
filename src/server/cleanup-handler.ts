@@ -3,10 +3,13 @@
 // - quiz-images: deletes the folders of puzzles and escape rooms (M46) that no longer exist (withdrawn, deleted by
 //   moderators, accounts deleted).
 // - user-images (M27): deletes the folders of deleted accounts, and pictures that none of the account's synced
-//   puzzles uses any more (only if older than a day, so a picture uploaded just before its puzzle stays).
+//   puzzles and escape rooms (M48) uses any more (only if older than a day, so a picture uploaded just before its
+//   puzzle stays).
 // - Rounds of playing together (M47) older than two days, via cleanup_rounds() (supabase/migrations/0017_rounds.sql).
 import { loadDocument } from "../core/document.ts";
 import { rulesRegistry } from "../puzzles/rules.ts";
+import { roomImageKeys } from "../rooms/edit.ts";
+import { loadEscapeRoom } from "../rooms/logic.ts";
 
 export type CleanupEnv = {
   url: string;
@@ -20,6 +23,7 @@ const BUCKET = "quiz-images";
 const USER_BUCKET = "user-images";
 const PAGE = 1000;
 const DOC_PAGE = 50;
+const ROOM_PAGE = 5; // room documents are up to 512 KB
 const MIN_AGE_MS = 24 * 60 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -54,6 +58,15 @@ export function imageKeysOf(doc: unknown): string[] | null {
   try {
     const { type, doc: checked } = loadDocument(doc, rulesRegistry, { draft: true });
     return type.imageKeys?.(checked.data) ?? [];
+  } catch {
+    return null;
+  }
+}
+
+/** The same for a synced escape room (M48), with the pictures of its embedded puzzles. */
+export function roomImageKeysOf(doc: unknown): string[] | null {
+  try {
+    return roomImageKeys(loadEscapeRoom(doc, rulesRegistry, { draft: true }).data, rulesRegistry);
   } catch {
     return null;
   }
@@ -101,21 +114,28 @@ async function cleanup(env: CleanupEnv) {
     return found;
   }
 
-  /** Picture keys used by the account's synced puzzles; null if one document could not be read. */
+  /** Picture keys used by the account's synced puzzles and rooms; null if one document could not be read. */
   async function usedKeys(userId: string): Promise<Set<string> | null> {
     const keys = new Set<string>();
-    for (let offset = 0; ; offset += DOC_PAGE) {
-      const query = `select=doc&user_id=eq.${userId}&deleted=is.false&order=id&limit=${DOC_PAGE}&offset=${offset}`;
-      const response = await doFetch(`${env.url}/rest/v1/sync_puzzles?${query}`, { headers });
-      if (!response.ok) throw new Error(`sync_puzzles: ${response.status}`);
-      const rows = (await response.json()) as { doc: unknown }[];
-      for (const row of rows) {
-        const found = imageKeysOf(row.doc);
-        if (found === null) return null;
-        for (const key of found) keys.add(key);
+    const tables = [
+      ["sync_puzzles", DOC_PAGE, imageKeysOf],
+      ["sync_rooms", ROOM_PAGE, roomImageKeysOf],
+    ] as const;
+    for (const [table, page, keysOf] of tables) {
+      for (let offset = 0; ; offset += page) {
+        const query = `select=doc&user_id=eq.${userId}&deleted=is.false&order=id&limit=${page}&offset=${offset}`;
+        const response = await doFetch(`${env.url}/rest/v1/${table}?${query}`, { headers });
+        if (!response.ok) throw new Error(`${table}: ${response.status}`);
+        const rows = (await response.json()) as { doc: unknown }[];
+        for (const row of rows) {
+          const found = keysOf(row.doc);
+          if (found === null) return null;
+          for (const key of found) keys.add(key);
+        }
+        if (rows.length < page) break;
       }
-      if (rows.length < DOC_PAGE) return keys;
     }
+    return keys;
   }
 
   // Pictures of published puzzles.
@@ -131,7 +151,7 @@ async function cleanup(env: CleanupEnv) {
     files += paths.length;
   }
 
-  // Pictures of synced puzzles.
+  // Pictures of synced puzzles and rooms.
   const users = (await list(USER_BUCKET, "")).map((e) => e.name).filter((name) => UUID.test(name));
   const accounts = await existing("profiles", users);
   let userFiles = 0;

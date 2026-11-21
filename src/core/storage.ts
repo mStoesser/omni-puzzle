@@ -2,8 +2,21 @@ import { sha256Hex } from "./hash.ts";
 import { sniffImageType } from "./images.ts";
 import type { ImageType } from "./images.ts";
 import type { PuzzleDocument } from "./types.ts";
-import { mergeProgress, progressDirtyKey, progressStamp, puzzleDirtyKey, resolvePuzzle, sameProgress } from "./sync.ts";
-import type { DirtyEntry, RemoteRow, Tombstone } from "./sync.ts";
+import {
+  isRoomSaveShape,
+  mergeProgress,
+  mergeRoomSave,
+  progressDirtyKey,
+  progressStamp,
+  puzzleDirtyKey,
+  resolvePuzzle,
+  resolveRoom,
+  roomDirtyKey,
+  roomSaveDirtyKey,
+  roomSaveStamp,
+  sameProgress,
+} from "./sync.ts";
+import type { DirtyEntry, RemoteRow, RoomSaveShape, Tombstone } from "./sync.ts";
 
 /** An own puzzle in the library. `doc` may be a draft that is not playable yet. */
 export type PuzzleRecord = { id: string; doc: PuzzleDocument; updatedAt: string };
@@ -16,7 +29,7 @@ export type ProgressRecord = { key: string; solved: boolean; bestMoves: number; 
 
 /**
  * An own escape room (M45). `doc` is checked when opened (`loadEscapeRoom`, rooms/logic.ts); here only its kind. Kept
- * in the meta store (no new database version) and not synced.
+ * in the meta store (no new database version); synced like puzzles since M48 (dirty key and tombstone `r:<id>`).
  */
 export type RoomRecord = { id: string; doc: { kind: "escape-room" } & Record<string, unknown>; updatedAt: string };
 
@@ -54,8 +67,15 @@ export type Storage = {
   listRooms(): Promise<RoomRecord[]>; // newest first
   getRoom(id: string): Promise<RoomRecord | null>;
   putRoom(record: RoomRecord): Promise<void>;
-  deleteRoom(id: string): Promise<void>;
-  /** Removes puzzles, tombstones, progress, images and marks; the meta entries stay. */
+  /** Removes the room and leaves a tombstone (M48), like deletePuzzle. */
+  deleteRoom(id: string, deletedAt: string): Promise<void>;
+  /**
+   * The saved game in a room (M44) by its content key, in the meta store under `room:<key>` (roomSaveKey). Writing
+   * marks it for sync (M48) only if more than the scene changed (roomSaveStamp).
+   */
+  getRoomSave(key: string): Promise<RoomSaveShape | null>;
+  putRoomSave(key: string, save: RoomSaveShape): Promise<void>;
+  /** Removes puzzles, tombstones, progress, images, marks, rooms and their saved games; other meta entries stay. */
   clearLocal(): Promise<void>;
 };
 
@@ -106,11 +126,16 @@ type Tables = {
   put(store: StoreName, value: unknown, key?: string): void;
   delete(store: StoreName, key: string): void;
   getAll(store: StoreName): Promise<unknown[]>;
+  getAllKeys(store: StoreName): Promise<string[]>;
   clear(store: StoreName): void;
 };
 type Run = <T>(stores: StoreName[], mode: IDBTransactionMode, op: (tables: Tables) => Promise<T>) => Promise<T>;
 
 const markDirty = (tables: Tables, key: string, stamp: string) => tables.put("dirty", { key, stamp } satisfies DirtyEntry);
+const saveStamp = (save: RoomSaveShape) => sha256Hex(roomSaveStamp(save));
+const ROOM_PREFIX = "escape-room:";
+const SAVE_PREFIX = "room:";
+const SAVE_KEY = /^room:[0-9a-f]{64}$/;
 
 function storageOn(run: Run): Storage {
   const getOne = <T>(store: StoreName, key: string, check: (v: unknown) => v is T) =>
@@ -153,22 +178,60 @@ function storageOn(run: Run): Storage {
           const current = await t.get("dirty", entry.key);
           if (!isDirtyEntry(current) || current.stamp !== entry.stamp) continue; // changed again meanwhile
           t.delete("dirty", entry.key);
-          if (entry.key.startsWith("p:")) {
-            const tombstone = await t.get("tombstones", entry.key.slice(2));
+          const tombstoneId = entry.key.startsWith("p:") ? entry.key.slice(2) : entry.key.startsWith("r:") ? entry.key : null;
+          if (tombstoneId !== null) {
+            const tombstone = await t.get("tombstones", tombstoneId);
             if (isTombstone(tombstone) && tombstone.deletedAt === entry.stamp) t.delete("tombstones", tombstone.id);
           }
         }
       }),
     markAllDirty: () =>
-      run(["puzzles", "tombstones", "progress", "dirty"], "readwrite", async (t) => {
+      run(["puzzles", "tombstones", "progress", "dirty", "meta"], "readwrite", async (t) => {
         for (const r of (await t.getAll("puzzles")).filter(isPuzzleRecord)) markDirty(t, puzzleDirtyKey(r.id), r.updatedAt);
-        for (const r of (await t.getAll("tombstones")).filter(isTombstone)) markDirty(t, puzzleDirtyKey(r.id), r.deletedAt);
+        for (const r of (await t.getAll("tombstones")).filter(isTombstone)) {
+          // Room tombstones carry their dirty key as id (M48).
+          markDirty(t, r.id.startsWith("r:") ? r.id : puzzleDirtyKey(r.id), r.deletedAt);
+        }
         for (const r of (await t.getAll("progress")).filter(isProgressRecord)) markDirty(t, progressDirtyKey(r.key), progressStamp(r));
+        for (const key of await t.getAllKeys("meta")) {
+          const value = await t.get("meta", key);
+          if (key.startsWith(ROOM_PREFIX) && isRoomRecord(value)) markDirty(t, roomDirtyKey(value.id), value.updatedAt);
+          else if (SAVE_KEY.test(key) && isRoomSaveShape(value)) markDirty(t, roomSaveDirtyKey(key.slice(SAVE_PREFIX.length)), saveStamp(value));
+        }
       }),
     applyRemote: (rows) =>
-      run(["puzzles", "tombstones", "progress", "dirty"], "readwrite", async (t) => {
+      run(["puzzles", "tombstones", "progress", "dirty", "meta"], "readwrite", async (t) => {
         let changed = false;
         for (const row of rows) {
+          if (row.kind === "room") {
+            const dirtyKey = roomDirtyKey(row.id);
+            const local = await t.get("meta", roomKey(row.id));
+            const tombstone = await t.get("tombstones", dirtyKey);
+            const result = resolveRoom(isRoomRecord(local) ? local : null, isTombstone(tombstone) ? tombstone : null, row);
+            if (result.action === "keep") {
+              const current = isRoomRecord(local) ? local.updatedAt : isTombstone(tombstone) ? tombstone.deletedAt : null;
+              if (result.dirty && current !== null && !(await t.get("dirty", dirtyKey))) markDirty(t, dirtyKey, current);
+              continue;
+            }
+            changed = true;
+            t.delete("dirty", dirtyKey);
+            t.delete("tombstones", dirtyKey);
+            if (result.action === "put") t.put("meta", result.record, roomKey(row.id));
+            else t.delete("meta", roomKey(row.id));
+            continue;
+          }
+          if (row.kind === "room-save") {
+            const key = SAVE_PREFIX + row.key;
+            const local = await t.get("meta", key);
+            const merged = mergeRoomSave(isRoomSaveShape(local) ? local : null, row.save);
+            if (JSON.stringify(local) !== JSON.stringify(merged)) {
+              t.put("meta", merged, key);
+              changed = true;
+            }
+            if (roomSaveStamp(merged) === roomSaveStamp(row.save)) t.delete("dirty", roomSaveDirtyKey(row.key));
+            else markDirty(t, roomSaveDirtyKey(row.key), saveStamp(merged));
+            continue;
+          }
           if (row.kind === "puzzle") {
             const dirtyKey = puzzleDirtyKey(row.id);
             const local = await t.get("puzzles", row.id);
@@ -210,11 +273,34 @@ function storageOn(run: Run): Storage {
         const value = await t.get("meta", roomKey(id));
         return isRoomRecord(value) ? value : null;
       }),
-    putRoom: (record) => run(["meta"], "readwrite", async (t) => t.put("meta", record, roomKey(record.id))),
-    deleteRoom: (id) => run(["meta"], "readwrite", async (t) => t.delete("meta", roomKey(id))),
+    putRoom: (record) =>
+      run(["meta", "tombstones", "dirty"], "readwrite", async (t) => {
+        t.put("meta", record, roomKey(record.id));
+        t.delete("tombstones", roomDirtyKey(record.id));
+        markDirty(t, roomDirtyKey(record.id), record.updatedAt);
+      }),
+    deleteRoom: (id, deletedAt) =>
+      run(["meta", "tombstones", "dirty"], "readwrite", async (t) => {
+        t.delete("meta", roomKey(id));
+        t.put("tombstones", { id: roomDirtyKey(id), deletedAt } satisfies Tombstone);
+        markDirty(t, roomDirtyKey(id), deletedAt);
+      }),
+    getRoomSave: (key) =>
+      run(["meta"], "readonly", async (t) => {
+        const value = await t.get("meta", SAVE_PREFIX + key);
+        return isRoomSaveShape(value) ? value : null;
+      }),
+    putRoomSave: (key, save) =>
+      run(["meta", "dirty"], "readwrite", async (t) => {
+        const previous = await t.get("meta", SAVE_PREFIX + key);
+        t.put("meta", save, SAVE_PREFIX + key);
+        const stamp = saveStamp(save);
+        if (!isRoomSaveShape(previous) || saveStamp(previous) !== stamp) markDirty(t, roomSaveDirtyKey(key), stamp);
+      }),
     clearLocal: () =>
-      run(["puzzles", "tombstones", "progress", "images", "dirty"], "readwrite", async (t) => {
+      run(["puzzles", "tombstones", "progress", "images", "dirty", "meta"], "readwrite", async (t) => {
         for (const store of ["puzzles", "tombstones", "progress", "images", "dirty"] as const) t.clear(store);
+        for (const key of await t.getAllKeys("meta")) if (key.startsWith(ROOM_PREFIX) || SAVE_KEY.test(key)) t.delete("meta", key);
       }),
   };
 }
@@ -233,6 +319,7 @@ function idbStorage(db: IDBDatabase): Storage {
       put: (store, value, key) => void (key === undefined ? tx.objectStore(store).put(value) : tx.objectStore(store).put(value, key)),
       delete: (store, key) => void tx.objectStore(store).delete(key),
       getAll: (store) => request(tx.objectStore(store).getAll()),
+      getAllKeys: async (store) => (await request(tx.objectStore(store).getAllKeys())).map(String),
       clear: (store) => void tx.objectStore(store).clear(),
     };
     return new Promise((resolve, reject) => {
@@ -264,12 +351,13 @@ export function memoryStorage(): Storage {
     },
     delete: (store, key) => void map(store).delete(key),
     getAll: async (store) => [...map(store).values()].map((v) => structuredClone(v)),
+    getAllKeys: async (store) => [...map(store).keys()],
     clear: (store) => map(store).clear(),
   };
   return storageOn((_stores, _mode, op) => op(tables));
 }
 
-const roomKey = (id: string) => `escape-room:${id}`;
+const roomKey = (id: string) => ROOM_PREFIX + id;
 
 function isRoomRecord(value: unknown): value is RoomRecord {
   if (typeof value !== "object" || value === null) return false;

@@ -82,7 +82,7 @@ export function libraryView(
   `;
 }
 
-/** Own escape rooms (M45): only on this device, not filtered or searched with the puzzles. */
+/** Own escape rooms (M45, synced since M48): not filtered or searched with the puzzles. */
 function roomsSection(rooms: readonly LibraryRoomItem[] | null, actions: LibraryViewActions) {
   return html`<section class="library-rooms" aria-labelledby="library-rooms">
     <div class="section-head with-action">
@@ -112,8 +112,7 @@ function roomsSection(rooms: readonly LibraryRoomItem[] | null, actions: Library
                   ${popoverMenu(`room-menu-${room.id}`, t("libraryMenu", { title }), menu, "icon-button quiet-icon")}
                 </li>`;
               })}
-            </ul>
-            <p class="hint">${t("libraryRoomsHint")}</p>`}
+            </ul>`}
   </section>`;
 }
 

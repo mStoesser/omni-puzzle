@@ -319,7 +319,7 @@ const store = createStore<AppState>({
     editingPublication: null,
     confirmWithdraw: null,
     panel: null,
-    sync: { status: "off", lastSync: null, error: null, rejected: 0 },
+    sync: { status: "off", lastSync: null, error: null, rejected: 0, rejectedRooms: 0 },
   },
   gallery: null,
   newest: [],
@@ -707,7 +707,12 @@ function updateRoomSave(change: (save: RoomSave) => RoomSave) {
     }
     return;
   }
-  void storage.then((s) => s.putMeta(room.key, save)).catch((error: unknown) => console.warn("room", error));
+  // M48: the saved game of a room (not of a round) is synced; a new scene alone is not sent.
+  const synced = room.key.startsWith("room:") ? room.key.slice("room:".length) : null;
+  void storage
+    .then((s) => (synced ? s.putRoomSave(synced, save) : s.putMeta(room.key, save)))
+    .then(() => synced && requestSync(SYNC_DELAY_MS))
+    .catch((error: unknown) => console.warn("room", error));
 }
 
 /** Takes over an accepted step: progress, the clock at the victory, the scene text, what opens. */
@@ -826,7 +831,8 @@ const roomActions = {
     if (!room || room.group) return; // a round's progress belongs to everyone
 
     if (!room.save.progress.shared.won && !confirm(t("roomRestartConfirm"))) return;
-    updateRoomSave(() => rooms().newRoomSave(room.doc.data, Date.now()));
+    // resetAt (M48): this new game wins over the old one on the other devices.
+    updateRoomSave(() => ({ ...rooms().newRoomSave(room.doc.data, Date.now()), resetAt: Date.now() }));
     setRoom((r) => ({ ...r, open: null, puzzle: null, pendingOpen: null, hintsOpen: false, sceneText: r.save.introSeen, lock: { input: "", wrong: false } }));
     tickRoom();
   },
@@ -3198,8 +3204,24 @@ function imageKeysOf(doc: PuzzleDocument) {
   }
 }
 
+/** The pictures of a synced room (M48); null while the room code cannot be loaded (offline): the room waits. */
+async function roomImageKeysOf(doc: RoomRecord["doc"]) {
+  const chunk = await loadRoomChunk().catch(() => null);
+  if (!chunk) return null;
+  try {
+    return chunk.roomImageKeys(chunk.loadEscapeRoom(doc, registry, { draft: true }).data, registry);
+  } catch {
+    return [];
+  }
+}
+
 async function hasLocalData(s: Storage) {
-  return (await s.listPuzzles()).length > 0 || (await s.listProgress()).length > 0 || (await s.listTombstones()).length > 0;
+  return (
+    (await s.listPuzzles()).length > 0 ||
+    (await s.listProgress()).length > 0 ||
+    (await s.listTombstones()).length > 0 ||
+    (await s.listRooms()).length > 0
+  );
 }
 
 /** The device's data goes into `userId`'s account: everything is sent, and everything is pulled again. */
@@ -3229,10 +3251,10 @@ async function runSync() {
     if (decision === "adopt") await takeOver(s, user.id);
     setSync({ status: "running" });
     if (saveTimer !== undefined) await saveEditor(); // pending edits go along
-    const outcome = await syncOnce({ api: syncApi, storage: s, userId: user.id, accept: acceptSynced, imageKeys: imageKeysOf, now });
+    const outcome = await syncOnce({ api: syncApi, storage: s, userId: user.id, accept: acceptSynced, imageKeys: imageKeysOf, roomImageKeys: roomImageKeysOf, now });
     if (store.get().account.user?.id !== user.id) return; // signed out or switched meanwhile
     const { lastSync } = await readSyncMeta(s, user.id);
-    setSync({ status: "idle", lastSync, error: null, rejected: outcome.rejected });
+    setSync({ status: "idle", lastSync, error: null, rejected: outcome.rejected, rejectedRooms: outcome.rejectedRooms });
     if (outcome.changed) await reloadLocal(false);
   } catch (error) {
     console.warn("sync", error);
@@ -3246,9 +3268,28 @@ async function runSync() {
   }
 }
 
+/**
+ * M48: a saved game merged by sync while its room is open (played on another device meanwhile) is taken over: what was
+ * reached there counts here too. Rounds and test play have their own state.
+ */
+async function reloadRoomSave() {
+  const room = store.get().room;
+  if (!room || room.test || room.group || !room.key.startsWith("room:")) return;
+  const raw = await storage.then((s) => s.getMeta(room.key)).catch(() => null);
+  const current = store.get().room;
+  if (current?.key !== room.key) return;
+  const save = rooms().parseRoomSave(raw, current.doc.data);
+  if (!save || JSON.stringify(save) === JSON.stringify(current.save)) return;
+  setRoom((r) => ({ ...r, save }));
+  tickRoom();
+}
+
 /** Shows what sync changed: the library (if loaded) and the progress. `replace` drops progress kept in memory. */
 async function reloadLocal(replace: boolean) {
-  if (store.get().library !== null) await loadLibrary();
+  // Also while the library is still loading: that load may have read the data from before the sync.
+  if (store.get().library !== null || store.get().route.name === "library") await loadLibrary();
+  await reloadRoomSave();
+  if (store.get().route.name === "home") void loadRoomStatus();
   const records = await (await storage).listProgress();
   store.set((state) => {
     const progress = new Map(replace ? [] : state.progress);
@@ -3271,7 +3312,7 @@ async function resolveSync(choice: "merge" | "replace") {
       await s.putMeta(OWNER_KEY, user.id);
       for (const url of localImageUrls.values()) if (url && url !== "loading") URL.revokeObjectURL(url);
       localImageUrls.clear();
-      patch({ editor: null, progress: new Map() });
+      patch({ editor: null, roomEditor: null, room: null, progress: new Map() });
       await reloadLocal(true);
       setAccount({ message: { tone: "ok", text: "syncReplaced" } });
     }
@@ -3285,7 +3326,10 @@ async function resolveSync(choice: "merge" | "replace") {
 
 // --- Library ---
 
+let libraryLoads = 0; // a load overtaken by a later one (e.g. after sync, M48) drops its older result
+
 async function loadLibrary() {
+  const load = ++libraryLoads;
   void loadPublishedKeys();
   const records = await (await storage).listPuzzles();
   const items = records.flatMap((record): LibraryItem[] => {
@@ -3313,6 +3357,7 @@ async function loadLibrary() {
       return null; // a draft: neither shared nor published in this form
     }
   };
+  if (load !== libraryLoads) return;
   patch({
     library: items,
     libraryRooms: rooms.map((r) => {
@@ -3392,7 +3437,7 @@ const libraryActions = {
   newRoom: () => void createRoom(),
   removeRoom: async (id: string) => {
     if (store.get().roomEditor?.id === id) patch({ roomEditor: null });
-    if (await save((s) => s.deleteRoom(id))) await loadLibrary();
+    if (await save((s) => s.deleteRoom(id, now()))) await loadLibrary();
   },
   openBuild: () => patch({ buildSheet: true }),
   setFilter: (filter: LibraryFilter) => location.replace(formatRoute({ name: "library", filter })),
@@ -3557,7 +3602,7 @@ function onSession(session: Session | null) {
   if (route.name === "home" || route.name === "daily") void loadDaily(); // solved and streak are the user's
   if (user) void flushScoreQueue();
   // Signing out keeps the device's data; it stays with that account until another one signs in (ownerDecision).
-  setSync({ status: "off", lastSync: null, error: null, rejected: 0 });
+  setSync({ status: "off", lastSync: null, error: null, rejected: 0, rejectedRooms: 0 });
   if (user) requestSync();
   else clearTimeout(syncTimer);
 }

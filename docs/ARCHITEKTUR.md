@@ -89,7 +89,7 @@ src/
     chains.ts             # Rätsel-Ketten: Laden, Fortschritt/Schlösser, Entwurf, Veröffentlichen (M24)
     scores.ts             # Ranglisten: Lösung nachspielen (auch in der Edge Function), laden, Warteschlange (M25)
     daily.ts, day.ts      # Rätsel des Tages: laden, Tagesrangliste, Serie, Planung; Kalendertage rechnen (M26)
-    sync.ts               # Bibliothek und Fortschritt mit dem Konto abgleichen: Zusammenführen, Holen, Senden (M27)
+    sync.ts               # Bibliothek, Fortschritt, Escape-Räume und Spielstände mit dem Konto abgleichen (M27, M48)
     difficulty.ts         # gemeinsame Schwierigkeitsskala 1–3 (aus minMoves bzw. Bewertungen)
     puzzle-theme.ts       # Rätsel-Themes: Rollen, Prüfung, Farbrechnung, Kontrastprüfung (M29)
     theme-presets.ts      # vorgefertigte Themes (M29)
@@ -890,7 +890,7 @@ Editor ──POST /functions/v1/publish {doc, title, description} + Nutzer-Token
   auf dem Gerät, fragt das Profil: „In mein Konto übernehmen“ oder „Vom Gerät entfernen“ (dann wird das Konto geladen).
   Bis zur Antwort wird nicht synchronisiert.
 - **Bilder** liegen privat in `user-images/<uid>/<key>` (Storage-Policies: nur der eigene Ordner, lesen, hochladen,
-  ersetzen; höchstens 100 Dateien über `user_image_count()`). Hochgeladen wird mit `x-upsert`, weil gleicher Schlüssel
+  ersetzen; höchstens 100 Dateien über `user_image_count()`, seit M48 400). Hochgeladen wird mit `x-upsert`, weil gleicher Schlüssel
   gleiche Bytes heißt. Geladen wird ein Bild erst, wenn es angezeigt wird und lokal fehlt. `cleanup-images` löscht
   täglich die Ordner gelöschter Konten und Bilder, die keins der synchronisierten Rätsel mehr benutzt und die älter als
   ein Tag sind. Lässt sich ein Dokument dabei nicht lesen, bleiben alle Bilder dieses Kontos.
@@ -1326,8 +1326,8 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
 ### Escape-Raum-Editor (M45)
 
 - **Speicher:** eigene Escape-Räume als `RoomRecord` (`id`, `doc`, `updatedAt`) im Meta-Speicher unter
-  `escape-room:<id>` (`listRooms`, `getRoom`, `putRoom`, `deleteRoom` in `core/storage.ts`), ohne neue DB-Version. Nicht
-  synchronisiert; `clearLocal` lässt sie stehen.
+  `escape-room:<id>` (`listRooms`, `getRoom`, `putRoom`, `deleteRoom` in `core/storage.ts`), ohne neue DB-Version. Seit
+  M48 synchronisiert (siehe dort).
 - **Entwürfe:** `loadEscapeRoom(raw, registry, { draft: true })` erlaubt, was ein Ersteller nach und nach ausfüllt
   (leere Namen und Codes, Bereiche ohne Aktion, leere Ansichten, Rätsel-Entwürfe); Struktur, Grenzen und Verweise prüft
   es wie immer. `draftProblems` (`rooms/edit.ts`) listet genau das, was ohne `draft` scheitern würde.
@@ -1412,6 +1412,46 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
   als 30 Sekunden nicht abgefragt hat, gilt als „gerade nicht da“), Einladen (Teilen-Fenster mit Code und QR-Code) und
   Verlassen (löscht den eigenen Eintrag, der gemeinsame Fortschritt bleibt). Gewinnt einer, sehen alle den Sieg.
 
+### Escape-Räume synchronisieren (M48)
+
+- **Was:** eigene Escape-Räume (mit Löschungen und ihren Bildern) und der Spielstand in Räumen (`room:<Inhaltsschlüssel>`,
+  also auch in Beispiel-, Galerie- und geteilten Räumen). Nicht: der Stand in Runden (M47), der gehört dem Server der
+  Runde.
+- **Räume** wie Rätsel (M27): Die neuere Änderung gewinnt, Löschen hinterlässt einen Grabstein. Markierung und Grabstein
+  heißen `r:<id>` (im selben Store wie die der Rätsel, deren ids keinen Doppelpunkt haben). `core/sync.ts` lädt dafür
+  keine Raum-Logik: Vom Server kommt ein Raum, wenn sein Dokument `kind: "escape-room"` hat; geprüft wird er beim Öffnen.
+  Nur die Bilder eines Raums brauchen die Logik (`roomImageKeys`, auch die der eingebetteten Quiz): `main.ts` reicht
+  `roomImageKeysOf` herein, das den Raum-Chunk lädt; ohne ihn (offline, nicht im Cache) wartet der Raum auf den
+  nächsten Sync.
+- **Spielstände** (`mergeRoomSave`, rein und getestet): Was irgendwo erreicht wurde, zählt, wie im Gruppenspiel
+  (Schalter, gelöste Rätsel, offene Schlösser, Sieg), dazu je Raum die meisten gezeigten Hinweise und die gesehene
+  Einleitung. Die Uhr läuft ab dem frühesten Start, ein Sieg zählt zu seinem frühesten Zeitpunkt. Die Szene bleibt die
+  des Geräts. „Neu starten“ setzt `resetAt`; ein späterer Neustart gewinnt als Ganzes, sonst würde das Zusammenführen
+  den alten Stand zurückholen. Der Server führt nicht zusammen: Er behält den zuletzt gesendeten Stand, ein Gerät, das
+  ihn holt, führt ihn mit seinem zusammen und sendet das Ergebnis, wenn es mehr enthält. Die Markierung `s:<Schlüssel>`
+  setzt `putRoomSave` nur, wenn sich mehr als die Szene geändert hat (`roomSaveStamp`), damit nicht jeder Schritt
+  gesendet wird. Ist ein Raum offen, während ein Sync seinen Stand ändert, übernimmt ihn die Ansicht
+  (`reloadRoomSave`).
+- **Server** (`0018_sync_rooms.sql`): Tabellen `sync_rooms` (wie `sync_puzzles`, bis 512 KB je Dokument) und
+  `sync_room_saves` (bis 16 KB), dieselbe Änderungsnummer wie Rätsel und Fortschritt, also ein Cursor. `sync_push`
+  bekommt `rooms` (je Aufruf höchstens 4) und `saves` (höchstens 100); abgelehnte Räume kommen mit `kind: "room"`
+  zurück. Die App sendet beide nur, wenn sie welche hat, so geht der Aufruf auch ohne die Migration. `sync_pull` behält
+  seine Spalten (Raum: `doc`, `updated_at`, `deleted`; Spielstand: `id` = Schlüssel, `doc` = Stand) und liefert höchstens
+  4 Räume je Seite (bis 2 MB); Zeilen hinter dem letzten davon bleiben für den nächsten Aufruf, damit keine übersprungen
+  wird. Deshalb holt die App weiter, solange eine Seite voll ist oder so viele Räume enthält.
+- **Ältere Apps** ignorieren die neuen Arten, schieben ihren Cursor aber darüber hinweg. `SyncMeta` hat deshalb eine
+  `version`; fehlt sie, holt das Gerät einmal alles neu.
+- **Grenzen** (`SYNC`): 20 Räume pro Konto (100 Zeilen mit Grabsteinen), 500 Spielstände, 400 statt 100 Bilder (ein Raum
+  hat bis zu 20). Schlimmster Fall pro Konto: 20 × 512 KB = 10 MB Datenbank und 400 × 200 KB = 80 MB Storage; typische
+  Räume sind 20–100 KB groß.
+- **Abgelehnte Räume** zeigt das Profil getrennt von Rätseln (`syncRejectedRooms`). „Vom Gerät entfernen“ löscht auch
+  Räume und Spielstände (`clearLocal`), „In mein Konto übernehmen“ markiert sie (`markAllDirty`). `cleanup-images`
+  zählt die Bilder synchronisierter Räume mit (`roomImageKeysOf`, Seiten zu 5 Dokumenten).
+- **Bibliothek:** Der Hinweis „werden nicht synchronisiert“ entfällt. Ein Laden der Bibliothek, das ein späteres
+  überholt, verwirft sein Ergebnis; nach einem Sync wird sie auch neu geladen, wenn sie noch lädt (sonst zeigte sie den
+  Stand von vor dem Sync, im Browser-Test aufgefallen: ein auf einem Gerät gelöschter Raum blieb auf dem anderen
+  sichtbar).
+
 ### Grundsätze
 - **Optional:** Ohne Konfiguration in `src/backend.ts` läuft die App wie in Phase 1. Spielen, Bauen und Teilen per Link
   brauchen nie einen Account und nie das Backend.
@@ -1443,6 +1483,8 @@ seiner Räume eine *scene* (in der Oberfläche „Raum“).
 | `sync_state` | `user_id` (Primärschlüssel), `rev` (letzte Änderungsnummer des Kontos) | `sync_push` |
 | `sync_puzzles` | `user_id`, `id` (Primärschlüssel aus beiden), `doc` (null wenn gelöscht), `updated_at` (vom Gerät), `deleted`, `rev`, `changed_at` | `sync_push`, nur neuere Stände; lesen nur der Nutzer selbst |
 | `sync_progress` | `user_id`, `key` (Primärschlüssel aus beiden), `solved`, `best_moves`, `best_time_ms`, `rev`, `changed_at` | `sync_push`, nur bessere Werte; lesen nur der Nutzer selbst |
+| `sync_rooms` (M48) | wie `sync_puzzles`, Dokument bis 512 KB | `sync_push`, nur neuere Stände; lesen nur der Nutzer selbst |
+| `sync_room_saves` (M48) | `user_id`, `key` (Primärschlüssel aus beiden), `save` (bis 16 KB), `rev`, `changed_at` | `sync_push`, der zuletzt gesendete Stand (die Geräte führen zusammen); lesen nur der Nutzer selbst |
 
 Zähler (`like_count`, `rating_*`, `report_count`) pflegen Trigger, sodass die Galerie ohne Aggregation sortieren kann.
 Der Spielzähler wird über eine Datenbankfunktion (`register_play`) erhöht, die auch anonym aufrufbar ist.

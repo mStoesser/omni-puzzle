@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { handleCleanup, imageKeysOf } from "./cleanup-handler.ts";
+import { handleCleanup, imageKeysOf, roomImageKeysOf } from "./cleanup-handler.ts";
 import { createDefault } from "../puzzles/quiz/logic.ts";
+import { escapeRoomExamples } from "../rooms/examples.ts";
 
 const URL_ = "https://abc.supabase.co";
 const KEEP = "11111111-1111-4111-8111-111111111111";
@@ -11,6 +12,14 @@ const OLD_USER = "44444444-4444-4444-8444-444444444444";
 const ROOM = "55555555-5555-4555-8555-555555555555";
 const NOW = Date.parse("2026-11-07T12:00:00Z");
 const USED = "c".repeat(64);
+const IN_ROOM = "d".repeat(64);
+
+/** An example room whose start scene shows an own picture. */
+function roomWith(key: string) {
+  const doc = structuredClone(escapeRoomExamples[0]!.doc) as unknown as { data: { scenes: { image: unknown }[] } };
+  doc.data.scenes[0]!.image = { key };
+  return doc;
+}
 
 function quizWith(key: string) {
   const data = createDefault();
@@ -34,7 +43,8 @@ function storage(calls: Call[]): typeof fetch {
       if (prefix === "") return Response.json([{ name: USER }, { name: OLD_USER }]);
       return Response.json([
         { name: USED, created_at: "2026-11-01T00:00:00Z" },
-        { name: "d".repeat(64), created_at: "2026-11-01T00:00:00Z" }, // unused, old
+        { name: IN_ROOM, created_at: "2026-11-01T00:00:00Z" }, // in a synced room (M48)
+        { name: "f".repeat(64), created_at: "2026-11-01T00:00:00Z" }, // unused, old
         { name: "e".repeat(64), created_at: "2026-11-07T11:00:00Z" }, // unused, uploaded an hour ago
       ]);
     }
@@ -43,6 +53,7 @@ function storage(calls: Call[]): typeof fetch {
     if (u.includes("/rest/v1/profiles")) return Response.json([{ id: USER }]);
     if (u.endsWith("/rest/v1/rpc/cleanup_rounds")) return Response.json(2);
     if (u.includes("/rest/v1/sync_puzzles")) return Response.json(new URL(u).searchParams.get("offset") === "0" ? [{ doc: quizWith(USED) }] : []);
+    if (u.includes("/rest/v1/sync_rooms")) return Response.json(new URL(u).searchParams.get("offset") === "0" ? [{ doc: roomWith(IN_ROOM) }] : []);
     return Response.json([]);
   }) as typeof fetch;
 }
@@ -63,7 +74,7 @@ test("deletes the folders of puzzles and escape rooms that no longer exist, and 
     removedFiles: 2,
     userFolders: 2,
     removedUserFolders: 1,
-    removedUserFiles: 4,
+    removedUserFiles: 5,
     removedRounds: 2,
   });
   assert.match(decodeURIComponent(calls.find((c) => c.url.includes("/rest/"))!.url), new RegExp(`id=in\\.\\(${KEEP},${GONE},${ROOM}\\)`));
@@ -72,9 +83,14 @@ test("deletes the folders of puzzles and escape rooms that no longer exist, and 
   const deletes = calls.filter((c) => c.init.method === "DELETE").map((c) => [c.url.split("/object/")[1], JSON.parse(String(c.init.body)).prefixes]);
   assert.deepEqual(deletes, [
     ["quiz-images", [`${GONE}/${"a".repeat(64)}`, `${GONE}/${"b".repeat(64)}`]],
-    ["user-images", [`${USER}/${"d".repeat(64)}`]],
-    ["user-images", [USED, "d".repeat(64), "e".repeat(64)].map((k) => `${OLD_USER}/${k}`)],
+    ["user-images", [`${USER}/${"f".repeat(64)}`]],
+    ["user-images", [USED, IN_ROOM, "f".repeat(64), "e".repeat(64)].map((k) => `${OLD_USER}/${k}`)],
   ]);
+});
+
+test("roomImageKeysOf reads the pictures of a synced room, null for unreadable ones", () => {
+  assert.deepEqual(roomImageKeysOf(roomWith(IN_ROOM)), [IN_ROOM]);
+  assert.equal(roomImageKeysOf({ kind: "escape-room", version: 99 }), null);
 });
 
 test("imageKeysOf reads the pictures of a synced document, null for unreadable ones", () => {

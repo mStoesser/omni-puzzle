@@ -10,6 +10,8 @@ export type RoomSave = {
   introSeen: boolean;
   startedAt: number; // ms since 1970; the room clock is wall time, like in a real escape room
   wonAfterMs: number | null;
+  /** When "restart" was chosen last (M48): a later restart on another device wins over this game when syncing. */
+  resetAt?: number;
 };
 
 /** The meta-store key of a room's saved game: the same room (by content) continues, a changed one starts anew. */
@@ -55,7 +57,9 @@ export function parseRoomSave(raw: unknown, data: EscapeRoomData): RoomSave | nu
   if (typeof startedAt !== "number" || !Number.isFinite(startedAt) || typeof introSeen !== "boolean") return null;
   if (wonAfterMs !== null && (typeof wonAfterMs !== "number" || wonAfterMs < 0)) return null;
   if (shared.won !== (wonAfterMs !== null)) return null;
-  return { progress: { scene, shared }, hints, introSeen, startedAt, wonAfterMs };
+  const save: RoomSave = { progress: { scene, shared }, hints, introSeen, startedAt, wonAfterMs };
+  if (typeof raw.resetAt === "number" && Number.isFinite(raw.resetAt) && raw.resetAt >= 0) save.resetAt = raw.resetAt;
+  return save;
 }
 
 /** Whether anything happened yet (for "continue" on the home page). */
